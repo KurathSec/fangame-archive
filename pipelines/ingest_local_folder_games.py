@@ -247,7 +247,7 @@ def main():
         # Trigger rebuild of static assets
         print("Rebuilding static build database files...")
         import subprocess
-        subprocess.run(["py", "pipelines/build_github_pages.py"])
+        subprocess.run([sys.executable, "pipelines/build_github_pages.py"])
     else:
         print("\nNo database updates occurred during this sweep.")
 

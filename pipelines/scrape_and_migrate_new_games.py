@@ -1040,14 +1040,14 @@ def main():
     # 7. Synchronize storage statistics
     log("\nRunning storage statistics synchronizer...")
     try:
-        subprocess.run(["py", "pipelines/update_storage_stats.py"], check=True)
+        subprocess.run([sys.executable, "pipelines/update_storage_stats.py"], check=True)
     except Exception as e:
         log(f"  [ERROR] update_storage_stats.py failed: {e}")
         
     # 8. Recompile the frontend static pages
     log("\nRebuilding Pages static distribution compiler...")
     try:
-        subprocess.run(["py", "pipelines/build_github_pages.py"], check=True)
+        subprocess.run([sys.executable, "pipelines/build_github_pages.py"], check=True)
     except Exception as e:
         log(f"  [ERROR] build_github_pages.py failed: {e}")
         
