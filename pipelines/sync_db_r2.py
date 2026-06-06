@@ -63,7 +63,10 @@ def upload_databases(r2_client):
                 local_path,
                 BUCKET_NAME,
                 r2_key,
-                ExtraArgs={'ContentType': 'application/json'}
+                ExtraArgs={
+                    'ContentType': 'application/json',
+                    'CacheControl': 'no-cache, no-store, must-revalidate'
+                }
             )
             print(f"  [SUCCESS] Uploaded {filename}")
         except Exception as e:
