@@ -6,9 +6,9 @@ import re
 # Set UTF-8 encoding for console output on Windows
 sys.stdout.reconfigure(encoding='utf-8')
 
-GAMES_PATH = r"data\games.json"
-COMPONENTS_PATH = r"src\components.jsx"
-BUILD_SCRIPT_PATH = r"pipelines\build_github_pages.py"
+GAMES_PATH = "data/games.json"
+COMPONENTS_PATH = "src/components.jsx"
+BUILD_SCRIPT_PATH = "pipelines/build_github_pages.py"
 
 def calculate_storage():
     print("Reading games.json...")

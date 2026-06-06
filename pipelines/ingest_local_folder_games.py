@@ -22,8 +22,8 @@ except ImportError:
 BUCKET_NAME = "fangame-files"
 PUBLIC_DOMAIN = "https://file.fangame-archive.com"
 
-GAMES_JSON_PATH = r"data\games.json"
-RECENT_CHANGES_PATH = r"data\recent_changes.json"
+GAMES_JSON_PATH = "data/games.json"
+RECENT_CHANGES_PATH = "data/recent_changes.json"
 LOCAL_GAME_DIR = r"game"
 
 def normalize_str(s):

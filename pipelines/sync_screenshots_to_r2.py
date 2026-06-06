@@ -25,7 +25,7 @@ except ImportError:
 BUCKET_NAME = "fangame-screenshots"
 
 INDEX_URL = "https://delicious-fruit.com/ratings/screenshots/"
-LOCAL_DIR = r"ratings\screenshots"
+LOCAL_DIR = "ratings/screenshots"
 
 def download_and_upload_single(filename, r2_client, headers):
     url = INDEX_URL + filename

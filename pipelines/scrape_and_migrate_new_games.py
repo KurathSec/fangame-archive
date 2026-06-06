@@ -57,9 +57,9 @@ except ImportError:
 BUCKET_NAME = "fangame-files"
 PUBLIC_DOMAIN = "https://file.fangame-archive.com"
 
-GAMES_PATH = r"data\games.json"
-SEQ_MAP_PATH = r"database\seq_to_orig_map.json"
-TEMP_BASE_DIR = r"temp\scraping_migration"
+GAMES_PATH = "data/games.json"
+SEQ_MAP_PATH = "database/seq_to_orig_map.json"
+TEMP_BASE_DIR = "temp/scraping_migration"
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -945,7 +945,7 @@ def main():
             
     # Generate timeline delta changes
     log("\nGenerating database timeline delta changes...")
-    RECENT_CHANGES_PATH = r"data\recent_changes.json"
+    RECENT_CHANGES_PATH = "data/recent_changes.json"
     
     updated = {}
     deleted = []
