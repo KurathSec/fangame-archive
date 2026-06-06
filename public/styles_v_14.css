@@ -1,0 +1,447 @@
+.stream-link-detailed {
+    display:block;
+    background-color: #e8e8e8;
+    border: 1px solid black;
+    color: inherit;
+}
+
+.stream-link-detailed:hover {
+    background-color: #ccc;
+    font-size:large;
+}
+
+.stream-link-detailed:hover td {
+    text-decoration: underline;
+}
+
+.stream-link-detailed table {
+    border-collapse: collapse;
+}
+
+.stream-link-detailed td {
+    vertical-align:bottom;
+}
+
+img.stream-preview {
+    height: 64px;
+    display: inline-block;
+}
+
+html,body {
+	margin:0;
+	padding:0;
+	height:100%; /* needed for container min-height */
+	background:gray;
+	
+	font-family:arial,sans-serif;
+	font-size:small;
+	color:#666;
+	
+	background: url('/img/footer_lodyas.png');
+}
+
+.navbutton2 {
+  font-family:Sans-Serif;
+  font-size:14pt;
+  font-weight:bold;
+  color:black;
+  text-decoration:none;
+  display:inline-block;
+  border-radius:8px;
+  padding:5px 12px;
+  border:2px solid #556699;
+  background:linear-gradient(#C6D7F7, #FDFDFD, #C6D7F7);
+}
+
+h1 { 
+	font:1.8em georgia,serif; 
+	margin:0.5em 0;
+}
+
+h2 {
+	font:1.25em georgia,serif; 
+	margin:0 0 0.5em;
+}
+
+h3 {
+	font:1em georgia,serif; 
+	margin:0 0 0.5em 1em;
+	font-weight: bold;
+}
+
+a:visited {
+	color:#00008B;
+}
+
+a:hover {
+	color:#1E90FF;
+}
+
+h1, h2, a {
+	color:#483D8B;
+}
+
+
+span.reveal {
+	padding: 3px;
+	background: #990000;
+	color: white;
+	cursor: pointer;
+}
+
+div#content p.notes {
+	padding: 0;
+    margin: -0.5em 0 0 0;
+    font-size: smaller;
+}
+
+p { 
+	line-height:1.5; 
+	margin:0 0 1em;
+}
+
+div#container {
+	position:relative;
+	margin:0 auto; /* center, not in IE5 */
+	width:800px;
+	background:#f0f0f0;
+	height:auto !important;
+	height:100%; /* IE6: treaded as min-height*/
+	min-height:100%;
+	
+	-webkit-box-shadow: 5px 5px 20px 0px rgba(34,34,34,1);
+	-moz-box-shadow: 5px 5px 20px 0px rgba(34,34,34,1);
+	box-shadow: 5px 5px 20px 0px rgba(34,34,34,1);
+	z-index:5;
+}
+
+div#header {
+	padding:1em;
+	border-bottom:6px double gray;
+	padding-bottom: 0.2em;
+}
+div#header p {
+	font-style:italic;
+	font-size:1.1em;
+	margin:0;
+}
+
+div#content {
+	padding:1em 1em 7em;
+}
+div#content p {
+	text-align:justify;
+	padding:0 1em;
+}
+
+div#content div {
+	margin-bottom: 13px;
+}
+
+div#footer {
+	position:absolute;
+	width:100%;
+	bottom:0;
+	background:#ddd;
+	border-top:6px double gray;
+}
+div#footer p {
+	padding:.5em 1em;
+	margin:0;
+}
+
+textarea {
+	width: 100%;
+}
+
+div.rating {
+	-webkit-box-shadow: 3px 3px 10px 0px rgba(34,34,34,1);
+	-moz-box-shadow: 3px 3px 10px 0px rgba(34,34,34,1);
+	box-shadow: 3px 3px 10px 0px rgba(34,34,34,1);
+	
+	border: 1px solid black;
+	border-radius: 3px;
+	
+	width: 175px;
+	float: left;
+	text-align:
+	center; padding-top:6px;
+	
+	margin: 0px 4px 13px 4px;
+	
+	color: #222;
+}
+
+div.rating > span {
+	font-weight: bold;
+}
+
+div#container div.rating > div {
+	background: #e6e6e6;
+	margin: 6px; 
+	font-weight: bold;
+	line-height: 20px;
+}
+
+div.rating span.description {
+	font-style: italic;
+	font-weight: normal;
+	color: #444;
+}
+
+div.review {
+	border: 1px solid black;
+	background:#e6e6e6;
+	line-height:1.5; 
+	margin:0 0 1em;
+    position: relative;
+    
+    padding:0.5em;
+    
+    font-family: arial,sans-serif;
+	font-size: small;
+}
+
+div.review.owner-review {
+	background:#e3f0e3;
+}
+
+div.review div {
+	padding:0;
+}
+
+div#myreviewtoggle {
+	border:1px solid black;
+	border-radius: 3px;
+	height:26px;
+	width: 130px;
+	margin-bottom:10px;
+	cursor: pointer;
+}
+
+div#myreviewtoggle:hover {
+	background: #f0f0f0;
+}
+
+.styled-button-1 {
+	-webkit-box-shadow:rgba(0,0,0,0.2) 0 1px 0 0;
+	-moz-box-shadow:rgba(0,0,0,0.2) 0 1px 0 0;
+	box-shadow:rgba(0,0,0,0.2) 0 1px 0 0;
+	color:#DDD;
+	background-color:#1E90FF;
+	border-radius:1px;
+	-moz-border-radius:1px;
+	-webkit-border-radius:1px;
+	border:none;
+	font-family:'Helvetica Neue',Arial,sans-serif;
+	font-size:12px;
+	font-weight:700;
+	height:20px;
+	padding:4px 4px;
+	text-shadow:#1E60DF 0 1px 0;
+	cursor: pointer;
+}
+
+a.styled-button-1 {
+	color:#DDD;
+	text-decoration: none;
+}
+
+table {
+	border-collapse:collapse;
+	width: 100%;
+}
+
+table th {
+	background: #d0d0d0;
+}
+
+table.gamelist th {
+    border: 1px solid black;
+    padding: 0em 0.4em;
+}
+
+table tr:nth-child(even) {
+	background: #e8e8e8;
+}
+
+table td.rating {
+	text-align: right;
+  white-space: nowrap;
+}
+
+table.reportlist td {
+	border: 1px solid black;
+}
+
+a.navbutton {
+	display: -moz-inline-stack;
+	display: inline-block;
+	line-height: 39px;
+	vertical-align: text-middle;
+	text-align: center;
+	color: #ffffff;
+	font-family: monospace;
+	font-size: 24px;
+	font-weight: bold;
+	font-style: normal;
+	text-shadow: #222222 1px 1px 0;
+}
+a.navbutton > span {
+	display: -moz-inline-block;
+}
+
+div.reportDiv {
+	border: 1px solid black;
+	margin: 0.5em;
+	padding: 0.5em;
+}
+
+#rating.ui-slider-horizontal
+{
+background: #ffffff; /* Old browsers */
+background: -moz-linear-gradient(left, #ffdddd 0%, #ddffdd 100%) !important; /* FireFox 3.6+ */
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,#ffdddd), color-stop(100%,#ddffdd)); /* Chrome, Safari 4+ */
+background: -webkit-linear-gradient(left, #ffdddd 0%,#ddffdd 100%); /* Chrome 10+, Safari 5.1+ */
+background: -o-linear-gradient(left, #ffdddd 0%,#ddffdd 100%); /* Opera 11.10+ */
+background: -ms-linear-gradient(left, #ffdddd 0%,#ddffdd 100%); /* IE 10+ */
+background: linear-gradient(left, #ffdddd 0%,#ddffdd 100%); /* W3C */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr=’#ffdddd’, endColorstr=’#ddffdd′,GradientType=1 ); /* IE 6-9 */
+}
+
+#difficulty.ui-slider-horizontal
+{
+background: #ffffff; /* Old browsers */
+background: -moz-linear-gradient(left, #ddddff 0%, #ffdddd 100%) !important; /* FireFox 3.6+ */
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,#ddddff), color-stop(100%,#ffdddd)); /* Chrome, Safari 4+ */
+background: -webkit-linear-gradient(left, #ddddff 0%,#ffdddd 100%); /* Chrome 10+, Safari 5.1+ */
+background: -o-linear-gradient(left, #ddddff 0%,#ffdddd 100%); /* Opera 11.10+ */
+background: -ms-linear-gradient(left, #ddddff 0%,#ffdddd 100%); /* IE 10+ */
+background: linear-gradient(left, #ddddff 0%,#ffdddd 100%); /* W3C */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr=’#ddddff’, endColorstr=’#ffdddd′,GradientType=1 ); /* IE 6-9 */
+}
+
+span.stars, span.stars span {
+    display: inline-block;
+    background: url(/img/stars.png) 0 0px repeat-x;
+    width: 170px;
+    height: 16px;
+}
+
+span.stars span {
+    background-position: 0 -16px;
+}
+
+span.stars {
+	vertical-align: middle;
+}
+
+span.hearts, span.hearts span {
+    display: inline-block;
+    background: url(/img/hearts.png) 0 0px repeat-x;
+    width: 170px;
+    height: 16px;
+}
+
+span.hearts span {
+    background-position: 0 -16px;
+}
+
+span.hearts {
+	vertical-align: middle;
+}
+
+div.review > a {
+	line-height: 1.7;
+}
+
+a.standalone {
+	padding-bottom: 1em;
+	display: inline-block;
+}
+
+textarea {
+	min-height: 100px;
+	margin-bottom: 1em;
+}
+
+.review .review-text {
+	color: #000;
+	line-height: 1.7;
+}
+
+.review .review-text2 {
+  max-height: 120px;
+  position: relative;
+  overflow: hidden;
+}
+
+.review-text .read-more { 
+  position: absolute; 
+  bottom: 0; 
+  left: 0;
+  width: 100%; 
+  text-align: center; 
+  margin: 0;
+  height: 40px;
+	
+  /* "transparent" only works here because == rgba(0,0,0,0) */
+  background-image: linear-gradient(to bottom, transparent, #e6e6e6, #e6e6e6);
+}
+
+.owner-review .review-text .read-more { 
+  position: absolute; 
+  bottom: 0; 
+  left: 0;
+  width: 100%; 
+  text-align: center; 
+  margin: 0;
+  height: 40px;
+	
+  /* "transparent" only works here because == rgba(0,0,0,0) */
+  background-image: linear-gradient(to bottom, transparent, #e3f0e3, #e3f0e3);
+}
+
+.read-more a {
+    position: absolute;
+    bottom: 0
+}
+
+a.tag {
+    border: 1px solid black;
+    background: #ccccff;
+    color: black;
+    padding: 0px 2px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+a.impossible-tag {
+	background: #a00;
+	color: #ddd; 
+}
+
+div.review a.tag {
+	font-size: smaller;
+}
+
+a.tag:hover {
+    background: #ddddff;
+}
+
+div.snowflake {
+    z-index: 4;
+    position: absolute;
+    top: 0;
+    width: 48px;
+    height: 49px;
+}
+
+
+input#admin-creator-input {
+  margin-bottom: 1em;
+}
+
+button#admin-change-creator {
+  margin-bottom: 1em;
+}

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "timeline": {
+    "1": {
+      "timestamp": 1780310400,
+      "updated": {
+        "1": {
+          "id": 1,
+          "title": "Sample Game 1 (Needle)",
+          "creator": {
+            "name": "Sample Creator",
+            "url": ""
+          },
+          "avg_rating": 8.5,
+          "avg_difficulty": 50.0,
+          "download_url": "https://file.fangame-archive.com/Game/1.zip",
+          "tags": [
+            "needle"
+          ],
+          "screenshots": [],
+          "reviews": [],
+          "rating_count": 1,
+          "file_size": 5000000
+        }
+      },
+      "deleted": [
+        999
+      ]
+    }
+  }
+}

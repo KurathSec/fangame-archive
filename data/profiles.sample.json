@@ -1,0 +1,18 @@
+{
+  "Sample Creator": {
+    "username": "Sample Creator",
+    "registered_date": "2026-06-06",
+    "created_games": [
+      1
+    ],
+    "reviews_count": 1
+  },
+  "Another Creator": {
+    "username": "Another Creator",
+    "registered_date": "",
+    "created_games": [
+      2
+    ],
+    "reviews_count": 0
+  }
+}

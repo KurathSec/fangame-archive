@@ -1,0 +1,56 @@
+{
+  "1": {
+    "id": 1,
+    "title": "Sample Game 1 (Needle)",
+    "creator": {
+      "name": "Sample Creator",
+      "url": "https://delicious-fruit.com/ratings/full.php?title=&author=Sample+Creator&tags=&clear=&ireviewed=&advanced=1"
+    },
+    "avg_rating": 8.5,
+    "avg_difficulty": 50,
+    "download_url": "https://file.fangame-archive.com/Game/1.zip",
+    "tags": [
+      "needle"
+    ],
+    "screenshots": [
+      {
+        "id": 1001,
+        "image_path": "ratings/screenshots/1_sample.png",
+        "by": "Tester"
+      }
+    ],
+    "reviews": [
+      {
+        "author": "PlayerA",
+        "text": "Great classic platformer!",
+        "likes": 2,
+        "rating": 8.5,
+        "difficulty": 50,
+        "date": "Jun 06, 2026",
+        "tags": [
+          "Needle"
+        ]
+      }
+    ],
+    "rating_count": 1,
+    "file_size": 5000000
+  },
+  "2": {
+    "id": 2,
+    "title": "Sample Game 2 (Avoidance)",
+    "creator": {
+      "name": "Another Creator",
+      "url": "#"
+    },
+    "avg_rating": 0.0,
+    "avg_difficulty": 0,
+    "download_url": "",
+    "tags": [
+      "avoidance"
+    ],
+    "screenshots": [],
+    "reviews": [],
+    "rating_count": 0,
+    "file_size": 0
+  }
+}

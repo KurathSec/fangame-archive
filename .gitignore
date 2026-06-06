@@ -1,0 +1,76 @@
+# ==========================================
+# 1. Build Outputs
+# ==========================================
+github_pages_dist/
+dist/
+build/
+
+# ==========================================
+# 2. Cloudflare / Wrangler Caches & Configs
+# ==========================================
+.wrangler/
+.dev.vars
+wrangler.max.toml
+.cloudflare/
+
+# ==========================================
+# 3. Python Cache & Virtual Environments
+# ==========================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+
+# ==========================================
+# 4. Large Data Files & Local Backups
+# ==========================================
+# Exclude actual data JSONs (Only tracking *.sample.json)
+data/games.json
+data/recent_changes.json
+data/profiles.json
+
+# Exclude historical JSON database backups
+data/games.json.*
+data/games_backup_*.json
+backup_state.json
+backup_state.json.bak
+
+# ==========================================
+# 5. Local Game Downloads & Screenshot Caches (R2/CDN hosted)
+# ==========================================
+ratings/screenshots/
+games/
+game/
+*.zip
+*.7z
+*.rar
+
+# SQL comments database seed
+database/*seed_comments.sql
+*.db
+*.sqlite
+
+# ==========================================
+# 6. Temporary Files & System Logs
+# ==========================================
+temp/
+*.log
+download_distribution.log
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ==========================================
+# 7. Private Credentials & Legacy Archives
+# ==========================================
+.env
+.env.local
+.env.*
+pipelines/archive/
+walkthrough.md

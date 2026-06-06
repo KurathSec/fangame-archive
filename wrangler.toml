@@ -1,0 +1,7 @@
+name = "fangame-archive"
+pages_build_output_dir = "github_pages_dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fangame-comments"
+database_id = "120de4a7-397c-4556-9bb5-04c6580618e2"

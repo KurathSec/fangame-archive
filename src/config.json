@@ -1,0 +1,15 @@
+{
+  "format": "JSON",
+  "title": "My_Custom_Ubuntu_Simulation",
+  "content": {
+    "nodes": {
+      "ubuntu-server-01": {
+        "os": "generic/ubuntu2404",
+        "cpu": 8,
+        "memory": 16384,
+        "storage": 100
+      }
+    },
+    "links": []
+  }
+}

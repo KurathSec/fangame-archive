@@ -1,0 +1,19 @@
+[
+  {
+    "ver": "2026.002",
+    "date": "2026-06-06",
+    "note": "Update Log timeline & versioning",
+    "changes": [
+      ["Added", "New Update Log section with timeline visualization."],
+      ["Added", "Separate application versioning scheme (Year.xxx) to track content releases."]
+    ]
+  },
+  {
+    "ver": "2026.001",
+    "date": "2026-05-25",
+    "note": "Public launch",
+    "changes": [
+      ["Added", "Initial public release of the standalone Fangame Archive catalog."]
+    ]
+  }
+]
