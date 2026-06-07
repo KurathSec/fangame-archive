@@ -74,4 +74,4 @@ Desktop.ini
 .env.local
 .env.*
 pipelines/archive/
-walkthrough.md
+project_architecture.md
