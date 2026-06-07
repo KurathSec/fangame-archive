@@ -1,5 +1,17 @@
 [
   {
+    "ver": "2026.003",
+    "date": "2026-06-08",
+    "note": "Refactor unrated metrics and layout improvements",
+    "changes": [
+      ["Refactored", "Represent unrated ratings and difficulties as null in memory to differentiate from true zero scores."],
+      ["Fixed", "Pre-nullify unrated metrics during database chunking to resolve unrated games displaying 0.0 on the catalog."],
+      ["Added", "Custom sort and filter logic in the catalog to push unrated games to the bottom and filter them accurately."],
+      ["Added", "Prefix review ratings with 'rating' label inside the game details panel comments section."],
+      ["Fixed", "Exclude unrated difficulty values from playlist average difficulty calculations."]
+    ]
+  },
+  {
     "ver": "2026.002",
     "date": "2026-06-06",
     "note": "Update Log timeline & versioning",
