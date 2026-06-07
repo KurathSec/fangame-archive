@@ -12,9 +12,10 @@ except ImportError:
 
 BUCKET_NAME = "fangame-files"
 DB_FILES = {
-    "games.json": "Database/games.json",
-    "recent_changes.json": "Database/recent_changes.json",
-    "profiles.json": "Database/profiles.json"
+    "data/games.json": "Database/games.json",
+    "data/recent_changes.json": "Database/recent_changes.json",
+    "data/profiles.json": "Database/profiles.json",
+    "database/seq_to_orig_map.json": "Database/seq_to_orig_map.json"
 }
 
 def get_r2_client():
@@ -33,26 +34,23 @@ def get_r2_client():
 
 def download_databases(r2_client):
     print("Downloading databases from Cloudflare R2...")
-    os.makedirs("data", exist_ok=True)
-    
-    for filename, r2_key in DB_FILES.items():
-        local_path = os.path.join("data", filename)
+    for local_path, r2_key in DB_FILES.items():
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
         print(f"  Downloading '{r2_key}' -> '{local_path}'...")
         try:
             r2_client.download_file(BUCKET_NAME, r2_key, local_path)
-            print(f"  [SUCCESS] Downloaded {filename}")
+            print(f"  [SUCCESS] Downloaded {os.path.basename(local_path)}")
         except Exception as e:
-            # For recent_changes.json or profiles.json, if they don't exist on R2 yet, we can skip or write defaults
-            print(f"  [WARNING/ERROR] Failed to download {filename}: {e}")
-            if filename == "games.json":
+            # For recent_changes.json, profiles.json or mapping files, if they don't exist on R2 yet, we can skip or write defaults
+            print(f"  [WARNING/ERROR] Failed to download {os.path.basename(local_path)}: {e}")
+            if os.path.basename(local_path) == "games.json":
                 print("[FATAL] Could not download games.json. Sync aborted.")
                 sys.exit(1)
 
 def upload_databases(r2_client):
     print("Uploading databases to Cloudflare R2...")
     
-    for filename, r2_key in DB_FILES.items():
-        local_path = os.path.join("data", filename)
+    for local_path, r2_key in DB_FILES.items():
         if not os.path.exists(local_path):
             print(f"  [SKIP] Local file '{local_path}' does not exist.")
             continue
@@ -68,9 +66,9 @@ def upload_databases(r2_client):
                     'CacheControl': 'no-cache, no-store, must-revalidate'
                 }
             )
-            print(f"  [SUCCESS] Uploaded {filename}")
+            print(f"  [SUCCESS] Uploaded {os.path.basename(local_path)}")
         except Exception as e:
-            print(f"  [ERROR] Failed to upload {filename}: {e}")
+            print(f"  [ERROR] Failed to upload {os.path.basename(local_path)}: {e}")
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1].lower() not in ["download", "upload"]:
