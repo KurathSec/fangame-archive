@@ -472,8 +472,8 @@ function RootApp() {
               gameReviews.push({
                 user: r.author || 'Anonymous',
                 date: r.date || '',
-                rating: (r.rating !== null && r.rating !== undefined && r.rating !== 'na') ? Number(r.rating) : -1.0,
-                diff: (r.difficulty !== null && r.difficulty !== undefined && r.difficulty !== 'na') ? Number(r.difficulty) : -1,
+                rating: (r.rating !== null && r.rating !== undefined && r.rating !== 'na') ? Number(r.rating) : null,
+                diff: (r.difficulty !== null && r.difficulty !== undefined && r.difficulty !== 'na') ? Number(r.difficulty) : null,
                 liked: r.likes || 0,
                 body: r.text || '',
                 tags: (r.tags || []).map(t => t.trim().toLowerCase()).filter(Boolean)
@@ -513,14 +513,14 @@ function RootApp() {
             ? Number(rawGame.rating_count) 
             : (Array.isArray(rawGame.reviews) ? rawGame.reviews.length : (typeof rawGame.reviews === 'number' ? rawGame.reviews : 0));
 
-          let finalRating = -1.0;
+          let finalRating = null;
           if (rawGame.avg_rating !== undefined && rawGame.avg_rating !== null) {
             finalRating = Number(rawGame.avg_rating);
           } else if (rawGame.rating !== undefined && rawGame.rating !== null) {
             finalRating = Number(rawGame.rating);
           }
 
-          let finalDifficulty = -1;
+          let finalDifficulty = null;
           if (rawGame.avg_difficulty !== undefined && rawGame.avg_difficulty !== null) {
             finalDifficulty = Number(rawGame.avg_difficulty);
           } else if (rawGame.difficulty !== undefined && rawGame.difficulty !== null) {
@@ -548,10 +548,10 @@ function RootApp() {
           }
 
           if (!hasActualRating) {
-            finalRating = -1.0;
+            finalRating = null;
           }
           if (!hasActualDifficulty) {
-            finalDifficulty = -1;
+            finalDifficulty = null;
           }
 
           const gameObj = {
