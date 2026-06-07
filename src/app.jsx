@@ -519,9 +519,6 @@ function RootApp() {
           } else if (rawGame.rating !== undefined && rawGame.rating !== null) {
             finalRating = Number(rawGame.rating);
           }
-          if (reviewsCount === 0 || finalRating === null || finalRating === undefined) {
-            finalRating = -1.0;
-          }
 
           let finalDifficulty = -1;
           if (rawGame.avg_difficulty !== undefined && rawGame.avg_difficulty !== null) {
@@ -529,7 +526,31 @@ function RootApp() {
           } else if (rawGame.difficulty !== undefined && rawGame.difficulty !== null) {
             finalDifficulty = Number(rawGame.difficulty);
           }
-          if (reviewsCount === 0 || finalDifficulty === null || finalDifficulty === undefined) {
+
+          let hasActualRating = false;
+          let hasActualDifficulty = false;
+          if (Array.isArray(rawGame.reviews)) {
+            for (const r of rawGame.reviews) {
+              if (r.rating !== null && r.rating !== undefined && r.rating !== 'na') {
+                hasActualRating = true;
+              }
+              if (r.difficulty !== null && r.difficulty !== undefined && r.difficulty !== 'na') {
+                hasActualDifficulty = true;
+              }
+            }
+          } else if (reviewsCount > 0) {
+            if (rawGame.avg_rating !== null && rawGame.avg_rating !== undefined) {
+              hasActualRating = true;
+            }
+            if (rawGame.avg_difficulty !== null && rawGame.avg_difficulty !== undefined) {
+              hasActualDifficulty = true;
+            }
+          }
+
+          if (!hasActualRating) {
+            finalRating = -1.0;
+          }
+          if (!hasActualDifficulty) {
             finalDifficulty = -1;
           }
 

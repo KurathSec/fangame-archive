@@ -684,7 +684,7 @@ function Drawer({ game, isRoll, onClose }) {
 
                       <b><a href="#">{r.user}</a></b>
 
-                      {r.rating !== null && r.rating !== undefined && r.rating !== 'na' && r.rating !== -1 ? <span className="mono">{r.rating}/10</span> : <span className="mono" style={{ color: 'var(--muted)' }}>N/A</span>}
+                      {r.rating !== null && r.rating !== undefined && r.rating !== 'na' && r.rating !== -1 ? <span className="mono">rating {r.rating}/10</span> : <span className="mono" style={{ color: 'var(--muted)' }}>rating N/A</span>}
 
                       {r.diff !== null && r.diff !== undefined && r.diff !== 'na' && r.diff !== -1 ? <span style={{ color: 'var(--muted)' }}>diff {r.diff}</span> : <span style={{ color: 'var(--muted)' }}>diff N/A</span>}
 
