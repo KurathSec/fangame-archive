@@ -33,6 +33,7 @@ pip-log.txt
 data/games.json
 data/recent_changes.json
 data/profiles.json
+database/seq_to_orig_map.json
 
 # Exclude historical JSON database backups
 data/games.json.*
