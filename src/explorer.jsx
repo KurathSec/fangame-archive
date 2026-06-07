@@ -64,8 +64,8 @@ function Card({ game, active, onClick }) {
         <div className="card-title">{game.title}</div>
         <div className="card-creator">by <a href="#" onClick={(e) => e.stopPropagation()}>{game.creator}</a></div>
         <div className="card-metrics">
-          <span className="metric rating">{window.ic.star}<span className="tnum">{game.rating.toFixed(1)}</span></span>
-          <span className="metric diff">{window.ic.flame}<span className="tnum">{game.difficulty}</span></span>
+          <span className="metric rating">{window.ic.star}<span className="tnum">{game.rating !== -1 ? game.rating.toFixed(1) : 'N/A'}</span></span>
+          <span className="metric diff">{window.ic.flame}<span className="tnum">{game.difficulty !== -1 ? game.difficulty : 'N/A'}</span></span>
           <span style={{ marginLeft: 'auto', opacity: 0.55 }}>{game.reviews} rev</span>
         </div>
       </div>
@@ -86,8 +86,8 @@ function ListRow({ game, active, onClick }) {
       <span className="list-id">#{game.id}</span>
       <span className="list-title">{game.title}</span>
       <span className="list-creator">{game.creator}</span>
-      <span className="list-num list-rating">{game.rating.toFixed(1)}</span>
-      <span className="list-num list-diff">{game.difficulty}</span>
+      <span className="list-num list-rating">{game.rating !== -1 ? game.rating.toFixed(1) : 'N/A'}</span>
+      <span className="list-num list-diff">{game.difficulty !== -1 ? game.difficulty : 'N/A'}</span>
       <span className="list-num list-size">{formatSize(game.file_size)}</span>
       <span className="list-badges">
         {game.flags.local  && <span className="bdg local">{window.ic.hdd}</span>}
@@ -206,8 +206,18 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
     return window.DATA.GAMES.filter((g) => {
       if (qTitle && !g.title.toLowerCase().includes(qTitle)) return false;
       if (qCreator && !g.creator.toLowerCase().includes(qCreator)) return false;
-      if (g.rating < rating[0] || g.rating > rating[1]) return false;
-      if (g.difficulty < diff[0] || g.difficulty > diff[1]) return false;
+      
+      if (g.rating === -1.0) {
+        if (rating[0] > 0.0) return false;
+      } else {
+        if (g.rating < rating[0] || g.rating > rating[1]) return false;
+      }
+
+      if (g.difficulty === -1) {
+        if (diff[0] > 0) return false;
+      } else {
+        if (g.difficulty < diff[0] || g.difficulty > diff[1]) return false;
+      }
       
       if (tags.size) {
         const orTags = [];
@@ -233,8 +243,30 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
       switch (sort) {
         case 'id':     comparison = a.id - b.id; break;
         case 'title':  comparison = a.title.localeCompare(b.title); break;
-        case 'rating': comparison = a.rating - b.rating; break;
-        case 'diff':   comparison = a.difficulty - b.difficulty; break;
+        case 'rating': {
+          if (a.rating === -1 && b.rating === -1) {
+            comparison = 0;
+          } else if (a.rating === -1) {
+            comparison = desc ? -1 : 1;
+          } else if (b.rating === -1) {
+            comparison = desc ? 1 : -1;
+          } else {
+            comparison = a.rating - b.rating;
+          }
+          break;
+        }
+        case 'diff': {
+          if (a.difficulty === -1 && b.difficulty === -1) {
+            comparison = 0;
+          } else if (a.difficulty === -1) {
+            comparison = desc ? -1 : 1;
+          } else if (b.difficulty === -1) {
+            comparison = desc ? 1 : -1;
+          } else {
+            comparison = a.difficulty - b.difficulty;
+          }
+          break;
+        }
         case 'size':   comparison = (a.file_size || 0) - (b.file_size || 0); break;
         case 'rev':    comparison = (a.reviews || 0) - (b.reviews || 0); break;
         default:       comparison = 0;

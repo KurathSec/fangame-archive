@@ -88,7 +88,7 @@ function CollectionsView({ tweaks, setTweak }) {
                 <span className="num">{String(i + 1).padStart(2, '0')}</span>
                 <div>
                   <div className="gtitle">{g.title}</div>
-                  <div className="gcreator">by {g.creator} · <span className="mono">★ {g.rating.toFixed(1)}</span> · <span className="mono">diff {g.difficulty}</span></div>
+                  <div className="gcreator">by {g.creator} · <span className="mono">★ {g.rating !== -1 ? g.rating.toFixed(1) : 'N/A'}</span> · <span className="mono">diff {g.difficulty !== -1 ? g.difficulty : 'N/A'}</span></div>
                 </div>
                 <input className="note" defaultValue={col.notes[g.id] || ''} placeholder="Add a note..." />
                 <button className="small-btn" style={{ width: 26, padding: 0, display: 'grid', placeItems: 'center' }}>{window.ic.x}</button>
@@ -104,7 +104,10 @@ function CollectionsView({ tweaks, setTweak }) {
             <span>·</span>
             <span className="mono">{games.reduce((s, g) => s + g.hours, 0).toFixed(1)}h logged</span>
             <span>·</span>
-            <span className="mono">avg diff {games.length ? Math.round(games.reduce((s, g) => s + g.difficulty, 0) / games.length) : '—'}</span>
+            <span className="mono">avg diff {(() => {
+              const ratedGames = games.filter(g => g.difficulty !== -1);
+              return ratedGames.length ? Math.round(ratedGames.reduce((s, g) => s + g.difficulty, 0) / ratedGames.length) : '—';
+            })()}</span>
           </div>
         </main>
       </div>

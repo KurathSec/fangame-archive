@@ -472,8 +472,8 @@ function RootApp() {
               gameReviews.push({
                 user: r.author || 'Anonymous',
                 date: r.date || '',
-                rating: r.rating !== null ? r.rating : 0.0,
-                diff: r.difficulty !== null ? r.difficulty : 0.0,
+                rating: (r.rating !== null && r.rating !== undefined && r.rating !== 'na') ? Number(r.rating) : -1.0,
+                diff: (r.difficulty !== null && r.difficulty !== undefined && r.difficulty !== 'na') ? Number(r.difficulty) : -1,
                 liked: r.likes || 0,
                 body: r.text || '',
                 tags: (r.tags || []).map(t => t.trim().toLowerCase()).filter(Boolean)
@@ -509,14 +509,38 @@ function RootApp() {
           const isBroken = !rawGame.download_url || rawGame.download_url.includes('defunct');
           const isMissing = !rawGame.download_url;
           
+          const reviewsCount = rawGame.rating_count !== undefined && rawGame.rating_count !== null 
+            ? Number(rawGame.rating_count) 
+            : (Array.isArray(rawGame.reviews) ? rawGame.reviews.length : (typeof rawGame.reviews === 'number' ? rawGame.reviews : 0));
+
+          let finalRating = -1.0;
+          if (rawGame.avg_rating !== undefined && rawGame.avg_rating !== null) {
+            finalRating = Number(rawGame.avg_rating);
+          } else if (rawGame.rating !== undefined && rawGame.rating !== null) {
+            finalRating = Number(rawGame.rating);
+          }
+          if (reviewsCount === 0 || finalRating === null || finalRating === undefined) {
+            finalRating = -1.0;
+          }
+
+          let finalDifficulty = -1;
+          if (rawGame.avg_difficulty !== undefined && rawGame.avg_difficulty !== null) {
+            finalDifficulty = Number(rawGame.avg_difficulty);
+          } else if (rawGame.difficulty !== undefined && rawGame.difficulty !== null) {
+            finalDifficulty = Number(rawGame.difficulty);
+          }
+          if (reviewsCount === 0 || finalDifficulty === null || finalDifficulty === undefined) {
+            finalDifficulty = -1;
+          }
+
           const gameObj = {
             id: id,
             title: rawGame.title || 'Untitled Game',
             creator: rawGame.creator ? (typeof rawGame.creator === 'object' ? (rawGame.creator.name || 'Unknown') : rawGame.creator) : 'Unknown',
             creator_url: rawGame.creator ? (typeof rawGame.creator === 'object' ? (rawGame.creator.url || '#') : '#') : '#',
-            rating: rawGame.avg_rating !== undefined && rawGame.avg_rating !== null ? Number(rawGame.avg_rating) : (rawGame.rating !== undefined && rawGame.rating !== null ? Number(rawGame.rating) : 0.0),
-            difficulty: rawGame.avg_difficulty !== undefined && rawGame.avg_difficulty !== null ? Number(rawGame.avg_difficulty) : (rawGame.difficulty !== undefined && rawGame.difficulty !== null ? Number(rawGame.difficulty) : 0),
-            reviews: rawGame.rating_count !== undefined && rawGame.rating_count !== null ? Number(rawGame.rating_count) : (Array.isArray(rawGame.reviews) ? rawGame.reviews.length : (typeof rawGame.reviews === 'number' ? rawGame.reviews : 0)),
+            rating: finalRating,
+            difficulty: finalDifficulty,
+            reviews: reviewsCount,
             file_size: rawGame.file_size !== undefined && rawGame.file_size !== null ? Number(rawGame.file_size) : 0,
 
             hours: hours,

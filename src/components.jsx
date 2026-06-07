@@ -462,7 +462,7 @@ function Drawer({ game, isRoll, onClose }) {
 
               <span style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
 
-                {game.rating > 0 ? `${game.rating.toFixed(1)}/10.0` : 'N/A'}
+                {game.rating !== -1 ? `${game.rating.toFixed(1)}/10.0` : 'N/A'}
 
               </span>
 
@@ -500,13 +500,13 @@ function Drawer({ game, isRoll, onClose }) {
 
               <span style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
 
-                {game.difficulty > 0 ? `${game.difficulty.toFixed(1)}/100.0` : 'N/A'}
+                {game.difficulty !== -1 ? `${game.difficulty.toFixed(1)}/100.0` : 'N/A'}
 
               </span>
 
               <span style={{ fontSize: '9px', color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
 
-                {game.difficulty > 0 ? 'Standard' : 'N/A'}
+                {game.difficulty !== -1 ? 'Standard' : 'N/A'}
 
               </span>
 
@@ -684,9 +684,9 @@ function Drawer({ game, isRoll, onClose }) {
 
                       <b><a href="#">{r.user}</a></b>
 
-                      {r.rating !== null && r.rating !== undefined && <span className="mono">{r.rating}/10</span>}
+                      {r.rating !== null && r.rating !== undefined && r.rating !== 'na' && r.rating !== -1 ? <span className="mono">{r.rating}/10</span> : <span className="mono" style={{ color: 'var(--muted)' }}>N/A</span>}
 
-                      {r.diff !== null && r.diff !== undefined && <span style={{ color: 'var(--muted)' }}>diff {r.diff}</span>}
+                      {r.diff !== null && r.diff !== undefined && r.diff !== 'na' && r.diff !== -1 ? <span style={{ color: 'var(--muted)' }}>diff {r.diff}</span> : <span style={{ color: 'var(--muted)' }}>diff N/A</span>}
 
                       <span style={{ color: 'var(--muted)' }}>· ♡ {r.liked}</span>
 
