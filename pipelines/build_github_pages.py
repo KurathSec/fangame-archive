@@ -23,6 +23,15 @@ def main():
     with open(os.path.join(SRC_DIR, "data", "games.json"), "r", encoding="utf-8") as f:
         games = json.load(f)
         
+    # Calculate R2 Storage Size dynamically from download URLs of mirrored games
+    total_bytes = 0
+    for key in games:
+        url = games[key].get("download_url", "")
+        if url and ("file.fangame-archive.com/" in url or "r2.dev/" in url):
+            total_bytes += games[key].get("file_size", 0)
+    total_gb = total_bytes / (1024 * 1024 * 1024)
+    print(f"Calculated dynamic storage size: {total_gb:.2f} GB")
+
     # Sort keys numerically (already sorted alphabetically because we re-indexed!)
     sorted_keys = sorted(games.keys(), key=int)
     total_games = len(sorted_keys)
@@ -233,6 +242,7 @@ function getShotUrl(path) {
           Developer & Designer
         </div>
       </div>"""
+        new_sb_foot = new_sb_foot.replace("618.67 GB", f"{total_gb:.2f} GB")
         comp_content = re.sub(sb_foot_pattern, new_sb_foot, comp_content, flags=re.DOTALL)
 
     with open(os.path.join(DIST_DIR, "src", "components.jsx"), "w", encoding="utf-8") as f:
