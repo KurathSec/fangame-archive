@@ -59,6 +59,7 @@ database/*seed_comments.sql
 # 6. Temporary Files & System Logs
 # ==========================================
 temp/
+scratch/
 *.log
 download_distribution.log
 .DS_Store
