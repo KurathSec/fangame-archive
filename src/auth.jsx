@@ -139,7 +139,7 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                   return;
                 }
                 const script = document.createElement('script');
-                script.src = "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
+                script.src = "/api/clerk-js";
                 script.crossOrigin = "anonymous";
                 script.async = true;
                 script.onload = () => resolve(true);
