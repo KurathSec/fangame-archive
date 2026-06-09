@@ -14,7 +14,7 @@ export async function onRequestPost(context) {
 
   try {
     const body = await request.json();
-    const { title, author_name, external_url, tags, description, turnstile_token } = body;
+    const { title, author_name, external_url, tags, description, screenshots, turnstile_token } = body;
 
     if (!title || !author_name || !external_url) {
       return errorResponse("Missing required fields.", 400);
@@ -28,6 +28,18 @@ export async function onRequestPost(context) {
       for (const t of tags) {
         if (typeof t !== 'string' || t.length > 20) {
           return errorResponse("Each tag must be a string and under 20 characters.", 400);
+        }
+      }
+    }
+
+    // Validate screenshots constraints (max 5 screenshots)
+    if (screenshots && Array.isArray(screenshots)) {
+      if (screenshots.length > 5) {
+        return errorResponse("Maximum of 5 screenshots allowed.", 400);
+      }
+      for (const s of screenshots) {
+        if (typeof s !== 'string' || !/^https?:\/\/.+/.test(s.trim())) {
+          return errorResponse("Each screenshot must be a valid URL starting with http:// or https://.", 400);
         }
       }
     }
@@ -55,12 +67,13 @@ export async function onRequestPost(context) {
     }
 
     const tagsStr = JSON.stringify(tags || []);
+    const shotsStr = JSON.stringify(screenshots || []);
     const createdTs = Date.now();
 
     // 3. Write submission into D1 as 'pending'
     await env.DB.prepare(`
-      INSERT INTO game_submissions (submitter_id, title, author_name, external_url, tags, description, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+      INSERT INTO game_submissions (submitter_id, title, author_name, external_url, tags, screenshots, description, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
     `)
     .bind(
       user.id,
@@ -68,6 +81,7 @@ export async function onRequestPost(context) {
       author_name.trim(),
       external_url.trim(),
       tagsStr,
+      shotsStr,
       description ? description.trim() : null,
       createdTs
     )

@@ -172,6 +172,7 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
           external_url: form.url.trim(),
           tags: tags,
           description: form.desc.trim() || null,
+          screenshots: shots.filter(Boolean).map(s => s.trim()),
           turnstile_token: verified
         })
       });
