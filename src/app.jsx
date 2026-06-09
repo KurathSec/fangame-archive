@@ -51,42 +51,65 @@ function App() {
   }, []);
 
   React.useEffect(() => {
-    if (typeof Clerk === 'undefined') return;
+    let active = true;
+    let unsubscribe = null;
 
-    const syncUser = async () => {
-      if (Clerk.user) {
-        const localId = window.getClerkIdentity();
-        setIdentity(localId);
-        try {
-          const token = await Clerk.session.getToken();
-          const res = await fetch('/api/me', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.user) {
-              setAuth(data.user.role === 'admin' ? 'admin' : 'user');
-              setIdentity({
-                nick: data.user.display_name,
-                color: localId.color,
-                initial: data.user.display_name[0].toUpperCase(),
-                avatar_url: data.user.avatar_url
-              });
+    const initClerkSync = () => {
+      const syncUser = async () => {
+        if (!active) return;
+        if (Clerk.user) {
+          const localId = window.getClerkIdentity();
+          setIdentity(localId);
+          try {
+            const token = await Clerk.session.getToken();
+            const res = await fetch('/api/me', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok && active) {
+              const data = await res.json();
+              if (data.user) {
+                setAuth(data.user.role === 'admin' ? 'admin' : 'user');
+                setIdentity({
+                  nick: data.user.display_name,
+                  color: localId.color,
+                  initial: data.user.display_name[0].toUpperCase(),
+                  avatar_url: data.user.avatar_url
+                });
+              }
             }
+          } catch (e) {
+            console.error("Failed to sync D1 user profile:", e);
+            if (active) setAuth('user');
           }
-        } catch (e) {
-          console.error("Failed to sync D1 user profile:", e);
-          setAuth('user');
+        } else {
+          setAuth('out');
+          setIdentity(null);
         }
-      } else {
-        setAuth('out');
-        setIdentity(null);
-      }
+      };
+
+      syncUser();
+      unsubscribe = Clerk.addListener(() => { syncUser(); });
     };
 
-    syncUser();
-    const unsubscribe = Clerk.addListener(() => { syncUser(); });
-    return () => { if (unsubscribe) unsubscribe(); };
+    if (typeof Clerk === 'undefined' || !Clerk.loaded) {
+      const interval = setInterval(() => {
+        if (typeof Clerk !== 'undefined' && Clerk.loaded) {
+          clearInterval(interval);
+          if (active) initClerkSync();
+        }
+      }, 100);
+      return () => {
+        active = false;
+        clearInterval(interval);
+        if (unsubscribe) unsubscribe();
+      };
+    }
+
+    initClerkSync();
+    return () => {
+      active = false;
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -363,7 +386,7 @@ function RootApp() {
   React.useEffect(() => {
     async function loadData() {
       try {
-        setStatusText('Initializing authentication...');
+        setStatusText('Initializing database...');
         const loadClerkScript = () => {
           return new Promise((resolve) => {
             if (typeof window.Clerk !== 'undefined') {
@@ -434,28 +457,31 @@ function RootApp() {
           });
         };
 
-        try {
-          const clerkScriptLoaded = await loadClerkScript();
-          if (clerkScriptLoaded && typeof window.Clerk !== 'undefined') {
-            // If window.Clerk is the constructor class (function), instantiate it!
-            if (typeof window.Clerk === 'function') {
-              try {
-                const clerkInstance = new window.Clerk(window.CLERK_PUBLISHABLE_KEY);
-                window.Clerk = clerkInstance;
-              } catch (err) {
-                console.error("Failed to construct Clerk instance:", err);
+        // Load Clerk asynchronously in background so it doesn't block cache checking
+        (async () => {
+          try {
+            const clerkScriptLoaded = await loadClerkScript();
+            if (clerkScriptLoaded && typeof window.Clerk !== 'undefined') {
+              // If window.Clerk is the constructor class (function), instantiate it!
+              if (typeof window.Clerk === 'function') {
+                try {
+                  const clerkInstance = new window.Clerk(window.CLERK_PUBLISHABLE_KEY);
+                  window.Clerk = clerkInstance;
+                } catch (err) {
+                  console.error("Failed to construct Clerk instance:", err);
+                }
+              }
+              
+              if (typeof window.Clerk === 'object' && !window.Clerk.loaded) {
+                await window.Clerk.load({
+                  publishableKey: window.CLERK_PUBLISHABLE_KEY
+                });
               }
             }
-            
-            if (typeof window.Clerk === 'object' && !window.Clerk.loaded) {
-              await window.Clerk.load({
-                publishableKey: window.CLERK_PUBLISHABLE_KEY
-              });
-            }
+          } catch (authErr) {
+            console.warn("Clerk auth failed to load, proceeding without auth:", authErr);
           }
-        } catch (authErr) {
-          console.warn("Clerk auth failed to load, proceeding without auth:", authErr);
-        }
+        })();
 
         if (window.DATA && window.DATA.GAMES && window.DATA.GAMES.length > 12) {
           setLoading(false);
@@ -534,77 +560,35 @@ function RootApp() {
         }
 
         if (!fromCache) {
+          setStatusText('Fetching database chunks concurrently...');
           let parts = ['data/games_part_1.json', 'data/games_part_2.json', 'data/games_part_3.json'];
-        if (window.location.pathname.includes('/src/')) {
-          parts = ['../data/games_part_1.json', '../data/games_part_2.json', '../data/games_part_3.json'];
-        }
-        
-        gamesDb = {};
-        let loadedGames = 0;
-        
-        const cacheBuster = window.DATABASE_VERSION ? `?v=${window.DATABASE_VERSION}` : '';
-        
-        for (let i = 0; i < parts.length; i++) {
-          setStatusText(`Fetching games database part ${i + 1} of 3...`);
-          const partRes = await fetch(parts[i] + cacheBuster);
-          if (!partRes.ok) throw new Error(`HTTP ${partRes.status} fetching games database part ${i + 1}`);
-          
-          const reader = partRes.body.getReader();
-          const chunks = [];
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-            loadedGames += value.length;
-            setLoadedBytes(loadedGames);
+          let profilesUrl = 'data/profiles.json';
+          if (window.location.pathname.includes('/src/')) {
+            parts = ['../data/games_part_1.json', '../data/games_part_2.json', '../data/games_part_3.json'];
+            profilesUrl = '../data/profiles.json';
           }
           
-          setStatusText(`Parsing games database part ${i + 1} of 3...`);
-          let partLoaded = 0;
-          for (const c of chunks) partLoaded += c.length;
-          const partBytes = new Uint8Array(partLoaded);
-          let pos = 0;
-          for (const c of chunks) {
-            partBytes.set(c, pos);
-            pos += c.length;
-          }
-          const partDb = JSON.parse(new TextDecoder().decode(partBytes));
-          Object.assign(gamesDb, partDb);
-        }
-        
-        let profilesUrl = 'data/profiles.json';
-        if (window.location.pathname.includes('/src/')) {
-          profilesUrl = '../data/profiles.json';
-        }
-        
-        // Profiles fetch will use cacheBuster inside app.jsx
-        // Let's modify profilesRes fetch call later in app.jsx
-        // Actually, we can do it inside this script.
-        
+          const cacheBuster = window.DATABASE_VERSION ? `?v=${window.DATABASE_VERSION}` : '';
+          
+          const fetchAndParse = async (url, label) => {
+            const res = await fetch(url + cacheBuster);
+            if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${label}`);
+            return res.json();
+          };
 
-          setStatusText('Fetching profiles database...');
-          const profilesRes = await fetch(profilesUrl + cacheBuster);
-          if (!profilesRes.ok) throw new Error(`HTTP ${profilesRes.status} fetching profiles database`);
-          
-          const profilesReader = profilesRes.body.getReader();
-          let loadedProfiles = 0;
-          const profilesChunks = [];
-          while (true) {
-            const { done, value } = await profilesReader.read();
-            if (done) break;
-            profilesChunks.push(value);
-            loadedProfiles += value.length;
-            setLoadedBytes(loadedGames + loadedProfiles);
-          }
+          const [part1, part2, part3, profiles] = await Promise.all([
+            fetchAndParse(parts[0], 'part 1'),
+            fetchAndParse(parts[1], 'part 2'),
+            fetchAndParse(parts[2], 'part 3'),
+            fetchAndParse(profilesUrl, 'profiles')
+          ]);
 
-          setStatusText('Parsing profiles database...');
-          const profilesBytes = new Uint8Array(loadedProfiles);
-          let pos = 0;
-          for (const chunk of profilesChunks) {
-            profilesBytes.set(chunk, pos);
-            pos += chunk.length;
-          }
-          profilesDb = JSON.parse(new TextDecoder().decode(profilesBytes));
+          setStatusText('Processing database...');
+          gamesDb = {};
+          Object.assign(gamesDb, part1);
+          Object.assign(gamesDb, part2);
+          Object.assign(gamesDb, part3);
+          profilesDb = profiles;
 
           if (latestVersion) {
             try {
