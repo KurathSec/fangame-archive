@@ -144,11 +144,11 @@ def scrape_full_list():
         
         # Parse difficulty
         diff_text = col_diff.text.strip()
-        difficulty = 0.0 if diff_text == 'N/A' else float(diff_text)
+        difficulty = None if diff_text == 'N/A' else float(diff_text)
         
         # Parse rating
         rating_text = col_rating.text.strip()
-        rating = 0.0 if rating_text == 'N/A' else float(rating_text)
+        rating = None if rating_text == 'N/A' else float(rating_text)
         
         # Parse ratings count
         count_text = col_count.text.strip()
@@ -1057,14 +1057,14 @@ def main():
             if new_difficulty is not None:
                 new_difficulty = round(new_difficulty, 1)
                 
-            # Update values if they changed
-            if curr_diff != new_difficulty:
+            # Update values if they changed, ignoring null/None calculations to preserve original ratings
+            if new_difficulty is not None and curr_diff != new_difficulty:
                 g["avg_difficulty"] = new_difficulty
                 changed = True
-            if curr_rating != new_rating:
+            if new_rating is not None and curr_rating != new_rating:
                 g["avg_rating"] = new_rating
                 changed = True
-            if curr_count != new_count:
+            if new_rating is not None and curr_count != new_count:
                 g["rating_count"] = new_count
                 changed = True
                 
