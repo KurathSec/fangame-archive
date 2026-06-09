@@ -259,21 +259,6 @@ function getShotUrl(path) {
     with open(os.path.join(SRC_DIR, "src", "app.jsx"), "r", encoding="utf-8") as f:
         app_content = f.read()
 
-    # Simplify View Router
-    simplified_router = """      <main className="main">
-        {view === 'explorer'    && <window.Explorer    tweaks={tweaks} setTweak={setTweak} onOpenGame={openGame} activeId={activeGame?.id} />}
-        {view === 'donation'    && <window.DonationView />}
-        {view === 'links'       && <window.LinksView />}
-        {view === 'updates'     && <window.UpdateLogView />}
-        {view === 'contact'     && <window.ContactView />}
-        {activeGame && view === 'explorer' && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} />}
-      </main>"""
-    app_content = re.sub(
-      r"<main className=\"main\">.*?</main>",
-      simplified_router,
-      app_content,
-      flags=re.DOTALL
-    )
 
     # Replace loadData logic in app.jsx with multi-part stream loader
     old_load_logic = r"let gamesUrl = 'data/games.json';.*?gamesDb = JSON\.parse\(new TextDecoder\(\)\.decode\(gamesBytes\)\);"
