@@ -85,8 +85,10 @@ function LoginGate({ icon, title, sub, onOpenLogin }) {
 // ── Game Submission form ────────────────────────────────────────────────────
 function SubmitGameView({ auth, identity, onOpenLogin }) {
   const POPULAR = React.useMemo(() => ((window.DATA && window.DATA.TAGS) || []).slice(0, 16).map((t) => t.name), []);
-  const [form, setForm] = React.useState({ name: '', author: identity?.nick || '', url: '', desc: '' });
+  const [form, setForm] = React.useState({ name: '', url: '', desc: '' });
+  const [authors, setAuthors] = React.useState([identity?.nick || '']);
   const [tags, setTags] = React.useState([]);
+  const [custom, setCustom] = React.useState('');
   const [shots, setShots] = React.useState(['']);
   const [verified, setVerified] = React.useState(false);
   const [touched, setTouched] = React.useState(false);
@@ -96,7 +98,13 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
 
   React.useEffect(() => {
     if (identity?.nick) {
-      setForm((f) => ({ ...f, author: identity.nick }));
+      setAuthors((as) => {
+        const next = [...as];
+        if (next[0] === '' || next[0] === identity.nick) {
+          next[0] = identity.nick;
+        }
+        return next;
+      });
     }
   }, [identity]);
 
@@ -105,14 +113,40 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
 
   const urlValid = !form.url || /^https?:\/\/.+\..+/.test(form.url.trim());
   const nameValid = form.name.trim().length >= 2;
+  const authorValid = authors.some((a) => a.trim().length >= 1);
 
-  const toggleTag = (t) => setTags((cur) => cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]);
+  const toggleTag = (t) => {
+    if (!tags.includes(t) && tags.length >= 10) {
+      window.pushToast('Limit reached', 'You can select at most 10 tags.', 'warn');
+      return;
+    }
+    setTags((cur) => cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]);
+  };
+
+  const addCustom = () => {
+    const t = custom.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!t) return;
+    if (t.length > 20) {
+      window.pushToast('Tag too long', 'Tags must be 20 characters or less.', 'warn');
+      return;
+    }
+    if (tags.length >= 10) {
+      window.pushToast('Limit reached', 'You can select at most 10 tags.', 'warn');
+      return;
+    }
+    if (!tags.includes(t)) setTags((cur) => [...cur, t]);
+    setCustom('');
+  };
+
+  const customTags = tags.filter((t) => !POPULAR.includes(t));
+  const setAuthor = (i, v) => setAuthors((as) => as.map((x, j) => j === i ? v : x));
   const setShot = (i, v) => setShots((s) => s.map((x, j) => j === i ? v : x));
 
   const submit = async () => {
     setTouched(true);
     setErr('');
     if (!nameValid) { setErr('Game name is required (min 2 characters).'); return; }
+    if (!authorValid) { setErr('At least one creator/author name is required.'); return; }
     if (!form.url.trim() || !urlValid) { setErr('A valid external URL (http/https) is required.'); return; }
     if (!verified) { setErr('Please complete the verification challenge.'); return; }
     if (quota.left <= 0) { setErr('Daily submission limit reached (5/5). Try again tomorrow.'); window.pushToast('Limit reached', 'You have used all 5 submissions today', 'warn'); return; }
@@ -134,7 +168,7 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
         headers,
         body: JSON.stringify({
           title: form.name.trim(),
-          author_name: form.author.trim() || identity.nick,
+          author_name: authors.filter(Boolean).map(a => a.trim()).join(', '),
           external_url: form.url.trim(),
           tags: tags,
           description: form.desc.trim() || null,
@@ -179,7 +213,7 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
                 <h3>Submission submitted, pending review</h3>
                 <p>Thanks! <b>{form.name.trim()}</b> is now in the moderation queue. You can track its status under <b>My Content → My Submissions</b>. Most submissions are reviewed within 48 hours.</p>
                 <div className="sb-actions">
-                  <button className="doc-btn" onClick={() => { setForm({ name: '', author: identity.nick, url: '', desc: '' }); setTags([]); setShots(['']); setVerified(false); setTouched(false); setDone(false); }}>
+                  <button className="doc-btn" onClick={() => { setForm({ name: '', url: '', desc: '' }); setAuthors([identity?.nick || '']); setTags([]); setShots(['']); setVerified(false); setTouched(false); setDone(false); }}>
                     {window.ic.plus} Submit another
                   </button>
                 </div>
@@ -196,9 +230,20 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
                 </div>
 
                 <div className="field">
-                  <label className="field-label">Author Name <span className="req">*</span></label>
-                  <input className="field-input" value={form.author}
-                         placeholder="Original creator" onChange={(e) => set('author', e.target.value)} />
+                  <label className="field-label">Author Name(s) <span className="req">*</span></label>
+                  {authors.map((a, i) => (
+                    <div className="shot-link-row" key={i} style={{ marginBottom: i < authors.length - 1 ? 8 : 0 }}>
+                      <input className={'field-input' + (touched && !a.trim() ? ' invalid' : '')} value={a} placeholder={i === 0 ? "Original creator" : "Co-creator / Collaborator"}
+                             onChange={(e) => setAuthor(i, e.target.value)} />
+                      {authors.length > 1 && (
+                        <button className="icon-x-btn" type="button" title="Remove" onClick={() => setAuthors((as) => as.filter((_, j) => j !== i))}>{window.ic.x}</button>
+                      )}
+                    </div>
+                  ))}
+                  {authors.length < 5 && (
+                    <button className="chip-add" type="button" style={{ marginTop: 8 }} onClick={() => setAuthors((as) => [...as, ''])}>{window.ic.plus} Add another author</button>
+                  )}
+                  {touched && !authorValid && <span className="field-err">{window.ic.warning} Enter at least one creator name</span>}
                 </div>
 
                 <div className="field">
@@ -216,8 +261,19 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
                     {POPULAR.map((t) => (
                       <button key={t} type="button" className={'tag' + (tags.includes(t) ? ' on' : '')} onClick={() => toggleTag(t)}>{t}</button>
                     ))}
+                    {customTags.map((t) => (
+                      <span key={t} className="tag on custom">{t}
+                        <button className="tag-x" type="button" title="Remove" onClick={() => toggleTag(t)}>{window.ic.x}</button>
+                      </span>
+                    ))}
+                    <span className="tag-input-wrap">
+                      <input className="tag-input" value={custom} placeholder="add tag…" maxLength={20}
+                             onChange={(e) => setCustom(e.target.value)}
+                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }} />
+                      <button className="tag-input-add" type="button" title="Add tag" disabled={!custom.trim()} onClick={addCustom}>{window.ic.plus}</button>
+                    </span>
                   </div>
-                  <span className="field-help">{tags.length} selected — pick all that apply.</span>
+                  <span className="field-help">{tags.length}/10 selected — pick all that apply (max 10 tags, 20 chars per tag).</span>
                 </div>
 
                 <div className="field">
@@ -512,10 +568,24 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
   }
 
   const quota = getQuota('comment', 20);
-  const toggleTag = (t) => setTags((cur) => cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]);
+  const toggleTag = (t) => {
+    if (!tags.includes(t) && tags.length >= 10) {
+      window.pushToast('Limit reached', 'You can select at most 10 tags.', 'warn');
+      return;
+    }
+    setTags((cur) => cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]);
+  };
   const addCustom = () => {
     const t = custom.trim().toLowerCase().replace(/\s+/g, '-');
     if (!t) return;
+    if (t.length > 20) {
+      window.pushToast('Tag too long', 'Tags must be 20 characters or less.', 'warn');
+      return;
+    }
+    if (tags.length >= 10) {
+      window.pushToast('Limit reached', 'You can select at most 10 tags.', 'warn');
+      return;
+    }
     if (!tags.includes(t)) setTags((cur) => [...cur, t]);
     setCustom('');
   };

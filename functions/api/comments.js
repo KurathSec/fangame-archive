@@ -91,6 +91,18 @@ export async function onRequestPost(context) {
       return errorResponse("Missing required fields.", 400);
     }
 
+    // Validate tag constraints (max 10 tags, 20 characters per tag)
+    if (tags && Array.isArray(tags)) {
+      if (tags.length > 10) {
+        return errorResponse("Maximum of 10 tags allowed.", 400);
+      }
+      for (const t of tags) {
+        if (typeof t !== 'string' || t.length > 20) {
+          return errorResponse("Each tag must be a string and under 20 characters.", 400);
+        }
+      }
+    }
+
     // 1. Turnstile CAPTCHA validation
     const turnstileSecret = env.TURNSTILE_SECRET_KEY || "1x000000000000000000000000000000aa";
     const remoteIp = request.headers.get("CF-Connecting-IP") || "";
