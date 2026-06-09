@@ -44,28 +44,14 @@ def main():
         
         game_data = dict(games[key])
         
-        # Check if there are any reviews with actual rating/difficulty values
-        has_real_rating = False
-        has_real_difficulty = False
-        reviews = game_data.get("reviews", [])
-        if reviews:
-            for r in reviews:
-                r_rating = r.get("rating")
-                if r_rating is not None and r_rating != "na":
-                    has_real_rating = True
-                r_diff = r.get("difficulty")
-                if r_diff is not None and r_diff != "na":
-                    has_real_difficulty = True
-                    
         # Update avg_rating
         avg_rating = game_data.get("avg_rating")
         if avg_rating is None:
             avg_rating = game_data.get("rating")
             
-        if avg_rating is not None:
+        if avg_rating is not None and avg_rating != "na":
             avg_rating = float(avg_rating)
-            
-        if not has_real_rating:
+        else:
             avg_rating = None
             
         game_data["avg_rating"] = avg_rating
@@ -75,10 +61,9 @@ def main():
         if avg_diff is None:
             avg_diff = game_data.get("difficulty")
             
-        if avg_diff is not None:
+        if avg_diff is not None and avg_diff != "na":
             avg_diff = float(avg_diff)
-            
-        if not has_real_difficulty:
+        else:
             avg_diff = None
             
         game_data["avg_difficulty"] = avg_diff
