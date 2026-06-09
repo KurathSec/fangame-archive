@@ -135,14 +135,17 @@ function BrandMark() {
 // ── Sidebar ─────────────────────────────────────────────────────────────────
 
 function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth, identity, onLogout }) {
-  const NAV = [
+  const BASE_NAV = [
     { k: 'explorer',    label: 'Browse Games',      icon: ic.archive,  count: gameCount },
-    { k: 'submit',      label: 'Submit a Game',     icon: window.ic2.upload, count: null },
-    { k: 'mycontent',   label: 'My Content',        icon: window.ic2.inbox,  count: null },
     { k: 'donation',    label: 'Donation & Support', icon: ic.heart,    count: null },
     { k: 'links',       label: 'Community Links',   icon: ic.ext,      count: null },
     { k: 'updates',     label: 'Update Log',        icon: ic.log,      count: null },
     { k: 'contact',     label: 'About & Contact',   icon: ic.mail,     count: null }
+  ];
+
+  const MEMBER_NAV = [
+    { k: 'submit',      label: 'Submit a Game',     icon: window.ic2.upload, count: null },
+    { k: 'mycontent',   label: 'My Content',        icon: window.ic2.inbox,  count: null }
   ];
 
   return (
@@ -161,13 +164,27 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth,
       <div>
         <div className="sb-section-label">Library</div>
         <nav className="sb-nav">
-          {NAV.map((n) => (
+          {BASE_NAV.map((n) => (
             <button key={n.k} className={'sb-item' + (view === n.k ? ' active' : '')} onClick={() => onView(n.k)}>
               {n.icon}
               <span>{n.label}</span>
               {n.count != null && <span className="sb-item-count tnum">{n.count}</span>}
             </button>
           ))}
+
+          {auth !== 'out' && (
+            <>
+              <div style={{ height: '14px' }} />
+              <div className="sb-section-label" style={{ marginTop: '4px' }}>Member Area</div>
+              {MEMBER_NAV.map((n) => (
+                <button key={n.k} className={'sb-item' + (view === n.k ? ' active' : '')} onClick={() => onView(n.k)}>
+                  {n.icon}
+                  <span>{n.label}</span>
+                  {n.count != null && <span className="sb-item-count tnum">{n.count}</span>}
+                </button>
+              ))}
+            </>
+          )}
         </nav>
       </div>
 

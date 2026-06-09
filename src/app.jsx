@@ -338,10 +338,12 @@ function RootApp() {
     async function loadData() {
       try {
         setStatusText('Initializing authentication...');
-        if (typeof Clerk !== 'undefined' && !window.Clerk) {
-          const clerk = new Clerk(window.CLERK_PUBLISHABLE_KEY);
-          await clerk.load();
-          window.Clerk = clerk;
+        if (typeof Clerk !== 'undefined') {
+          if (!window.Clerk.loaded) {
+            await window.Clerk.load({
+              publishableKey: window.CLERK_PUBLISHABLE_KEY
+            });
+          }
         }
 
         if (window.DATA && window.DATA.GAMES && window.DATA.GAMES.length > 12) {
