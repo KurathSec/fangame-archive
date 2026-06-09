@@ -124,7 +124,7 @@ def main():
     )
     profiles_size = os.path.getsize(os.path.join(DIST_DIR, "data", "profiles.json"))
     
-    # Load recent_changes.json to get the version, and copy it to dist
+    # Load recent_changes.json to get the version, prune it to stay under 10MB, and save it
     recent_changes_path = os.path.join(SRC_DIR, "data", "recent_changes.json")
     if os.path.exists(recent_changes_path):
         with open(recent_changes_path, "r", encoding="utf-8") as f_rc:
@@ -137,14 +137,31 @@ def main():
             "version": version,
             "timeline": {}
         }
-        os.makedirs(os.path.dirname(recent_changes_path), exist_ok=True)
-        with open(recent_changes_path, "w", encoding="utf-8") as f_rc:
-            json.dump(recent_changes_data, f_rc, indent=2, ensure_ascii=False)
-            
-    shutil.copy(
-        recent_changes_path,
-        os.path.join(DIST_DIR, "data", "recent_changes.json")
-    )
+        
+    # Prune timeline to stay under a safe size limit (e.g., max 10 versions and total size < 10 MB)
+    if "timeline" in recent_changes_data:
+        timeline_keys = sorted(recent_changes_data["timeline"].keys(), key=int)
+        if len(timeline_keys) > 10:
+            for k in timeline_keys[:-10]:
+                recent_changes_data["timeline"].pop(k, None)
+            timeline_keys = timeline_keys[-10:]
+        
+        while len(timeline_keys) > 0:
+            json_str = json.dumps(recent_changes_data, ensure_ascii=False)
+            if len(json_str.encode('utf-8')) < 10 * 1024 * 1024:
+                break
+            oldest_key = timeline_keys.pop(0)
+            recent_changes_data["timeline"].pop(oldest_key, None)
+
+    # Save to src directory to keep repository database small
+    os.makedirs(os.path.dirname(recent_changes_path), exist_ok=True)
+    with open(recent_changes_path, "w", encoding="utf-8") as f_rc:
+        json.dump(recent_changes_data, f_rc, indent=2, ensure_ascii=False)
+        
+    # Save to dist directory for Pages distribution
+    dist_rc_path = os.path.join(DIST_DIR, "data", "recent_changes.json")
+    with open(dist_rc_path, "w", encoding="utf-8") as f_rc:
+        json.dump(recent_changes_data, f_rc, indent=2, ensure_ascii=False)
     
     # Copy changelog.json to dist
     changelog_path = os.path.join(SRC_DIR, "data", "changelog.json")

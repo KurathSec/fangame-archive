@@ -1459,12 +1459,19 @@ def main():
                 "deleted": deleted
             }
             
-            # Sliding window of last 30 versions
+            # Prune timeline to stay under a safe size limit (e.g., max 10 versions and total size < 10 MB)
             timeline_keys = sorted(recent_changes["timeline"].keys(), key=int)
-            if len(timeline_keys) > 30:
-                keys_to_delete = timeline_keys[:-30]
-                for k in keys_to_delete:
-                    del recent_changes["timeline"][k]
+            if len(timeline_keys) > 10:
+                for k in timeline_keys[:-10]:
+                    recent_changes["timeline"].pop(k, None)
+                timeline_keys = timeline_keys[-10:]
+            
+            while len(timeline_keys) > 0:
+                json_str = json.dumps(recent_changes, ensure_ascii=False)
+                if len(json_str.encode('utf-8')) < 10 * 1024 * 1024:
+                    break
+                oldest_key = timeline_keys.pop(0)
+                recent_changes["timeline"].pop(oldest_key, None)
                     
             # Save recent_changes.json atomically
             tmp_recent_path = RECENT_CHANGES_PATH + ".tmp"
