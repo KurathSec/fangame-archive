@@ -101,7 +101,7 @@ def scrape_full_list():
     url = "https://delicious-fruit.com/ratings/full.php?q=ALL"
     
     try:
-        res = requests.get(url, headers=HEADERS, timeout=30)
+        res = requests.get(url, headers=HEADERS, timeout=8)
         res.raise_for_status()
         res.encoding = 'utf-8' # Force requests to use UTF-8 decoding
     except Exception as e:
@@ -322,13 +322,13 @@ def parse_difficulty_val(val_str):
     except ValueError:
         return "na"
 
-def fetch_url_with_retry(url, headers=None, retries=3, initial_backoff=2):
+def fetch_url_with_retry(url, headers=None, retries=2, initial_backoff=2):
     if headers is None:
         headers = {"User-Agent": "Mozilla/5.0"}
     backoff = initial_backoff
     for attempt in range(retries):
         try:
-            res = requests.get(url, headers=headers, timeout=20)
+            res = requests.get(url, headers=headers, timeout=5)
             if res.ok:
                 return res
             log(f"  [WARNING] HTTP {res.status_code} for {url}. Attempt {attempt+1}/{retries}. Retrying in {backoff}s...")
@@ -989,134 +989,208 @@ def main():
     new_game_count = 0
     new_games_to_process = []
     
-    # 4. Check for differences or new games
-    for sg in scraped_games:
-        df_id = sg["df_id"]
-        title = sg["title"]
-        scraped_diff = sg["avg_difficulty"]
-        scraped_rating = sg["avg_rating"]
-        scraped_count = sg["rating_count"]
+    # 4A. Recalculate stats for all existing local games using reviews database
+    log("Recalculating ratings, difficulties, and tags for all existing local games...")
+    for seq_id, g in games.items():
+        val = seq_map.get(str(seq_id))
+        if not val or not isinstance(val, list) or len(val) == 0:
+            continue
+        df_id = str(val[0])
+        if df_id.startswith("WIKI-"):
+            continue
+            
+        changed = False
         
-        seq_id = None
+        # Normalize schema to average rating/difficulty/rating_count
+        if "avg_difficulty" not in g and "difficulty" in g:
+            g["avg_difficulty"] = float(g.pop("difficulty", 0.0))
+            changed = True
+        if "avg_rating" not in g and "rating" in g:
+            g["avg_rating"] = float(g.pop("rating", 0.0))
+            changed = True
+        if "rating_count" not in g and "reviews" in g:
+            g["rating_count"] = int(g.pop("reviews", 0))
+            changed = True
+            
+        if "flags" in g:
+            g.pop("flags")
+            changed = True
+            
+        # Recalculate from reviews
+        g_reviews = reviews_by_df_id.get(df_id, [])
+        new_count = len(g_reviews)
         
-        # Direct lookup by ID
-        if df_id in orig_to_seq_map:
-            seq_id = orig_to_seq_map[df_id]
-        else:
-            # Try matching by Title fallback
-            title_norm = normalize_str(title)
-            if title_norm in title_to_seq_ids:
-                matches = title_to_seq_ids[title_norm]
-                # Filter out seq_ids that are already claimed/mapped in seq_map
-                unclaimed_matches = [m for m in matches if str(m) not in seq_map]
-                if len(unclaimed_matches) == 1:
-                    seq_id = unclaimed_matches[0]
-                    # Self-heal mapping
-                    seq_map[str(seq_id)] = [df_id, "title_match"]
-                    orig_to_seq_map[str(df_id)] = str(seq_id)
-                    log(f"  [HEAL] Mapped unlinked local game ID {seq_id} -> DF ID {df_id} via title match '{title}'")
+        ratings = [float(r["rating"]) for r in g_reviews if r.get("rating") not in (None, 'na')]
+        difficulties = [float(r["difficulty"]) for r in g_reviews if r.get("difficulty") not in (None, 'na')]
+        
+        new_rating = sum(ratings) / len(ratings) if ratings else None
+        new_difficulty = sum(difficulties) / len(difficulties) if difficulties else None
+        
+        curr_diff = g.get("avg_difficulty")
+        curr_rating = g.get("avg_rating")
+        curr_count = g.get("rating_count", 0)
+        
+        if new_rating is not None:
+            new_rating = round(new_rating, 2)
+        if new_difficulty is not None:
+            new_difficulty = round(new_difficulty, 1)
+            
+        # Update values if they changed
+        if new_difficulty is not None and curr_diff != new_difficulty:
+            g["avg_difficulty"] = new_difficulty
+            changed = True
+        if new_rating is not None and curr_rating != new_rating:
+            g["avg_rating"] = new_rating
+            changed = True
+        if new_count > 0 and curr_count != new_count:
+            g["rating_count"] = new_count
+            changed = True
+            
+        # Calculate unified tags: review tags + Wiki tags
+        reviews_tags = set()
+        for r in g_reviews:
+            for t in r.get("tags", []):
+                t_clean = t.strip().lower()
+                if t_clean:
+                    reviews_tags.add(t_clean)
                     
-        if seq_id:
-            # Game exists in local database, check for updates
-            g = games[seq_id]
-            changed = False
+        wiki_tags = set()
+        val = seq_map.get(str(seq_id))
+        w_game = None
+        if val and isinstance(val, list) and len(val) > 0 and val[0].startswith("WIKI-"):
+            w_id = int(val[0].split("-")[1])
+            w_tags = wiki_game_tags.get(w_id, set())
+            wiki_tags.update(w_tags)
+        else:
+            url = g.get("download_url", "").strip().lower()
+            title_lower = g.get("title", "").strip().lower()
+            creator = g.get("creator", {}).get("name", "").strip().lower() if isinstance(g.get("creator"), dict) else ""
             
-            # Normalize schema to average rating/difficulty/rating_count
-            if "avg_difficulty" not in g and "difficulty" in g:
-                g["avg_difficulty"] = float(g.pop("difficulty", 0.0))
-                changed = True
-            if "avg_rating" not in g and "rating" in g:
-                g["avg_rating"] = float(g.pop("rating", 0.0))
-                changed = True
-            if "rating_count" not in g and "reviews" in g:
-                g["rating_count"] = int(g.pop("reviews", 0))
-                changed = True
+            if url in wiki_by_url:
+                w_game = wiki_by_url[url]
+            elif (title_lower, creator) in wiki_by_title_creator:
+                w_game = wiki_by_title_creator[(title_lower, creator)]
+            elif creator in ("unknown", "") and title_lower in wiki_by_title:
+                w_game = wiki_by_title[title_lower]
                 
-            # Clean up flags if they exist in schema2
-            if "flags" in g:
-                g.pop("flags")
-                changed = True
-            
-            # Calculate metrics from reviews database
-            g_reviews = reviews_by_df_id.get(df_id, [])
-            new_count = len(g_reviews)
-            
-            ratings = [float(r["rating"]) for r in g_reviews if r.get("rating") not in (None, 'na')]
-            difficulties = [float(r["difficulty"]) for r in g_reviews if r.get("difficulty") not in (None, 'na')]
-            
-            new_rating = sum(ratings) / len(ratings) if ratings else None
-            new_difficulty = sum(difficulties) / len(difficulties) if difficulties else None
-            
-            curr_diff = g.get("avg_difficulty")
-            curr_rating = g.get("avg_rating")
-            curr_count = g.get("rating_count", 0)
-            
-            # Rounding helper
-            if new_rating is not None:
-                new_rating = round(new_rating, 2)
-            if new_difficulty is not None:
-                new_difficulty = round(new_difficulty, 1)
+            if w_game:
+                wiki_tags.update(wiki_game_tags.get(w_game["id"], set()))
                 
-            # Update values if they changed, ignoring null/None calculations to preserve original ratings
-            if new_difficulty is not None and curr_diff != new_difficulty:
-                g["avg_difficulty"] = new_difficulty
-                changed = True
-            if new_rating is not None and curr_rating != new_rating:
-                g["avg_rating"] = new_rating
-                changed = True
-            if new_rating is not None and curr_count != new_count:
-                g["rating_count"] = new_count
-                changed = True
-                
-            # Calculate unified tags: review tags + Wiki tags
-            reviews_tags = set()
-            for r in g_reviews:
-                for t in r.get("tags", []):
-                    t_clean = t.strip().lower()
-                    if t_clean:
-                        reviews_tags.add(t_clean)
-                        
-            wiki_tags = set()
-            val = seq_map.get(str(seq_id))
-            w_game = None
-            if val and isinstance(val, list) and len(val) > 0 and val[0].startswith("WIKI-"):
-                w_id = int(val[0].split("-")[1])
-                w_tags = wiki_game_tags.get(w_id, set())
-                wiki_tags.update(w_tags)
+        new_tags = reviews_tags | wiki_tags
+        if "archive" in g.get("tags", []):
+            new_tags.add("archive")
+            
+        curr_tags = set(t.strip().lower() for t in g.get("tags", []))
+        
+        if curr_tags != new_tags:
+            g["tags"] = sorted(list(new_tags))
+            changed = True
+            
+        if changed:
+            update_count += 1
+            log(f"  [RECALC] #{update_count} | Seq ID {seq_id} | DF ID {df_id} | '{g.get('title')}' | Diff: {curr_diff}->{new_difficulty} | Rate: {curr_rating}->{new_rating} | Count: {curr_count}->{new_count}")
+
+    # 4B. Check live scraped games for new games or live stat updates
+    if scraped_games:
+        log("Comparing live scraped Delicious Fruit game catalog with local database...")
+        for sg in scraped_games:
+            df_id = sg["df_id"]
+            title = sg["title"]
+            scraped_diff = sg["avg_difficulty"]
+            scraped_rating = sg["avg_rating"]
+            scraped_count = sg["rating_count"]
+            
+            seq_id = None
+            if df_id in orig_to_seq_map:
+                seq_id = orig_to_seq_map[df_id]
             else:
-                # Match by metadata
-                url = g.get("download_url", "").strip().lower()
-                title_lower = g.get("title", "").strip().lower()
-                creator = g.get("creator", {}).get("name", "").strip().lower() if isinstance(g.get("creator"), dict) else ""
+                # Try matching by Title fallback
+                title_norm = normalize_str(title)
+                if title_norm in title_to_seq_ids:
+                    matches = title_to_seq_ids[title_norm]
+                    unclaimed_matches = [m for m in matches if str(m) not in seq_map]
+                    if len(unclaimed_matches) == 1:
+                        seq_id = unclaimed_matches[0]
+                        seq_map[str(seq_id)] = [df_id, "title_match"]
+                        orig_to_seq_map[str(df_id)] = str(seq_id)
+                        log(f"  [HEAL] Mapped unlinked local game ID {seq_id} -> DF ID {df_id} via title match '{title}'")
+                        
+                        # Recalculate stats for this newly mapped game immediately
+                        g = games[seq_id]
+                        changed = False
+                        if "avg_difficulty" not in g and "difficulty" in g:
+                            g["avg_difficulty"] = float(g.pop("difficulty", 0.0))
+                            changed = True
+                        if "avg_rating" not in g and "rating" in g:
+                            g["avg_rating"] = float(g.pop("rating", 0.0))
+                            changed = True
+                        if "rating_count" not in g and "reviews" in g:
+                            g["rating_count"] = int(g.pop("reviews", 0))
+                            changed = True
+                        if "flags" in g:
+                            g.pop("flags")
+                            changed = True
+                            
+                        g_reviews = reviews_by_df_id.get(df_id, [])
+                        new_count = len(g_reviews)
+                        ratings = [float(r["rating"]) for r in g_reviews if r.get("rating") not in (None, 'na')]
+                        difficulties = [float(r["difficulty"]) for r in g_reviews if r.get("difficulty") not in (None, 'na')]
+                        new_rating = sum(ratings) / len(ratings) if ratings else None
+                        new_difficulty = sum(difficulties) / len(difficulties) if difficulties else None
+                        
+                        curr_diff = g.get("avg_difficulty")
+                        curr_rating = g.get("avg_rating")
+                        curr_count = g.get("rating_count", 0)
+                        
+                        if new_rating is not None:
+                            new_rating = round(new_rating, 2)
+                        if new_difficulty is not None:
+                            new_difficulty = round(new_difficulty, 1)
+                            
+                        if new_difficulty is not None and curr_diff != new_difficulty:
+                            g["avg_difficulty"] = new_difficulty
+                            changed = True
+                        if new_rating is not None and curr_rating != new_rating:
+                            g["avg_rating"] = new_rating
+                            changed = True
+                        if new_count > 0 and curr_count != new_count:
+                            g["rating_count"] = new_count
+                            changed = True
+                        if changed:
+                            update_count += 1
+                            log(f"  [RECALC HEALED] #{update_count} | Seq ID {seq_id} | DF ID {df_id} | '{title}' | Diff: {curr_diff}->{new_difficulty} | Rate: {curr_rating}->{new_rating} | Count: {curr_count}->{new_count}")
+                            
+            if seq_id:
+                # Game exists locally and its stats were already recalculated in Step 4A
+                # Let's check if it has no reviews and we need to update it using the live scraped list rating/difficulty
+                g = games[seq_id]
+                g_reviews = reviews_by_df_id.get(df_id, [])
                 
-                if url in wiki_by_url:
-                    w_game = wiki_by_url[url]
-                elif (title_lower, creator) in wiki_by_title_creator:
-                    w_game = wiki_by_title_creator[(title_lower, creator)]
-                elif creator in ("unknown", "") and title_lower in wiki_by_title:
-                    w_game = wiki_by_title[title_lower]
+                # Only fallback/update using live scraped list if there are no reviews in our local reviews database
+                if len(g_reviews) == 0:
+                    changed = False
+                    curr_diff = g.get("avg_difficulty")
+                    curr_rating = g.get("avg_rating")
+                    curr_count = g.get("rating_count", 0)
                     
-                if w_game:
-                    wiki_tags.update(wiki_game_tags.get(w_game["id"], set()))
-                    
-            new_tags = reviews_tags | wiki_tags
-            if "archive" in g.get("tags", []):
-                new_tags.add("archive")
-                
-            curr_tags = set(t.strip().lower() for t in g.get("tags", []))
-            
-            if curr_tags != new_tags:
-                g["tags"] = sorted(list(new_tags))
-                changed = True
-                
-            if changed:
-                update_count += 1
-                log(f"  [UPDATE] #{update_count} | Seq ID {seq_id} | DF ID {df_id} | '{title}' | Diff: {curr_diff}->{new_difficulty} | Rate: {curr_rating}->{new_rating} | Count: {curr_count}->{new_count}")
-        else:
-            # Brand new game found!
-            new_game_count += 1
-            new_games_to_process.append(sg)
-            log(f"  [NEW GAME DETECTED] #{new_game_count} | DF ID {df_id} | '{title}' | Difficulty: {scraped_diff} | Rating: {scraped_rating} | Count: {scraped_count}")
+                    if scraped_diff is not None and curr_diff != scraped_diff:
+                        g["avg_difficulty"] = scraped_diff
+                        changed = True
+                    if scraped_rating is not None and curr_rating != scraped_rating:
+                        g["avg_rating"] = scraped_rating
+                        changed = True
+                    if scraped_count != curr_count:
+                        g["rating_count"] = scraped_count
+                        changed = True
+                        
+                    if changed:
+                        update_count += 1
+                        log(f"  [LIVE UPDATE] #{update_count} | Seq ID {seq_id} | DF ID {df_id} | '{title}' | Diff: {curr_diff}->{scraped_diff} | Rate: {curr_rating}->{scraped_rating} | Count: {curr_count}->{scraped_count}")
+            else:
+                # Brand new game detected!
+                new_game_count += 1
+                new_games_to_process.append(sg)
+                log(f"  [NEW GAME DETECTED] #{new_game_count} | DF ID {df_id} | '{title}' | Difficulty: {scraped_diff} | Rating: {scraped_rating} | Count: {scraped_count}")
 
     log("\n" + "="*50)
     log(f"Delicious Fruit scan complete. Updates to apply: {update_count}. New games to ingest: {len(new_games_to_process)}.")
