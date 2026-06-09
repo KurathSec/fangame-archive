@@ -1839,3 +1839,47 @@ a { color: inherit; text-decoration: none; }
   .don-row .doc-btn { width: 100%; }
   .prop-row { grid-template-columns: 104px 1fr; }
 }
+
+/* Spoiler & Code Styles in Reviews */
+.spoiler-text {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: transparent !important;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 1px 5px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.spoiler-text:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+}
+
+.spoiler-text.revealed {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-soft) !important;
+  text-shadow: none;
+  cursor: default;
+  user-select: text;
+}
+
+.review-body code {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 11px;
+  background-color: var(--panel-2);
+  padding: 2px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+.review-body a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.review-body a:hover {
+  text-decoration: underline;
+}
+

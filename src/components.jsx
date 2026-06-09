@@ -134,7 +134,7 @@ function BrandMark() {
 
 // ── Sidebar ─────────────────────────────────────────────────────────────────
 
-function Sidebar({ view, onView, tweaks, setTweak, gameCount }) {
+function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize }) {
 
   const NAV = [
 
@@ -202,7 +202,7 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount }) {
 
       <div className="sb-foot">
 
-        <div className="sb-stat"><span><span className="sb-pulse" />Storage</span><b className="mono">618.67 GB</b></div>
+        <div className="sb-stat"><span><span className="sb-pulse" />Storage</span><b className="mono">{storageSize || "619.87 GB"}</b></div>
 
         <div className="sb-stat"><span>Archived</span><b className="mono">{gameCount.toLocaleString()}</b></div>
 
@@ -315,6 +315,73 @@ function Lightbox({ shots, index, onClose, onPrev, onNext }) {
 }
 
 
+
+// Helper to parse simple markdown in review comments
+function parseMarkdown(text) {
+  if (!text) return "";
+  
+  // Safe HTML escaping
+  let escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+    
+  // Replace bold: **text** or __text__
+  escaped = escaped.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  escaped = escaped.replace(/__(.*?)__/g, "<strong>$1</strong>");
+  
+  // Replace italic: *text* or _text_
+  escaped = escaped.replace(/\*(.*?)\*/g, "<em>$1</em>");
+  escaped = escaped.replace(/_(.*?)_/g, "<em>$1</em>");
+  
+  // Replace inline code: `code`
+  escaped = escaped.replace(/`(.*?)`/g, "<code>$1</code>");
+  
+  // Replace links: [text](url)
+  escaped = escaped.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  
+  // Replace newlines: \n
+  escaped = escaped.replace(/\n/g, "<br />");
+  
+  return <span dangerouslySetInnerHTML={{ __html: escaped }} />;
+}
+
+// Click-to-reveal Spoiler component
+function Spoiler({ text }) {
+  const [revealed, setRevealed] = React.useState(false);
+  
+  return (
+    <span 
+      className={`spoiler-text ${revealed ? 'revealed' : ''}`} 
+      onClick={() => setRevealed(true)}
+      title={revealed ? "" : "Click to reveal spoiler"}
+    >
+      {revealed ? parseMarkdown(text) : "Spoiler"}
+    </span>
+  );
+}
+
+// CommentBody component to render comment text supporting spoilers and simple markdown
+function CommentBody({ text }) {
+  if (!text) return null;
+  
+  const parts = text.split("||");
+  return (
+    <p className="review-body">
+      {parts.map((part, idx) => {
+        if (idx % 2 === 1) {
+          // This is a spoiler
+          return <Spoiler key={idx} text={part} />;
+        } else {
+          // This is normal text
+          return <React.Fragment key={idx}>{parseMarkdown(part)}</React.Fragment>;
+        }
+      })}
+    </p>
+  );
+}
 
 // ── Drawer (Game Detail) ───────────────────────────────────────────────────
 
@@ -694,7 +761,7 @@ function Drawer({ game, isRoll, onClose }) {
 
                     </div>
 
-                    <p className="review-body">{r.body}</p>
+                    <CommentBody text={r.body} />
 
                     <div className="review-foot">
 
@@ -842,7 +909,7 @@ const copyIc = (
 
 // ── Donation & Support — Notion-style wallet table ──────────────────────────
 
-function DonationView() {
+function DonationView({ gameCount, storageSize }) {
 
   const [copied, setCopied] = React.useState(null);
 
@@ -904,7 +971,7 @@ function DonationView() {
 
             <p className="doc-sub">
 
-              A community-driven archive of 17,000+ fangames and 618&nbsp;GB of crawled content. Sponsorships go
+              A community-driven archive of {gameCount ? gameCount.toLocaleString() : "17,000"}+ fangames and {storageSize || "618 GB"} of crawled content. Sponsorships go
 
               directly toward server hosting, bandwidth, and CDN distribution — thank you for keeping the archive alive.
 

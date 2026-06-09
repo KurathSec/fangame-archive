@@ -46,10 +46,11 @@ function App() {
       {sidebarOpen && <div className="sidebar-scrim-mobile" onClick={() => setSidebarOpen(false)} />}
       <window.Sidebar view={view} onView={(v) => { setView(v); setSidebarOpen(false); if (v !== 'explorer') setActiveGame(null); }}
                      tweaks={tweaks} setTweak={setTweak}
-                     gameCount={window.DATA.GAMES.length} />
+                     gameCount={window.DATA.GAMES.length}
+                     storageSize={window.DATA.STORAGE_SIZE} />
             <main className="main">
         {view === 'explorer'    && <window.Explorer    tweaks={tweaks} setTweak={setTweak} onOpenGame={openGame} activeId={activeGame?.id} />}
-        {view === 'donation'    && <window.DonationView />}
+        {view === 'donation'    && <window.DonationView gameCount={window.DATA.GAMES.length} storageSize={window.DATA.STORAGE_SIZE} />}
         {view === 'links'       && <window.LinksView />}
         {view === 'updates'     && <window.UpdateLogView />}
         {view === 'contact'     && <window.ContactView />}
@@ -437,6 +438,7 @@ function RootApp() {
         const REVIEWS = {};
         const SCREENSHOTS = {};
         const TAGS_COUNT = {};
+        let totalR2Size = 0;
 
         for (const [idStr, rawGame] of Object.entries(gamesDb)) {
           const id = parseInt(idStr, 10);
@@ -584,6 +586,9 @@ function RootApp() {
           GAMES.push(gameObj);
           REVIEWS[id] = gameReviews;
           SCREENSHOTS[id] = gameScreenshots;
+          if (gameObj.flags.local) {
+            totalR2Size += gameObj.file_size;
+          }
         }
 
         const TAGS = Object.entries(TAGS_COUNT)
@@ -672,7 +677,8 @@ function RootApp() {
           { t: '14:02:31', tag: 'info', msg: 'next sync scheduled in 6h' },
         ];
 
-        window.DATA = { TAGS, GAMES, REVIEWS, SCREENSHOTS, COLLECTIONS, MISSING_ASSETS, DEAD_URLS, ORPHANED, CRAWLER_LOG };
+        const R2_STORAGE_SIZE = (totalR2Size / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+        window.DATA = { TAGS, GAMES, REVIEWS, SCREENSHOTS, COLLECTIONS, MISSING_ASSETS, DEAD_URLS, ORPHANED, CRAWLER_LOG, STORAGE_SIZE: R2_STORAGE_SIZE };
         
         window.addEventListener('tweakchange', (e) => {
           const savedTweaks = JSON.parse(localStorage.getItem('archive_tweaks') || '{}');

@@ -15,7 +15,8 @@ DB_FILES = {
     "data/games.json": "Database/games.json",
     "data/recent_changes.json": "Database/recent_changes.json",
     "data/profiles.json": "Database/profiles.json",
-    "database/seq_to_orig_map.json": "Database/seq_to_orig_map.json"
+    "database/seq_to_orig_map.json": "Database/seq_to_orig_map.json",
+    "temp/reviews_scraped.json": "Database/reviews_scraped.json"
 }
 
 def get_r2_client():

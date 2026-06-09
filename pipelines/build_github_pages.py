@@ -230,20 +230,12 @@ function getShotUrl(path) {
             flags=re.DOTALL
         )
 
-    # Modify Sidebar footer if not already simplified
-    if "Fangame Archive" not in comp_content:
-        sb_foot_pattern = r'<div className="sb-foot">.*?</div>\s*</div>'
-        new_sb_foot = """<div className="sb-foot">
-        <div className="sb-stat"><span><span className="sb-pulse" />Storage</span><b className="mono">618.67 GB</b></div>
-        <div className="sb-stat"><span>Archived</span><b className="mono">{gameCount.toLocaleString()}</b></div>
-        <div className="sb-stat"><span>Sync Status</span><b className="mono" style={{ color: 'oklch(0.72 0.15 152)' }}>Online</b></div>
-        <div style={{ padding: '10px 0 0 0', borderTop: '1px solid var(--border)', marginTop: '10px', fontSize: '9.5px', color: 'var(--muted)', letterSpacing: '0.01em', lineHeight: '1.45' }}>
-          Fangame Archive © Kureist 2026<br/>
-          Developer & Designer
-        </div>
-      </div>"""
-        new_sb_foot = new_sb_foot.replace("618.67 GB", f"{total_gb:.2f} GB")
-        comp_content = re.sub(sb_foot_pattern, new_sb_foot, comp_content, flags=re.DOTALL)
+    # Modify Sidebar footer to dynamically replace storage size
+    comp_content = re.sub(
+        r'Storage</span><b className="mono">[\d.]+ GB</b>',
+        f'Storage</span><b className="mono">{total_gb:.2f} GB</b>',
+        comp_content
+    )
 
     with open(os.path.join(DIST_DIR, "src", "components.jsx"), "w", encoding="utf-8") as f:
         f.write(comp_content)

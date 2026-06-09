@@ -301,6 +301,249 @@ def fetch_wiki_tags(w_id):
             time.sleep(1)
     return []
 
+# ── 💬 REVIEWS SCRAPER & INTEGRATION ──────────────────────────────────────────
+REVIEWS_JSON = "temp/reviews_scraped.json"
+
+def parse_rating_val(val_str):
+    val_str = val_str.strip()
+    if val_str == "N/A" or val_str.lower() == "n/a":
+        return "na"
+    try:
+        return float(val_str)
+    except ValueError:
+        return "na"
+
+def parse_difficulty_val(val_str):
+    val_str = val_str.strip()
+    if val_str == "N/A" or val_str.lower() == "n/a":
+        return "na"
+    try:
+        return int(float(val_str))
+    except ValueError:
+        return "na"
+
+def fetch_url_with_retry(url, headers=None, retries=3, initial_backoff=2):
+    if headers is None:
+        headers = {"User-Agent": "Mozilla/5.0"}
+    backoff = initial_backoff
+    for attempt in range(retries):
+        try:
+            res = requests.get(url, headers=headers, timeout=20)
+            if res.ok:
+                return res
+            log(f"  [WARNING] HTTP {res.status_code} for {url}. Attempt {attempt+1}/{retries}. Retrying in {backoff}s...")
+        except Exception as e:
+            log(f"  [WARNING] Connection error for {url}: {e}. Attempt {attempt+1}/{retries}. Retrying in {backoff}s...")
+        time.sleep(backoff)
+        backoff *= 2
+    return None
+
+def scrape_latest_reviews(limit=120):
+    log(f"Scraping latest {limit} reviews from Delicious Fruit feed...")
+    parsed_reviews = []
+    pages_to_scrape = (limit + 9) // 10  # 10 reviews per page
+    
+    headers = {"User-Agent": "Mozilla/5.0"}
+    
+    for page_num in range(pages_to_scrape):
+        url = f"https://delicious-fruit.com/ratings/reviews.php?rpage={page_num}"
+        time.sleep(0.5)
+        try:
+            res = fetch_url_with_retry(url, headers=headers)
+            if res and res.ok:
+                res.encoding = 'utf-8'
+                soup = BeautifulSoup(res.text, "html.parser")
+                review_divs = soup.find_all("div", class_="review")
+                if not review_divs:
+                    break
+                
+                for div in review_divs:
+                    # Author and user ID
+                    author_link = div.find("a", href=re.compile(r"^/profile\.php"))
+                    if author_link:
+                        author = heal_mojibake(author_link.text.strip())
+                        user_id_match = re.search(r"u=(\d+)", author_link["href"])
+                        user_id = int(user_id_match.group(1)) if user_id_match else None
+                    else:
+                        author = "Anonymous"
+                        user_id = None
+
+                    # Game ID and Title
+                    game_link = div.find("a", href=re.compile(r"^/ratings/game_details\.php"))
+                    if game_link:
+                        game_title = heal_mojibake(game_link.text.strip())
+                        game_id_match = re.search(r"id=(\d+)", game_link["href"])
+                        game_id = int(game_id_match.group(1)) if game_id_match else None
+                    else:
+                        continue
+
+                    # Review Text Content
+                    text_div = div.find("div", class_="review-text")
+                    if text_div:
+                        text_span = text_div.find("span")
+                        if text_span:
+                            for s in text_span.find_all("span", class_="spoiler"):
+                                s.replace_with(f"||{s.text}||")
+                            for br in text_span.find_all("br"):
+                                br.replace_with("\n")
+                            text_content = heal_mojibake(text_span.text.strip())
+                        else:
+                            text_content = ""
+                    else:
+                        text_content = ""
+
+                    # Date
+                    date_div = div.find("div", style=re.compile(r"position:\s*absolute"))
+                    date_str = date_div.text.strip() if date_div else ""
+
+                    # Likes
+                    likes_span = div.find("span", class_="r-like-span")
+                    likes = int(likes_span.text.strip()) if likes_span else 0
+
+                    # Rating and Difficulty
+                    rating = "na"
+                    difficulty = "na"
+                    info_text = div.text
+                    
+                    rating_match = re.search(r"Rating:\s*([^\s]+)", info_text)
+                    if rating_match:
+                        rating = parse_rating_val(rating_match.group(1))
+
+                    diff_match = re.search(r"Difficulty:\s*([^\s]+)", info_text)
+                    if diff_match:
+                        difficulty = parse_difficulty_val(diff_match.group(1))
+
+                    # Tags
+                    tags = []
+                    for tag_link in div.find_all("a", class_="tag"):
+                        tag_name = heal_mojibake(tag_link.text.strip().lower())
+                        if tag_name:
+                            tags.append(tag_name)
+
+                    parsed_reviews.append({
+                        "author": author,
+                        "user_id": user_id,
+                        "game_id": game_id,
+                        "game_title": game_title,
+                        "text": text_content,
+                        "likes": likes,
+                        "rating": rating,
+                        "difficulty": difficulty,
+                        "date": date_str,
+                        "tags": tags
+                    })
+                log(f"  Page {page_num} scraped ({len(review_divs)} reviews).")
+            else:
+                log(f"  [WARNING] Failed to fetch page {page_num}: {res.status_code}")
+        except Exception as e:
+            log(f"  [WARNING] Exception fetching page {page_num}: {e}")
+            
+    return parsed_reviews[:limit]
+
+def scrape_all_game_reviews(game_id, game_title=""):
+    log(f"  [Reviews Detail Scrape] Crawling all reviews for game ID {game_id}...")
+    reviews = []
+    base_url = f"https://delicious-fruit.com/ratings/game_details.php?id={game_id}"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    
+    try:
+        res = fetch_url_with_retry(f"{base_url}&rpage=0", headers=headers)
+        if not res or not res.ok:
+            return reviews
+        res.encoding = 'utf-8'
+        html = res.text
+        
+        soup = BeautifulSoup(html, "html.parser")
+        review_divs = soup.find_all("div", class_="review")
+        
+        def parse_reviews_from_soup(s_soup):
+            parsed = []
+            divs = s_soup.find_all("div", class_="review")
+            for div in divs:
+                author_link = div.find("a", href=re.compile(r"^/profile\.php"))
+                if author_link:
+                    author = heal_mojibake(author_link.text.strip())
+                    user_id_match = re.search(r"u=(\d+)", author_link["href"])
+                    user_id = int(user_id_match.group(1)) if user_id_match else None
+                else:
+                    author = "Anonymous"
+                    user_id = None
+
+                text_div = div.find("div", class_="review-text")
+                if text_div:
+                    text_span = text_div.find("span")
+                    if text_span:
+                        for s in text_span.find_all("span", class_="spoiler"):
+                            s.replace_with(f"||{s.text}||")
+                        for br in text_span.find_all("br"):
+                            br.replace_with("\n")
+                        text_content = heal_mojibake(text_span.text.strip())
+                    else:
+                        text_content = ""
+                else:
+                    text_content = ""
+
+                date_div = div.find("div", style=re.compile(r"position:\s*absolute"))
+                date_str = date_div.text.strip() if date_div else ""
+
+                likes_span = div.find("span", class_="r-like-span")
+                likes = int(likes_span.text.strip()) if likes_span else 0
+
+                rating = "na"
+                difficulty = "na"
+                info_text = div.text
+                
+                rating_match = re.search(r"Rating:\s*([^\s]+)", info_text)
+                if rating_match:
+                    rating = parse_rating_val(rating_match.group(1))
+
+                diff_match = re.search(r"Difficulty:\s*([^\s]+)", info_text)
+                if diff_match:
+                    difficulty = parse_difficulty_val(diff_match.group(1))
+
+                tags = []
+                for tag_link in div.find_all("a", class_="tag"):
+                    tag_name = heal_mojibake(tag_link.text.strip().lower())
+                    if tag_name:
+                        tags.append(tag_name)
+
+                parsed.append({
+                    "author": author,
+                    "user_id": user_id,
+                    "game_id": int(game_id),
+                    "game_title": game_title,
+                    "text": text_content,
+                    "likes": likes,
+                    "rating": rating,
+                    "difficulty": difficulty,
+                    "date": date_str,
+                    "tags": tags
+                })
+            return parsed
+
+        reviews.extend(parse_reviews_from_soup(soup))
+        
+        # Pagination links
+        page_numbers = set()
+        for link in soup.find_all("a", href=True):
+            href = link["href"]
+            match = re.search(rf"game_details\.php\?id={game_id}&rpage=(\d+)", href)
+            if match:
+                page_numbers.add(int(match.group(1)))
+                
+        for p in sorted(list(page_numbers)):
+            if p == 0:
+                continue
+            res_p = fetch_url_with_retry(f"{base_url}&rpage={p}", headers=headers)
+            if res_p and res_p.ok:
+                res_p.encoding = 'utf-8'
+                soup_p = BeautifulSoup(res_p.text, "html.parser")
+                reviews.extend(parse_reviews_from_soup(soup_p))
+    except Exception as e:
+        log(f"  [WARNING] Exception scraping detail reviews for game ID {game_id}: {e}")
+        
+    return reviews
+
 # ── 📥 DOWNLOADERS & R2 UPLOADERS ─────────────────────────────────────────────
 def is_binary_stream(res):
     content_type = res.headers.get("Content-Type", "").lower()
@@ -503,7 +746,112 @@ def main():
     log(f"Loaded {len(games)} existing local games.")
     log(f"Loaded {len(seq_map)} sequential-to-original game ID mappings.")
     
-    # 2A. Run database mojibake self-healing sweep
+    # 2C. Scrape latest reviews and merge them
+    log("Scraping latest 120 reviews from Delicious Fruit reviews feed...")
+    latest_reviews = scrape_latest_reviews(limit=120)
+    
+    scraped_reviews = []
+    if os.path.exists(REVIEWS_JSON):
+        try:
+            with open(REVIEWS_JSON, "r", encoding="utf-8") as f:
+                scraped_reviews = json.load(f)
+        except Exception as e:
+            log(f"  [WARNING] Failed to load existing reviews: {e}")
+            
+    # Deduplicate and merge
+    existing_keys = set()
+    for r in scraped_reviews:
+        tags_tuple = tuple(sorted(r.get("tags", []))) if r.get("tags") else ()
+        key = (
+            r.get("author"),
+            r.get("user_id"),
+            r.get("game_id"),
+            r.get("text"),
+            r.get("rating"),
+            r.get("difficulty"),
+            r.get("date"),
+            tags_tuple
+        )
+        existing_keys.add(key)
+        
+    new_reviews_count = 0
+    for r in latest_reviews:
+        tags_tuple = tuple(sorted(r.get("tags", []))) if r.get("tags") else ()
+        key = (
+            r.get("author"),
+            r.get("user_id"),
+            r.get("game_id"),
+            r.get("text"),
+            r.get("rating"),
+            r.get("difficulty"),
+            r.get("date"),
+            tags_tuple
+        )
+        if key not in existing_keys:
+            scraped_reviews.append(r)
+            existing_keys.add(key)
+            new_reviews_count += 1
+            
+    log(f"Merged {new_reviews_count} new reviews from feed.")
+    
+    # Save back reviews
+    try:
+        os.makedirs(os.path.dirname(REVIEWS_JSON), exist_ok=True)
+        tmp_path = REVIEWS_JSON + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(scraped_reviews, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, REVIEWS_JSON)
+        log("Saved reviews database successfully.")
+    except Exception as e:
+        log(f"  [WARNING] Failed to save reviews database: {e}")
+
+    # Build reviews by DF ID mapping
+    reviews_by_df_id = {}
+    for r in scraped_reviews:
+        df_id_str = str(r["game_id"])
+        if df_id_str not in reviews_by_df_id:
+            reviews_by_df_id[df_id_str] = []
+        reviews_by_df_id[df_id_str].append(r)
+
+    # 2D. Fetch complete Wiki tag mappings
+    log("Fetching Wiki tags list for tag merging...")
+    wiki_tags_list = []
+    try:
+        req = urllib.request.Request("https://api.iwannawiki.com/api/v1/tags", headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=15) as res:
+            data = json.loads(res.read().decode('utf-8'))
+            wiki_tags_list = data.get("tags", [])
+    except Exception as e:
+        log(f"  [WARNING] Error fetching Wiki tags list: {e}")
+
+    # Map wiki_game_id -> set of tags
+    wiki_game_tags = {}
+    for t in wiki_tags_list:
+        t_id = t["id"]
+        t_name = t["name"].strip().lower()
+        t_count = t["taggings_count"]
+        log(f"  Fetching games for Wiki tag '{t_name}' ({t_count} games)...")
+        
+        per_page = 5000
+        pages = (t_count + per_page - 1) // per_page
+        for page in range(1, pages + 1):
+            url = f"https://api.iwannawiki.com/api/v1/tags/{t_id}/games?per_page={per_page}&page={page}"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            for attempt in range(3):
+                try:
+                    with urllib.request.urlopen(req, timeout=20) as res:
+                        data = json.loads(res.read().decode('utf-8'))
+                        for wg in data.get("games", []):
+                            wg_id = wg["id"]
+                            if wg_id not in wiki_game_tags:
+                                wiki_game_tags[wg_id] = set()
+                            wiki_game_tags[wg_id].add(t_name)
+                    break
+                except Exception as e:
+                    time.sleep(1)
+            time.sleep(0.1)
+    
+    # 2E. Run database mojibake self-healing sweep
     log("Running database mojibake self-healing sweep...")
     healed_db_count = 0
     for seq_id, g in games.items():
@@ -619,6 +967,22 @@ def main():
     if not wiki_games:
         log("[WARNING] Wiki games catalog is empty or unreachable. Skipping Wiki ingestion.")
         wiki_games = []
+        
+    # Build indices for Wiki matching
+    wiki_by_url = {}
+    wiki_by_title_creator = {}
+    wiki_by_title = {}
+
+    for wg in wiki_games:
+        url = wg.get("url", "").strip().lower()
+        if url:
+            wiki_by_url[url] = wg
+        title_lower = wg.get("name", "").strip().lower()
+        creator = wg.get("creator", "").strip().lower()
+        if title_lower:
+            wiki_by_title_creator[(title_lower, creator)] = wg
+            if title_lower not in wiki_by_title:
+                wiki_by_title[title_lower] = wg
     
     # Setup stats tracking
     update_count = 0
@@ -673,24 +1037,81 @@ def main():
                 g.pop("flags")
                 changed = True
             
-            # Check numerical changes
-            curr_diff = g.get("avg_difficulty", 0.0)
-            curr_rating = g.get("avg_rating", 0.0)
+            # Calculate metrics from reviews database
+            g_reviews = reviews_by_df_id.get(df_id, [])
+            new_count = len(g_reviews)
+            
+            ratings = [float(r["rating"]) for r in g_reviews if r.get("rating") not in (None, 'na')]
+            difficulties = [float(r["difficulty"]) for r in g_reviews if r.get("difficulty") not in (None, 'na')]
+            
+            new_rating = sum(ratings) / len(ratings) if ratings else None
+            new_difficulty = sum(difficulties) / len(difficulties) if difficulties else None
+            
+            curr_diff = g.get("avg_difficulty")
+            curr_rating = g.get("avg_rating")
             curr_count = g.get("rating_count", 0)
             
-            if curr_diff != scraped_diff:
-                g["avg_difficulty"] = scraped_diff
+            # Rounding helper
+            if new_rating is not None:
+                new_rating = round(new_rating, 2)
+            if new_difficulty is not None:
+                new_difficulty = round(new_difficulty, 1)
+                
+            # Update values if they changed
+            if curr_diff != new_difficulty:
+                g["avg_difficulty"] = new_difficulty
                 changed = True
-            if curr_rating != scraped_rating:
-                g["avg_rating"] = scraped_rating
+            if curr_rating != new_rating:
+                g["avg_rating"] = new_rating
                 changed = True
-            if curr_count != scraped_count:
-                g["rating_count"] = scraped_count
+            if curr_count != new_count:
+                g["rating_count"] = new_count
+                changed = True
+                
+            # Calculate unified tags: review tags + Wiki tags
+            reviews_tags = set()
+            for r in g_reviews:
+                for t in r.get("tags", []):
+                    t_clean = t.strip().lower()
+                    if t_clean:
+                        reviews_tags.add(t_clean)
+                        
+            wiki_tags = set()
+            val = seq_map.get(str(seq_id))
+            w_game = None
+            if val and isinstance(val, list) and len(val) > 0 and val[0].startswith("WIKI-"):
+                w_id = int(val[0].split("-")[1])
+                w_tags = wiki_game_tags.get(w_id, set())
+                wiki_tags.update(w_tags)
+            else:
+                # Match by metadata
+                url = g.get("download_url", "").strip().lower()
+                title_lower = g.get("title", "").strip().lower()
+                creator = g.get("creator", {}).get("name", "").strip().lower() if isinstance(g.get("creator"), dict) else ""
+                
+                if url in wiki_by_url:
+                    w_game = wiki_by_url[url]
+                elif (title_lower, creator) in wiki_by_title_creator:
+                    w_game = wiki_by_title_creator[(title_lower, creator)]
+                elif creator in ("unknown", "") and title_lower in wiki_by_title:
+                    w_game = wiki_by_title[title_lower]
+                    
+                if w_game:
+                    wiki_tags.update(wiki_game_tags.get(w_game["id"], set()))
+                    
+            new_tags = reviews_tags | wiki_tags
+            if "archive" in g.get("tags", []):
+                new_tags.add("archive")
+                
+            curr_tags = set(t.strip().lower() for t in g.get("tags", []))
+            
+            if curr_tags != new_tags:
+                g["tags"] = sorted(list(new_tags))
                 changed = True
                 
             if changed:
                 update_count += 1
-                log(f"  [UPDATE] #{update_count} | Seq ID {seq_id} | DF ID {df_id} | '{title}' | Diff: {curr_diff}->{scraped_diff} | Rate: {curr_rating}->{scraped_rating} | Count: {curr_count}->{scraped_count}")
+                log(f"  [UPDATE] #{update_count} | Seq ID {seq_id} | DF ID {df_id} | '{title}' | Diff: {curr_diff}->{new_difficulty} | Rate: {curr_rating}->{new_rating} | Count: {curr_count}->{new_count}")
         else:
             # Brand new game found!
             new_game_count += 1
@@ -737,15 +1158,41 @@ def main():
         for idx, new_g in enumerate(new_games_to_process):
             df_id = new_g["df_id"]
             title = new_g["title"]
-            rating = new_g["avg_rating"]
-            difficulty = new_g["avg_difficulty"]
-            rating_count = new_g["rating_count"]
             
             log(f"\nINGESTING NEW GAME #{idx+1}/{len(new_games_to_process)}: '{title}' (DF ID: {df_id})")
             
             # Step 5A: Scrape details (creator, tags, screenshots) from game_details.php
-            creator_name, creator_url, tags, screenshots = fetch_game_details(df_id)
-            log(f"  Creator: {creator_name} | Tags: {tags} | Screenshots found: {len(screenshots)}")
+            creator_name, creator_url, df_tags, screenshots = fetch_game_details(df_id)
+            log(f"  Creator: {creator_name} | Initial Tags: {df_tags} | Screenshots found: {len(screenshots)}")
+            
+            # Step 5A-2: Scrape all reviews for this new game and merge them
+            new_game_reviews = scrape_all_game_reviews(df_id, title)
+            if new_game_reviews:
+                log(f"  Found {len(new_game_reviews)} reviews for new game. Merging...")
+                for r in new_game_reviews:
+                    tags_tuple = tuple(sorted(r.get("tags", []))) if r.get("tags") else ()
+                    key = (
+                        r.get("author"),
+                        r.get("user_id"),
+                        r.get("game_id"),
+                        r.get("text"),
+                        r.get("rating"),
+                        r.get("difficulty"),
+                        r.get("date"),
+                        tags_tuple
+                    )
+                    if key not in existing_keys:
+                        scraped_reviews.append(r)
+                        existing_keys.add(key)
+                
+                # Save reviews database
+                try:
+                    tmp_path = REVIEWS_JSON + ".tmp"
+                    with open(tmp_path, "w", encoding="utf-8") as f:
+                        json.dump(scraped_reviews, f, indent=2, ensure_ascii=False)
+                    os.replace(tmp_path, REVIEWS_JSON)
+                except Exception as e:
+                    log(f"  [WARNING] Failed to save reviews: {e}")
             
             # Step 5B: Assign next sequential ID
             new_seq_id = max(int(k) for k in games.keys()) + 1
@@ -757,13 +1204,31 @@ def main():
             log(f"  Matched Wiki Link: {wiki_url if wiki_url else 'None'}")
             
             # Merge tags from I Wanna Wiki if matched
+            wiki_tags = set()
             if matched_wg:
-                wiki_tags = fetch_wiki_tags(matched_wg.get("id"))
-                for t in wiki_tags:
-                    t_clean = heal_mojibake(t).lower().strip()
-                    if t_clean and t_clean not in tags:
-                        tags.append(t_clean)
-                log(f"  Merged Tags: {tags}")
+                w_tags = wiki_game_tags.get(matched_wg.get("id"), set())
+                wiki_tags.update(w_tags)
+                
+            # Collect review tags
+            reviews_tags = set()
+            g_reviews = [r for r in new_game_reviews if str(r["game_id"]) == str(df_id)]
+            for r in g_reviews:
+                for t in r.get("tags", []):
+                    t_clean = t.strip().lower()
+                    if t_clean:
+                        reviews_tags.add(t_clean)
+                        
+            # Combined tags
+            final_tags = sorted(list(reviews_tags | wiki_tags))
+            log(f"  Merged Tags: {final_tags}")
+            
+            # Calculate rating/difficulty/count
+            ratings = [float(r["rating"]) for r in g_reviews if r.get("rating") not in (None, 'na')]
+            difficulties = [float(r["difficulty"]) for r in g_reviews if r.get("difficulty") not in (None, 'na')]
+            
+            rating_count = len(g_reviews)
+            rating = round(sum(ratings) / len(ratings), 2) if ratings else None
+            difficulty = round(sum(difficulties) / len(difficulties), 1) if difficulties else None
             
             download_url = ""
             file_size = 0
@@ -827,7 +1292,7 @@ def main():
                 "avg_rating": rating,
                 "avg_difficulty": difficulty,
                 "download_url": download_url,
-                "tags": tags,
+                "tags": final_tags,
                 "screenshots": screenshots,
                 "reviews": [],
                 "rating_count": rating_count,
