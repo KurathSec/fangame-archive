@@ -42,7 +42,8 @@ export async function onRequest(context) {
       const userId = payload.sub;
 
       // Fetch user profile from cache/Clerk API
-      const profile = await getClerkUserProfile(userId, secKey, env.ARCHIVE_KV);
+      const bypassCache = url.pathname === "/api/me" || url.pathname === "/api/me/";
+      const profile = await getClerkUserProfile(userId, secKey, env.ARCHIVE_KV, bypassCache);
 
       try {
         const user = await env.DB.prepare(

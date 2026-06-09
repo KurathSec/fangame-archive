@@ -95,10 +95,10 @@ export async function verifyClerkToken(token, publishableKey) {
 }
 
 // Fetch user profile from Clerk API or local KV cache
-export async function getClerkUserProfile(userId, secretKey, kvNamespace) {
+export async function getClerkUserProfile(userId, secretKey, kvNamespace, bypassCache = false) {
   const cacheKey = `user_profile:${userId}`;
 
-  if (kvNamespace) {
+  if (kvNamespace && !bypassCache) {
     try {
       const cached = await kvNamespace.get(cacheKey);
       if (cached) {
