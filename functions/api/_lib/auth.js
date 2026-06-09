@@ -125,7 +125,7 @@ export async function getClerkUserProfile(userId, secretKey, kvNamespace, bypass
     const rawUser = await res.json();
 
     // Format display_name (prioritize first/last name over username)
-    let display_name = [rawUser.first_name, rawUser.last_name].filter(Boolean).join(" ");
+    let display_name = rawUser.first_name;
     if (!display_name) {
       display_name = rawUser.username;
     }
