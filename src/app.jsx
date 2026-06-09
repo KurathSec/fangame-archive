@@ -474,7 +474,11 @@ function RootApp() {
               
               if (typeof window.Clerk === 'object' && !window.Clerk.loaded) {
                 await window.Clerk.load({
-                  publishableKey: window.CLERK_PUBLISHABLE_KEY
+                  publishableKey: window.CLERK_PUBLISHABLE_KEY,
+                  localization: {
+                    formFieldLabel__firstName: "Nickname",
+                    formFieldPlaceholder__firstName: "Enter nickname"
+                  }
                 });
               }
             }

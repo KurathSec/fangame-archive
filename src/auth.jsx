@@ -227,7 +227,11 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                 btn.innerHTML = '<span>Initializing Auth...</span>';
                 try {
                   await window.Clerk.load({
-                    publishableKey: window.CLERK_PUBLISHABLE_KEY
+                    publishableKey: window.CLERK_PUBLISHABLE_KEY,
+                    localization: {
+                      formFieldLabel__firstName: "Nickname",
+                      formFieldPlaceholder__firstName: "Enter nickname"
+                    }
                   });
                 } catch (err) {
                   alert("Failed to initialize authentication: " + err.message);
