@@ -345,8 +345,7 @@ function RootApp() {
               return;
             }
             const script = document.createElement('script');
-            script.src = "https://cdn.clerk.com/clerk.js";
-            script.setAttribute('data-clerk-publishable-key', window.CLERK_PUBLISHABLE_KEY);
+            script.src = "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
             script.crossOrigin = "anonymous";
             script.async = true;
             script.onload = () => resolve(true);
@@ -363,7 +362,17 @@ function RootApp() {
 
         const clerkScriptLoaded = await loadClerkScript();
         if (clerkScriptLoaded && typeof window.Clerk !== 'undefined') {
-          if (!window.Clerk.loaded) {
+          // If window.Clerk is the constructor class (function), instantiate it!
+          if (typeof window.Clerk === 'function') {
+            try {
+              const clerkInstance = new window.Clerk(window.CLERK_PUBLISHABLE_KEY);
+              window.Clerk = clerkInstance;
+            } catch (err) {
+              console.error("Failed to construct Clerk instance:", err);
+            }
+          }
+          
+          if (typeof window.Clerk === 'object' && !window.Clerk.loaded) {
             await window.Clerk.load({
               publishableKey: window.CLERK_PUBLISHABLE_KEY
             });

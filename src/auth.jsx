@@ -139,8 +139,7 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                   return;
                 }
                 const script = document.createElement('script');
-                script.src = "https://cdn.clerk.com/clerk.js";
-                script.setAttribute('data-clerk-publishable-key', window.CLERK_PUBLISHABLE_KEY);
+                script.src = "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
                 script.crossOrigin = "anonymous";
                 script.async = true;
                 script.onload = () => resolve(true);
@@ -154,7 +153,20 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
             
             const loaded = await loadClerkScript();
             if (loaded && typeof window.Clerk !== 'undefined') {
-              if (!window.Clerk.loaded) {
+              // If window.Clerk is the constructor class (function), instantiate it!
+              if (typeof window.Clerk === 'function') {
+                try {
+                  const clerkInstance = new window.Clerk(window.CLERK_PUBLISHABLE_KEY);
+                  window.Clerk = clerkInstance;
+                } catch (err) {
+                  alert("Failed to construct Clerk instance: " + err.message);
+                  btn.disabled = false;
+                  btn.innerHTML = originalHTML;
+                  return;
+                }
+              }
+              
+              if (typeof window.Clerk === 'object' && !window.Clerk.loaded) {
                 try {
                   await window.Clerk.load({
                     publishableKey: window.CLERK_PUBLISHABLE_KEY
