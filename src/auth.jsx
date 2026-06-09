@@ -124,7 +124,13 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
   if (auth === 'out') {
     return (
       <div className="acct">
-        <button className="acct-login" onClick={() => typeof Clerk !== 'undefined' && Clerk.openSignIn()}>
+        <button className="acct-login" onClick={() => {
+          if (typeof Clerk !== 'undefined' && typeof Clerk.openSignIn === 'function') {
+            Clerk.openSignIn();
+          } else {
+            alert("Authentication service (Clerk) failed to load. If you use an ad-blocker or script blocker, please disable it for this site and refresh.");
+          }
+        }}>
           {ic2.login}<span>Login</span>
         </button>
       </div>
