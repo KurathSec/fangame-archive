@@ -11,6 +11,15 @@ function App() {
   const [view, setView] = React.useState('explorer');
   const [activeGame, setActiveGame] = React.useState(null);
 
+  React.useEffect(() => {
+    window.setView = setView;
+    return () => {
+      if (window.setView === setView) {
+        window.setView = null;
+      }
+    };
+  }, []);
+
   // Open the most-archived "flagship" game once so the drawer reveals on entry.
   // Triggers a single toast on first open to demo the notifications surface.
   const [toasts, setToasts] = React.useState([]);

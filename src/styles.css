@@ -593,6 +593,8 @@ a { color: inherit; text-decoration: none; }
 .list-id   { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11.5px; color: var(--muted); }
 .list-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .list-creator { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-creator a { color: var(--text-soft); }
+.list-creator a:hover { color: var(--accent-text); text-decoration: underline; }
 .list-num { font-family: 'Geist Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 .list-badges { display: flex; gap: 4px; }
 

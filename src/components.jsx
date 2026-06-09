@@ -469,7 +469,13 @@ function Drawer({ game, isRoll, onClose }) {
 
             <div className="drawer-meta">
 
-              by <a href="#">{game.creator}</a>
+              by <a href="#" onClick={(e) => {
+                e.preventDefault();
+                if (window.setCreatorSearch) {
+                  window.setCreatorSearch(game.creator);
+                }
+                onClose();
+              }}>{game.creator}</a>
 
               {' · '}<span className="mono">{game.df_id}</span>
 

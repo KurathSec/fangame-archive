@@ -62,7 +62,13 @@ function Card({ game, active, onClick }) {
       </div>
       <div className="card-body">
         <div className="card-title">{game.title}</div>
-        <div className="card-creator">by <a href="#" onClick={(e) => e.stopPropagation()}>{game.creator}</a></div>
+        <div className="card-creator">by <a href="#" onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (window.setCreatorSearch) {
+            window.setCreatorSearch(game.creator);
+          }
+        }}>{game.creator}</a></div>
         <div className="card-metrics">
           <span className="metric rating">{window.ic.star}<span className="tnum">{game.rating !== null ? game.rating.toFixed(1) : 'N/A'}</span></span>
           <span className="metric diff">{window.ic.flame}<span className="tnum">{game.difficulty !== null ? game.difficulty : 'N/A'}</span></span>
@@ -85,7 +91,15 @@ function ListRow({ game, active, onClick }) {
     <div className={'list-row' + (active ? ' active' : '')} onClick={onClick}>
       <span className="list-id">#{game.id}</span>
       <span className="list-title">{game.title}</span>
-      <span className="list-creator">{game.creator}</span>
+      <span className="list-creator">
+        <a href="#" onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (window.setCreatorSearch) {
+            window.setCreatorSearch(game.creator);
+          }
+        }} className="list-creator-link">{game.creator}</a>
+      </span>
       <span className="list-num list-rating">{game.rating !== null ? game.rating.toFixed(1) : 'N/A'}</span>
       <span className="list-num list-diff">{game.difficulty !== null ? game.difficulty : 'N/A'}</span>
       <span className="list-num list-size">{formatSize(game.file_size)}</span>
@@ -308,6 +322,22 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
       }
     };
   }, [filtered, onOpenGame]);
+
+  React.useEffect(() => {
+    window.setCreatorSearch = (creatorName) => {
+      if (window.setView) {
+        window.setView('explorer');
+      }
+      setSearchCreator(creatorName);
+      setSearchTitle('');
+      setPage(1);
+    };
+    return () => {
+      if (window.setCreatorSearch) {
+        window.setCreatorSearch = null;
+      }
+    };
+  }, []);
 
   return (
     <>
