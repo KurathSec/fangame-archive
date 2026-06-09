@@ -295,7 +295,7 @@ function RootApp() {
         const cachedResult = await getCachedData();
         const localVersion = cachedResult ? cachedResult.version : null;
 
-        if (cachedResult && localVersion === latestVersion) {
+        if (cachedResult && String(localVersion) === String(latestVersion)) {
           setStatusText('Loading database from local cache...');
           gamesDb = cachedResult.data.gamesDb;
           profilesDb = cachedResult.data.profilesDb;
@@ -305,7 +305,7 @@ function RootApp() {
           try {
             setStatusText('Checking for incremental updates...');
             let changesUrl = 'data/recent_changes.json';
-            if (window.location.pathname.includes('/origin/')) {
+            if (window.location.pathname.includes('/src/')) {
               changesUrl = '../data/recent_changes.json';
             }
             
@@ -360,7 +360,7 @@ function RootApp() {
 
         if (!fromCache) {
           let parts = ['data/games_part_1.json', 'data/games_part_2.json', 'data/games_part_3.json'];
-        if (window.location.pathname.includes('/origin/')) {
+        if (window.location.pathname.includes('/src/')) {
           parts = ['../data/games_part_1.json', '../data/games_part_2.json', '../data/games_part_3.json'];
         }
         
@@ -398,7 +398,7 @@ function RootApp() {
         }
         
         let profilesUrl = 'data/profiles.json';
-        if (window.location.pathname.includes('/origin/')) {
+        if (window.location.pathname.includes('/src/')) {
           profilesUrl = '../data/profiles.json';
         }
         
