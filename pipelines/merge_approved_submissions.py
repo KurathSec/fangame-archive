@@ -67,7 +67,7 @@ def main():
     db_name = "fangame-comments"
     query = "SELECT id, title, author_name, external_url, tags, screenshots, description FROM game_submissions WHERE status = 'approved' AND merged_at IS NULL"
     
-    cmd = f'npx wrangler d1 execute {db_name} --remote --command "{query}" --json'
+    cmd = f'npx -y wrangler d1 execute {db_name} --remote --command "{query}" --json'
     
     print("Fetching pending mergers from D1 remote...")
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding="utf-8")
@@ -304,7 +304,7 @@ def main():
     print("Updating D1 remote database rows to 'merged'...")
     for sub_id, seq_id in merged_sub_ids:
         update_query = f"UPDATE game_submissions SET merged_at = {now_epoch}, assigned_game_id = {seq_id} WHERE id = {sub_id}"
-        update_cmd = f'npx wrangler d1 execute {db_name} --remote --command "{update_query}"'
+        update_cmd = f'npx -y wrangler d1 execute {db_name} --remote --command "{update_query}"'
         
         res = subprocess.run(update_cmd, shell=True, capture_output=True, text=True, encoding="utf-8")
         if res.returncode != 0:
