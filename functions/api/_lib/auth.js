@@ -124,10 +124,10 @@ export async function getClerkUserProfile(userId, secretKey, kvNamespace, bypass
 
     const rawUser = await res.json();
 
-    // Format display_name
-    let display_name = rawUser.username;
-    if (!display_name && (rawUser.first_name || rawUser.last_name)) {
-      display_name = [rawUser.first_name, rawUser.last_name].filter(Boolean).join(" ");
+    // Format display_name (prioritize first/last name over username)
+    let display_name = [rawUser.first_name, rawUser.last_name].filter(Boolean).join(" ");
+    if (!display_name) {
+      display_name = rawUser.username;
     }
     if (!display_name && rawUser.email_addresses && rawUser.email_addresses.length > 0) {
       display_name = rawUser.email_addresses[0].email_address.split("@")[0];

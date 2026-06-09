@@ -31,9 +31,9 @@ function getClerkIdentity() {
   if (typeof Clerk === 'undefined' || !Clerk.user) return null;
   const user = Clerk.user;
 
-  let name = user.username;
+  let name = [user.firstName, user.lastName].filter(Boolean).join(' ');
   if (!name) {
-    name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+    name = user.username;
   }
   if (!name && user.primaryEmailAddress) {
     name = user.primaryEmailAddress.emailAddress.split('@')[0];

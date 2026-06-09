@@ -94,6 +94,12 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
   const [done, setDone] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
 
+  React.useEffect(() => {
+    if (identity?.nick) {
+      setForm((f) => ({ ...f, author: identity.nick }));
+    }
+  }, [identity]);
+
   const quota = getQuota('submit', 5);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
