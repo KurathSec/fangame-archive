@@ -65,7 +65,11 @@ export async function onRequestGet(context) {
       };
     });
 
-    return jsonResponse({ success: true, comments: formatted });
+    return jsonResponse({ success: true, comments: formatted }, 200, {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0"
+    });
   } catch (err) {
     return errorResponse(err.message, 500);
   }
