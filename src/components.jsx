@@ -134,94 +134,55 @@ function BrandMark() {
 
 // ── Sidebar ─────────────────────────────────────────────────────────────────
 
-function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize }) {
-
+function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth, identity, onLogout }) {
   const NAV = [
-
     { k: 'explorer',    label: 'Browse Games',      icon: ic.archive,  count: gameCount },
-
+    { k: 'submit',      label: 'Submit a Game',     icon: window.ic2.upload, count: null },
+    { k: 'mycontent',   label: 'My Content',        icon: window.ic2.inbox,  count: null },
     { k: 'donation',    label: 'Donation & Support', icon: ic.heart,    count: null },
-
     { k: 'links',       label: 'Community Links',   icon: ic.ext,      count: null },
     { k: 'updates',     label: 'Update Log',        icon: ic.log,      count: null },
     { k: 'contact',     label: 'About & Contact',   icon: ic.mail,     count: null }
-
   ];
 
   return (
-
     <aside className="sb">
-
       <div className="sb-brand">
-
         <div className="sb-logo"><BrandMark /></div>
-
         <div style={{ flex: 1 }}>
-
           <div className="sb-brand-name">Archive</div>
-
           <div className="sb-brand-sub mono">fangame library</div>
-
         </div>
-
         <button className="sb-mobile-close" onClick={() => window.closeSidebar && window.closeSidebar()} title="Close menu">
-
           {ic.x}
-
         </button>
-
       </div>
-
-
 
       <div>
-
         <div className="sb-section-label">Library</div>
-
         <nav className="sb-nav">
-
           {NAV.map((n) => (
-
             <button key={n.k} className={'sb-item' + (view === n.k ? ' active' : '')} onClick={() => onView(n.k)}>
-
               {n.icon}
-
               <span>{n.label}</span>
-
               {n.count != null && <span className="sb-item-count tnum">{n.count}</span>}
-
             </button>
-
           ))}
-
         </nav>
-
       </div>
-
-
 
       <div className="sb-foot">
-
-        <div className="sb-stat"><span><span className="sb-pulse" />Storage</span><b className="mono">{storageSize || "619.87 GB"}</b></div>
-
+        <window.AccountBlock auth={auth} identity={identity} onLogout={onLogout} onView={onView} />
+        <div className="sb-stat" style={{ marginTop: '10px' }}><span><span className="sb-pulse" />Storage</span><b className="mono">{storageSize || "619.87 GB"}</b></div>
         <div className="sb-stat"><span>Archived</span><b className="mono">{gameCount.toLocaleString()}</b></div>
-
         <div className="sb-stat"><span>Sync Status</span><b className="mono" style={{ color: 'oklch(0.72 0.15 152)' }}>Online</b></div>
-
         <div style={{ padding: '10px 0 0 0', borderTop: '1px solid var(--border)', marginTop: '10px', fontSize: '9.5px', color: 'var(--muted)', letterSpacing: '0.01em', lineHeight: '1.45' }}>
-
           Fangame Archive © Kureist 2026<br/>
-
           Developer & Designer
-
         </div>
-
       </div>
-
     </aside>
-
   );
-
 }
 
 
@@ -385,7 +346,7 @@ function CommentBody({ text }) {
 
 // ── Drawer (Game Detail) ───────────────────────────────────────────────────
 
-function Drawer({ game, isRoll, onClose }) {
+function Drawer({ game, isRoll, onClose, auth, identity }) {
 
   const [openShot, setOpenShot] = React.useState(-1);
 
@@ -397,45 +358,38 @@ function Drawer({ game, isRoll, onClose }) {
 
   const shots = game ? (window.DATA.SCREENSHOTS[game.id] || []) : [];
 
-
+  const loadComments = React.useCallback(async () => {
+    if (!game) return;
+    setLoadingComments(true);
+    try {
+      let headers = {};
+      if (typeof Clerk !== 'undefined' && Clerk.session) {
+        const token = await Clerk.session.getToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
+      const res = await fetch(`/api/comments?game_id=${game.id}`, { headers });
+      if (!res.ok) throw new Error("Failed to load comments.");
+      const data = await res.json();
+      setComments(data.comments || []);
+    } catch (err) {
+      console.error(err);
+      setComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  }, [game?.id]);
 
   React.useEffect(() => {
 
     if (game === null) return;
 
-    setLoadingComments(true);
-
     setCommentPage(1);
 
-    fetch(`/api/comments?game_id=${game.id}`)
+    loadComments();
 
-      .then(res => {
-
-        if (res.ok === false) throw new Error("Failed to load comments.");
-
-        return res.json();
-
-      })
-
-      .then(data => {
-
-        setComments(data.comments || []);
-
-        setLoadingComments(false);
-
-      })
-
-      .catch(err => {
-
-        console.error(err);
-
-        setComments([]);
-
-        setLoadingComments(false);
-
-      });
-
-  }, [game.id]);
+  }, [game?.id, loadComments]);
 
 
 
@@ -701,6 +655,24 @@ function Drawer({ game, isRoll, onClose }) {
 
           )}
 
+          {game.desc && (
+            <section className="drawer-sec">
+              <div style={{
+                fontSize: '12.5px',
+                lineHeight: '1.6',
+                color: 'var(--text-soft)',
+                background: 'var(--panel-2)',
+                border: '1px solid var(--border)',
+                padding: '12px 14px',
+                borderRadius: '8px',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word'
+              }}>
+                {game.desc}
+              </div>
+            </section>
+          )}
+
 
 
 
@@ -751,11 +723,15 @@ function Drawer({ game, isRoll, onClose }) {
 
                 {comments.slice((commentPage - 1) * 5, commentPage * 5).map((r, i) => (
 
-                  <div key={i} className="review">
+                  <div key={i} className={`review${r.status === 'pending' ? ' own' : ''}`}>
 
                     <div className="review-hd">
 
                       <b><a href="#">{r.user}</a></b>
+
+                      {r.status === 'pending' && <span className="badge-mini own">Pending Review</span>}
+
+                      {r.source === 'imported' && <span className="badge-mini imported">Imported</span>}
 
                       {r.rating !== null && r.rating !== undefined && r.rating !== 'na' ? <span className="mono">rating {r.rating}/10</span> : <span className="mono" style={{ color: 'var(--muted)' }}>rating N/A</span>}
 
@@ -867,6 +843,16 @@ function Drawer({ game, isRoll, onClose }) {
 
             )}
 
+          </section>
+
+          <section className="drawer-sec" style={{ padding: 0 }}>
+            <window.CommentEditor
+              auth={auth}
+              identity={identity}
+              gameId={game.id}
+              onOpenLogin={() => typeof Clerk !== 'undefined' && Clerk.openSignIn()}
+              onPosted={loadComments}
+            />
           </section>
 
         </div>

@@ -223,17 +223,17 @@ function HealthView({ tweaks, setTweak }) {
           50% { opacity: 0.25; }
         }
         .skeleton-line {
-          background: var(--border);
+          background: 'var(--border)';
           border-radius: 4px;
           animation: pulse-opacity 1.5s infinite ease-in-out;
         }
         .skeleton-box {
-          background: var(--border);
+          background: 'var(--border)';
           border-radius: 4px;
           animation: pulse-opacity 1.5s infinite ease-in-out;
         }
         .skeleton-pulse {
-          background: var(--border);
+          background: 'var(--border)';
           animation: pulse-opacity 1.5s infinite ease-in-out;
         }
       `}</style>

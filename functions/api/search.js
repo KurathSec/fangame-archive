@@ -1,21 +1,38 @@
+// Pages Function API for keyword and ID directory search.
+// Optimized using Cloudflare Edge Cache API.
+
 export async function onRequest(context) {
   const url = new URL(context.request.url);
-  const q = url.searchParams.get('q');
-  const id = url.searchParams.get('id');
-  
-  // Set CORS headers
+  const q = url.searchParams.get("q");
+  const id = url.searchParams.get("id");
+
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json;charset=utf-8'
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Content-Type": "application/json;charset=utf-8"
   };
-  
-  // Handle OPTIONS preflight request
-  if (context.request.method === 'OPTIONS') {
+
+  if (context.request.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
-  
+
+  // 1. Edge caching lookup
+  const useCache = typeof caches !== "undefined";
+  let cacheKey, cache;
+  if (useCache) {
+    cache = caches.default;
+    cacheKey = new Request(context.request.url, context.request);
+    try {
+      const cachedResponse = await cache.match(cacheKey);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+    } catch (e) {
+      console.warn("Cache match failed:", e);
+    }
+  }
+
   try {
     // Fetch search_index.json from our own deployment
     const indexUrl = `${url.origin}/data/search_index.json`;
@@ -26,21 +43,15 @@ export async function onRequest(context) {
         headers: corsHeaders
       });
     }
-    
+
     const games = await res.json();
-    
-    // 1. Search by ID
+    let responseData = {};
+    let status = 200;
+
     if (id) {
       const match = games.find(g => String(g.id) === String(id));
-      if (match) {
-        return new Response(JSON.stringify({ success: true, results: [match] }), { headers: corsHeaders });
-      } else {
-        return new Response(JSON.stringify({ success: true, results: [] }), { headers: corsHeaders });
-      }
-    }
-    
-    // 2. Search by keyword (title, creator, tags)
-    if (q) {
+      responseData = { success: true, results: match ? [match] : [] };
+    } else if (q) {
       const query = q.toLowerCase().trim();
       const results = games.filter(g => {
         const titleMatch = g.title.toLowerCase().includes(query);
@@ -48,21 +59,32 @@ export async function onRequest(context) {
         const tagsMatch = g.tags.some(t => t.toLowerCase().includes(query));
         return titleMatch || creatorMatch || tagsMatch;
       });
-      
-      // Return top 100 matching results
-      return new Response(JSON.stringify({ success: true, count: results.length, results: results.slice(0, 100) }), { headers: corsHeaders });
+      responseData = { success: true, count: results.length, results: results.slice(0, 100) };
+    } else {
+      responseData = {
+        error: "Please provide a query parameter 'q' (for keyword search) or 'id' (for game ID search)",
+        example_id: `${url.origin}/api/search?id=17049`,
+        example_query: `${url.origin}/api/search?q=Happil`
+      };
+      status = 400;
     }
-    
-    // 3. No query provided
-    return new Response(JSON.stringify({
-      error: "Please provide a query parameter 'q' (for keyword search) or 'id' (for game ID search)",
-      example_id: `${url.origin}/api/search?id=17049`,
-      example_query: `${url.origin}/api/search?q=Happil`
-    }), {
-      status: 400,
+
+    const finalResponse = new Response(JSON.stringify(responseData), {
+      status,
       headers: corsHeaders
     });
-    
+
+    // Write to Edge Cache if query succeeded (expires in 10 minutes)
+    if (useCache && status === 200 && context.request.method === "GET") {
+      finalResponse.headers.set("Cache-Control", "public, max-age=600");
+      try {
+        context.waitUntil(cache.put(cacheKey, finalResponse.clone()));
+      } catch (e) {
+        console.warn("Cache write failed:", e);
+      }
+    }
+
+    return finalResponse;
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,

@@ -1,4 +1,8 @@
-// Pages Function API for fetching and posting game comments from Cloudflare D1.
+// Pages Function API for fetching and posting game comments from D1.
+// Supports native comments, Turnstile checks, and daily KV quotas.
+
+import { jsonResponse, errorResponse } from "./_lib/http.js";
+import { verifyTurnstile } from "./_lib/validate.js";
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -6,20 +10,37 @@ export async function onRequestGet(context) {
   const gameId = url.searchParams.get("game_id");
 
   if (!gameId) {
-    return new Response(JSON.stringify({ success: false, error: "Missing game_id parameter." }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-    });
+    return errorResponse("Missing game_id parameter.", 400);
   }
 
+  // Get current logged-in user ID if present (injected by _middleware.js)
+  const currentUserId = context.data.user ? context.data.user.id : "";
+
   try {
-    const { results } = await env.DB.prepare(
-      "SELECT id, user, rating, difficulty, likes, date, content, tags FROM comments WHERE game_id = ? ORDER BY id DESC"
-    )
-    .bind(parseInt(gameId, 10))
+    // Left join users table to get the latest display name for native comments
+    const { results } = await env.DB.prepare(`
+      SELECT 
+        c.id, 
+        c.game_id, 
+        c.user AS legacy_user, 
+        u.display_name AS native_user, 
+        c.rating, 
+        c.difficulty, 
+        c.likes, 
+        c.date, 
+        c.content, 
+        c.tags, 
+        c.source, 
+        c.status,
+        c.user_id
+      FROM comments c
+      LEFT JOIN users u ON c.user_id = u.id
+      WHERE c.game_id = ? AND (c.status = 'approved' OR c.user_id = ?)
+      ORDER BY c.id DESC
+    `)
+    .bind(parseInt(gameId, 10), currentUserId)
     .all();
 
-    // Parse tags JSON string back to array safely
     const formatted = results.map(r => {
       let parsedTags = [];
       if (r.tags) {
@@ -31,65 +52,87 @@ export async function onRequestGet(context) {
       }
       return {
         id: r.id,
-        user: r.user,
+        user: (r.source === "native" && r.native_user) ? r.native_user : r.legacy_user,
         rating: r.rating,
         diff: r.difficulty,
-        liked: r.likes,
+        liked: r.likes || 0,
         date: r.date,
         body: r.content,
-        tags: parsedTags
+        tags: parsedTags,
+        source: r.source || "imported",
+        status: r.status || "approved",
+        user_id: r.user_id || null
       };
     });
 
-    return new Response(JSON.stringify({ success: true, comments: formatted }), {
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-    });
+    return jsonResponse({ success: true, comments: formatted });
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, error: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-    });
+    return errorResponse(err.message, 500);
   }
 }
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-  
+  const user = context.data.user; // Verified by middleware
+
+  if (!user) {
+    return errorResponse("Unauthorized.", 401);
+  }
+
   try {
     const body = await request.json();
-    const { game_id, user, rating, difficulty, content, tags } = body;
+    const { game_id, rating, difficulty, content, tags, turnstile_token } = body;
 
-    if (!game_id || !user || !content) {
-      return new Response(JSON.stringify({ success: false, error: "Missing required fields." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" }
-      });
+    if (!game_id || !content) {
+      return errorResponse("Missing required fields.", 400);
     }
 
-    const dateStr = new Date().toISOString().split('T')[0];
-    const tagsStr = JSON.stringify(tags || []);
+    // 1. Turnstile CAPTCHA validation
+    const turnstileSecret = env.TURNSTILE_SECRET_KEY || "1x000000000000000000000000000000aa";
+    const remoteIp = request.headers.get("CF-Connecting-IP") || "";
+    const isCaptchaValid = await verifyTurnstile(turnstile_token, turnstileSecret, remoteIp);
+    if (!isCaptchaValid) {
+      return errorResponse("Turnstile verification failed.", 400);
+    }
 
-    await env.DB.prepare(
-      "INSERT INTO comments (game_id, user, rating, difficulty, date, content, tags) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    )
+    // 2. Daily comment quota check (max 20 per day)
+    const kv = env.ARCHIVE_KV;
+    if (kv) {
+      const todayStr = new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const quotaKey = `quota:comment:${user.id}:${todayStr}`;
+      const usedVal = await kv.get(quotaKey);
+      const usedCount = usedVal ? parseInt(usedVal, 10) : 0;
+      if (usedCount >= 20) {
+        return errorResponse("Daily comment limit reached (20/20).", 429);
+      }
+      // Increment and set TTL to 36 hours (129600 seconds)
+      await kv.put(quotaKey, String(usedCount + 1), { expirationTtl: 129600 });
+    }
+
+    const dateStr = new Date().toISOString().split("T")[0];
+    const tagsStr = JSON.stringify(tags || []);
+    const createdTs = Date.now();
+
+    // 3. Write native comment into D1 as 'pending'
+    await env.DB.prepare(`
+      INSERT INTO comments (game_id, user, user_id, rating, difficulty, date, content, tags, source, status, created_ts)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'native', 'pending', ?)
+    `)
     .bind(
       parseInt(game_id, 10),
-      user,
+      user.display_name,
+      user.id,
       rating !== undefined && rating !== null ? parseFloat(rating) : null,
-      difficulty !== undefined && difficulty !== null ? parseInt(difficulty, 10) : null,
+      difficulty !== undefined && difficulty !== null ? parseFloat(difficulty) : null,
       dateStr,
       content,
-      tagsStr
+      tagsStr,
+      createdTs
     )
     .run();
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { "Content-Type": "application/json" }
-    });
+    return jsonResponse({ success: true });
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, error: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
+    return errorResponse(err.message, 500);
   }
 }

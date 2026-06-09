@@ -10,6 +10,10 @@ function App() {
   const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
   const [view, setView] = React.useState('explorer');
   const [activeGame, setActiveGame] = React.useState(null);
+  const [toasts, setToasts] = React.useState([]);
+
+  const [auth, setAuth] = React.useState('out');
+  const [identity, setIdentity] = React.useState(null);
 
   React.useEffect(() => {
     window.setView = setView;
@@ -20,12 +24,60 @@ function App() {
     };
   }, []);
 
-  // Open the most-archived "flagship" game once so the drawer reveals on entry.
-  // Triggers a single toast on first open to demo the notifications surface.
-  const [toasts, setToasts] = React.useState([]);
-  const toastedRef = React.useRef(false);
   React.useEffect(() => {
-    // Disabled crawler startup toast
+    if (typeof Clerk === 'undefined') return;
+
+    const syncUser = async () => {
+      if (Clerk.user) {
+        const localId = window.getClerkIdentity();
+        setIdentity(localId);
+        try {
+          const token = await Clerk.session.getToken();
+          const res = await fetch('/api/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.user) {
+              setAuth(data.user.role === 'admin' ? 'admin' : 'user');
+              setIdentity({
+                nick: data.user.display_name,
+                color: localId.color,
+                initial: data.user.display_name[0].toUpperCase(),
+                avatar_url: data.user.avatar_url
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Failed to sync D1 user profile:", e);
+          setAuth('user');
+        }
+      } else {
+        setAuth('out');
+        setIdentity(null);
+      }
+    };
+
+    syncUser();
+    const unsubscribe = Clerk.addListener(() => { syncUser(); });
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, []);
+
+  const handleLogout = async () => {
+    if (window.Clerk) {
+      await Clerk.signOut();
+      window.pushToast('Signed out', '', 'success');
+      if (view === 'mycontent') setView('explorer');
+    }
+  };
+
+  React.useEffect(() => {
+    window.__pushToast = (t) => {
+      const id = Date.now() + Math.random();
+      setToasts((prev) => [...prev, { id, ...t }]);
+      setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), 3600);
+    };
+    return () => { window.__pushToast = null; };
   }, []);
 
   // Apply theme + density to document root so CSS variables swap.
@@ -56,14 +108,17 @@ function App() {
       <window.Sidebar view={view} onView={(v) => { setView(v); setSidebarOpen(false); if (v !== 'explorer') setActiveGame(null); }}
                      tweaks={tweaks} setTweak={setTweak}
                      gameCount={window.DATA.GAMES.length}
-                     storageSize={window.DATA.STORAGE_SIZE} />
-            <main className="main">
+                     storageSize={window.DATA.STORAGE_SIZE}
+                     auth={auth} identity={identity} onLogout={handleLogout} />
+      <main className="main">
         {view === 'explorer'    && <window.Explorer    tweaks={tweaks} setTweak={setTweak} onOpenGame={openGame} activeId={activeGame?.id} />}
         {view === 'donation'    && <window.DonationView gameCount={window.DATA.GAMES.length} storageSize={window.DATA.STORAGE_SIZE} />}
         {view === 'links'       && <window.LinksView />}
         {view === 'updates'     && <window.UpdateLogView />}
         {view === 'contact'     && <window.ContactView />}
-        {activeGame && view === 'explorer' && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} />}
+        {view === 'submit'      && <window.SubmitGameView auth={auth} identity={identity} />}
+        {view === 'mycontent'   && <window.MyContentView auth={auth} identity={identity} />}
+        {activeGame && view === 'explorer' && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} auth={auth} identity={identity} />}
       </main>
 
       <window.Toasts items={toasts} />
@@ -282,6 +337,13 @@ function RootApp() {
   React.useEffect(() => {
     async function loadData() {
       try {
+        setStatusText('Initializing authentication...');
+        if (typeof Clerk !== 'undefined' && !window.Clerk) {
+          const clerk = new Clerk(window.CLERK_PUBLISHABLE_KEY);
+          await clerk.load();
+          window.Clerk = clerk;
+        }
+
         if (window.DATA && window.DATA.GAMES && window.DATA.GAMES.length > 12) {
           setLoading(false);
           return;
