@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - 'src/**'
+      - 'public/**'
       - 'pipelines/**'
       - 'wrangler.toml'
       - '.github/workflows/**'
