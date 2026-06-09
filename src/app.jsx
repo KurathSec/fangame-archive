@@ -338,7 +338,31 @@ function RootApp() {
     async function loadData() {
       try {
         setStatusText('Initializing authentication...');
-        if (typeof Clerk !== 'undefined') {
+        const loadClerkScript = () => {
+          return new Promise((resolve) => {
+            if (typeof window.Clerk !== 'undefined') {
+              resolve(true);
+              return;
+            }
+            const script = document.createElement('script');
+            script.src = "https://cdn.clerk.com/clerk.js";
+            script.setAttribute('data-clerk-publishable-key', window.CLERK_PUBLISHABLE_KEY);
+            script.crossOrigin = "anonymous";
+            script.async = true;
+            script.onload = () => resolve(true);
+            script.onerror = () => {
+              console.warn("Clerk script failed to load (blocked by ad-blocker or offline).");
+              resolve(false);
+            };
+            document.head.appendChild(script);
+            
+            // Set a timeout of 3 seconds so slow connections don't block the site load
+            setTimeout(() => resolve(false), 3000);
+          });
+        };
+
+        const clerkScriptLoaded = await loadClerkScript();
+        if (clerkScriptLoaded && typeof window.Clerk !== 'undefined') {
           if (!window.Clerk.loaded) {
             await window.Clerk.load({
               publishableKey: window.CLERK_PUBLISHABLE_KEY

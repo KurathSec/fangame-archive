@@ -124,11 +124,60 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
   if (auth === 'out') {
     return (
       <div className="acct">
-        <button className="acct-login" onClick={() => {
+        <button className="acct-login" onClick={async (e) => {
+          const btn = e.currentTarget;
+          if (typeof Clerk === 'undefined' || !Clerk.loaded) {
+            // Disable button and show loading text
+            btn.disabled = true;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<span>Loading Auth...</span>';
+            
+            const loadClerkScript = () => {
+              return new Promise((resolve) => {
+                if (typeof window.Clerk !== 'undefined') {
+                  resolve(true);
+                  return;
+                }
+                const script = document.createElement('script');
+                script.src = "https://cdn.clerk.com/clerk.js";
+                script.setAttribute('data-clerk-publishable-key', window.CLERK_PUBLISHABLE_KEY);
+                script.crossOrigin = "anonymous";
+                script.async = true;
+                script.onload = () => resolve(true);
+                script.onerror = () => resolve(false);
+                document.head.appendChild(script);
+                
+                // Allow up to 5 seconds for user click load
+                setTimeout(() => resolve(false), 5000);
+              });
+            };
+            
+            const loaded = await loadClerkScript();
+            if (loaded && typeof window.Clerk !== 'undefined') {
+              if (!window.Clerk.loaded) {
+                try {
+                  await window.Clerk.load({
+                    publishableKey: window.CLERK_PUBLISHABLE_KEY
+                  });
+                } catch (err) {
+                  alert("Failed to initialize authentication: " + err.message);
+                  btn.disabled = false;
+                  btn.innerHTML = originalHTML;
+                  return;
+                }
+              }
+            } else {
+              alert("Authentication service (Clerk) failed to load. If you use an ad-blocker or script blocker, please disable it for this site and refresh.");
+              btn.disabled = false;
+              btn.innerHTML = originalHTML;
+              return;
+            }
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+          }
+          
           if (typeof Clerk !== 'undefined' && typeof Clerk.openSignIn === 'function') {
             Clerk.openSignIn();
-          } else {
-            alert("Authentication service (Clerk) failed to load. If you use an ad-blocker or script blocker, please disable it for this site and refresh.");
           }
         }}>
           {ic2.login}<span>Login</span>
