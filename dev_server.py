@@ -262,6 +262,20 @@ class RefactoredHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps(res).encode('utf-8'))
             except Exception as e:
                 self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+        elif self.path.startswith('/api/clerk-js'):
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/javascript;charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'public, max-age=86400')
+            self.end_headers()
+            try:
+                import urllib.request
+                url = "https://unpkg.com/@clerk/clerk-js@5/dist/clerk.browser.js"
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    self.wfile.write(response.read())
+            except Exception as e:
+                self.wfile.write(f"console.warn('Local dev server failed to proxy Clerk JS: {e}');".encode('utf-8'))
         else:
             super().do_GET()
 
@@ -303,16 +317,16 @@ class RefactoredHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         else:
             super().do_POST()
 
+class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    allow_reuse_address = True
+
 if __name__ == '__main__':
     # Ensure working directory is the script directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
     
-    # Allow port reuse to avoid "Address already in use" errors on restart
-    socketserver.TCPServer.allow_reuse_address = True
-    
     try:
-        with socketserver.TCPServer(("", PORT), RefactoredHTTPRequestHandler) as httpd:
+        with ThreadingTCPServer(("", PORT), RefactoredHTTPRequestHandler) as httpd:
             print(f"Server started at http://localhost:{PORT}/")
             print("No-cache headers enabled to prevent browser caching of old HTML/JS files.")
             print("Serving files from project folders (public/, src/, data/, ratings/)")

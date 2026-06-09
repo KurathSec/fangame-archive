@@ -138,8 +138,56 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                   resolve(true);
                   return;
                 }
+                
+                // Check if there is an existing script tag to prevent duplicate append
+                const existingScript = document.querySelector('script[src*="clerk-js"]') || document.querySelector('script[src*="clerk.browser.js"]');
+                if (existingScript) {
+                  const onScriptLoad = () => {
+                    cleanup();
+                    resolve(true);
+                  };
+                  const onScriptError = () => {
+                    cleanup();
+                    resolve(false);
+                  };
+                  const cleanup = () => {
+                    existingScript.removeEventListener('load', onScriptLoad);
+                    existingScript.removeEventListener('error', onScriptError);
+                  };
+                  existingScript.addEventListener('load', onScriptLoad);
+                  existingScript.addEventListener('error', onScriptError);
+                  
+                  if (typeof window.Clerk !== 'undefined') {
+                    cleanup();
+                    resolve(true);
+                  }
+                  
+                  setTimeout(() => {
+                    cleanup();
+                    resolve(false);
+                  }, 5000);
+                  return;
+                }
+
                 const script = document.createElement('script');
-                script.src = "/api/clerk-js";
+                
+                // Dynamically decode Clerk publishable key to extract the Frontend API domain
+                let frontendApi = '';
+                try {
+                  const parts = window.CLERK_PUBLISHABLE_KEY.split('_');
+                  if (parts.length >= 3) {
+                    const decoded = atob(parts[2]);
+                    frontendApi = decoded.endsWith('$') ? decoded.slice(0, -1) : decoded;
+                  }
+                } catch (e) {
+                  console.error("Failed to decode publishable key:", e);
+                }
+
+                script.src = frontendApi
+                  ? `https://${frontendApi}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`
+                  : "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
+                
+                script.setAttribute('data-clerk-publishable-key', window.CLERK_PUBLISHABLE_KEY);
                 script.crossOrigin = "anonymous";
                 script.async = true;
                 script.onload = () => resolve(true);
