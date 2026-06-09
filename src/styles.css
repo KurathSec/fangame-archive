@@ -1885,3 +1885,9 @@ a { color: inherit; text-decoration: none; }
   text-decoration: underline;
 }
 
+/* Hide Last Name fields in Clerk prebuilt components */
+.cl-formFieldRow__lastName,
+div[data-field="lastName"] {
+  display: none !important;
+}
+

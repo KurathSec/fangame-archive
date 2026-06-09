@@ -231,6 +231,11 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                     localization: {
                       formFieldLabel__firstName: "Nickname",
                       formFieldPlaceholder__firstName: "Enter nickname"
+                    },
+                    appearance: {
+                      elements: {
+                        formFieldRow__lastName: { display: 'none' }
+                      }
                     }
                   });
                 } catch (err) {

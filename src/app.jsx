@@ -478,6 +478,11 @@ function RootApp() {
                   localization: {
                     formFieldLabel__firstName: "Nickname",
                     formFieldPlaceholder__firstName: "Enter nickname"
+                  },
+                  appearance: {
+                    elements: {
+                      formFieldRow__lastName: { display: 'none' }
+                    }
                   }
                 });
               }
