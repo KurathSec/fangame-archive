@@ -74,6 +74,9 @@ def main():
     
     if result.returncode != 0:
         print("Error executing wrangler command:")
+        print("STDOUT:")
+        print(result.stdout)
+        print("STDERR:")
         print(result.stderr)
         sys.exit(1)
         
@@ -309,6 +312,9 @@ def main():
         res = subprocess.run(update_cmd, shell=True, capture_output=True, text=True, encoding="utf-8")
         if res.returncode != 0:
             print(f"Warning: Failed to update submission {sub_id} in D1 remote:")
+            print("STDOUT:")
+            print(res.stdout)
+            print("STDERR:")
             print(res.stderr)
         else:
             print(f"  Submission {sub_id} marked as merged in D1.")
