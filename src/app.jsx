@@ -529,32 +529,7 @@ function RootApp() {
             finalDifficulty = Number(rawGame.difficulty);
           }
 
-          let hasActualRating = false;
-          let hasActualDifficulty = false;
-          if (Array.isArray(rawGame.reviews)) {
-            for (const r of rawGame.reviews) {
-              if (r.rating !== null && r.rating !== undefined && r.rating !== 'na') {
-                hasActualRating = true;
-              }
-              if (r.difficulty !== null && r.difficulty !== undefined && r.difficulty !== 'na') {
-                hasActualDifficulty = true;
-              }
-            }
-          } else if (reviewsCount > 0) {
-            if (rawGame.avg_rating !== null && rawGame.avg_rating !== undefined) {
-              hasActualRating = true;
-            }
-            if (rawGame.avg_difficulty !== null && rawGame.avg_difficulty !== undefined) {
-              hasActualDifficulty = true;
-            }
-          }
 
-          if (!hasActualRating) {
-            finalRating = null;
-          }
-          if (!hasActualDifficulty) {
-            finalDifficulty = null;
-          }
 
           const gameObj = {
             id: id,
