@@ -127,11 +127,6 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
         <button className="acct-login" onClick={async (e) => {
           const btn = e.currentTarget;
           if (typeof Clerk === 'undefined' || !Clerk.loaded) {
-            // Disable button and show loading text
-            btn.disabled = true;
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<span>Loading Auth...</span>';
-            
             const loadClerkScript = () => {
               return new Promise((resolve) => {
                 if (typeof window.Clerk !== 'undefined') {
@@ -198,23 +193,38 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                 setTimeout(() => resolve(false), 5000);
               });
             };
-            
-            const loaded = await loadClerkScript();
-            if (loaded && typeof window.Clerk !== 'undefined') {
-              // If window.Clerk is the constructor class (function), instantiate it!
+
+            const ensureClerkLoaded = async () => {
+              const originalHTML = btn.innerHTML;
+              
+              if (typeof window.Clerk === 'undefined') {
+                btn.disabled = true;
+                btn.innerHTML = '<span>Loading Auth...</span>';
+                
+                const loaded = await loadClerkScript();
+                if (!loaded || typeof window.Clerk === 'undefined') {
+                  alert("Authentication service (Clerk) failed to load. If you use an ad-blocker or script blocker, please disable it for this site and refresh.");
+                  btn.disabled = false;
+                  btn.innerHTML = originalHTML;
+                  return false;
+                }
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+              }
+              
               if (typeof window.Clerk === 'function') {
                 try {
                   const clerkInstance = new window.Clerk(window.CLERK_PUBLISHABLE_KEY);
                   window.Clerk = clerkInstance;
                 } catch (err) {
                   alert("Failed to construct Clerk instance: " + err.message);
-                  btn.disabled = false;
-                  btn.innerHTML = originalHTML;
-                  return;
+                  return false;
                 }
               }
               
               if (typeof window.Clerk === 'object' && !window.Clerk.loaded) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>Initializing Auth...</span>';
                 try {
                   await window.Clerk.load({
                     publishableKey: window.CLERK_PUBLISHABLE_KEY
@@ -223,21 +233,23 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                   alert("Failed to initialize authentication: " + err.message);
                   btn.disabled = false;
                   btn.innerHTML = originalHTML;
-                  return;
+                  return false;
                 }
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
               }
-            } else {
-              alert("Authentication service (Clerk) failed to load. If you use an ad-blocker or script blocker, please disable it for this site and refresh.");
-              btn.disabled = false;
-              btn.innerHTML = originalHTML;
-              return;
+              
+              return typeof window.Clerk === 'object' && window.Clerk.loaded;
+            };
+            
+            const ok = await ensureClerkLoaded();
+            if (ok && typeof Clerk !== 'undefined' && typeof Clerk.openSignIn === 'function') {
+              Clerk.openSignIn();
             }
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
-          }
-          
-          if (typeof Clerk !== 'undefined' && typeof Clerk.openSignIn === 'function') {
-            Clerk.openSignIn();
+          } else {
+            if (typeof Clerk !== 'undefined' && typeof Clerk.openSignIn === 'function') {
+              Clerk.openSignIn();
+            }
           }
         }}>
           {ic2.login}<span>Login</span>

@@ -8,9 +8,35 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 
 function App() {
   const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
-  const [view, setView] = React.useState('explorer');
-  const [activeGame, setActiveGame] = React.useState(null);
+  const [view, setView] = React.useState(() => {
+    return sessionStorage.getItem('archive_view') || 'explorer';
+  });
+  const [activeGame, setActiveGame] = React.useState(() => {
+    const saved = sessionStorage.getItem('archive_active_game');
+    if (saved) {
+      try {
+        const game = JSON.parse(saved);
+        if (window.DATA && window.DATA.GAMES) {
+          return window.DATA.GAMES.find(g => g.id === game.id) || game;
+        }
+        return game;
+      } catch (e) {}
+    }
+    return null;
+  });
   const [toasts, setToasts] = React.useState([]);
+
+  React.useEffect(() => {
+    sessionStorage.setItem('archive_view', view);
+  }, [view]);
+
+  React.useEffect(() => {
+    if (activeGame) {
+      sessionStorage.setItem('archive_active_game', JSON.stringify({ id: activeGame.id }));
+    } else {
+      sessionStorage.removeItem('archive_active_game');
+    }
+  }, [activeGame]);
 
   const [auth, setAuth] = React.useState('out');
   const [identity, setIdentity] = React.useState(null);
