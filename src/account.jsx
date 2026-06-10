@@ -552,7 +552,8 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
   const POPULAR = React.useMemo(() => ((window.DATA && window.DATA.TAGS) || []).slice(0, 10).map((t) => t.name), []);
   const [rating, setRating] = React.useState(0);
   const [diff, setDiff] = React.useState(0);
-  const [hasReview, setHasReview] = React.useState(false);
+  const [hasRating, setHasRating] = React.useState(false);
+  const [hasDiff, setHasDiff] = React.useState(false);
   const [tags, setTags] = React.useState([]);
   const [custom, setCustom] = React.useState('');
   const [body, setBody] = React.useState('');
@@ -616,8 +617,8 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
         headers,
         body: JSON.stringify({
           game_id: parseInt(gameId, 10),
-          rating: hasReview ? parseFloat(rating) : null,
-          difficulty: hasReview ? parseFloat(diff) : null,
+          rating: hasRating ? parseFloat(rating) : null,
+          difficulty: hasDiff ? parseFloat(diff) : null,
           content: body.trim(),
           tags: tags,
           turnstile_token: verified
@@ -632,7 +633,8 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
       consumeQuota('comment', 20);
       window.pushToast('Comment posted', 'Pending review — visible only to you for now', 'success');
       onPosted && onPosted();
-      setRating(0); setDiff(0); setTags([]); setCustom(''); setBody(''); setVerified(false); setHasReview(false);
+      setRating(0); setDiff(0); setTags([]); setCustom(''); setBody(''); setVerified(false);
+      setHasRating(false); setHasDiff(false);
     } catch (e) {
       setErr(e.message || 'Failed to post comment.');
     } finally {
@@ -644,43 +646,62 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
     <div className="cmt-editor">
       <h5 style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)' }}>Write a review</h5>
 
-      <label className="switch-wrap">
-        <input
-          type="checkbox"
-          checked={hasReview}
-          onChange={(e) => setHasReview(e.target.checked)}
-          className="switch-input"
-        />
-        <div className="switch-track">
-          <div className="switch-thumb" />
-        </div>
-        <span className="switch-label">Include rating and difficulty</span>
-      </label>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginBottom: 12 }}>
+        <label className="switch-wrap" style={{ marginBottom: 0 }}>
+          <input
+            type="checkbox"
+            checked={hasRating}
+            onChange={(e) => setHasRating(e.target.checked)}
+            className="switch-input"
+          />
+          <div className="switch-track">
+            <div className="switch-thumb" />
+          </div>
+          <span className="switch-label">Include rating</span>
+        </label>
 
-      {hasReview && (
+        <label className="switch-wrap" style={{ marginBottom: 0 }}>
+          <input
+            type="checkbox"
+            checked={hasDiff}
+            onChange={(e) => setHasDiff(e.target.checked)}
+            className="switch-input"
+          />
+          <div className="switch-track">
+            <div className="switch-thumb" />
+          </div>
+          <span className="switch-label">Include difficulty</span>
+        </label>
+      </div>
+
+      {(hasRating || hasDiff) && (
         <div className="cmt-editor-grid" style={{ flexDirection: 'column', gap: 16, marginTop: 12 }}>
-          <div className="rng" style={{ width: '100%' }}>
-            <div className="rng-head">
-              <span className="rng-label">Rating</span>
-              <ValEdit value={rating} min={0} max={10} step={0.1} unit="10" onChange={setRating} />
+          {hasRating && (
+            <div className="rng" style={{ width: '100%' }}>
+              <div className="rng-head">
+                <span className="rng-label">Rating</span>
+                <ValEdit value={rating} min={0} max={10} step={0.1} unit="10" onChange={setRating} />
+              </div>
+              <DragSlider value={rating} min={0} max={10} step={0.1}
+                          accent="oklch(0.74 0.14 80)" glow="oklch(0.92 0.06 80 / 0.6)"
+                          onChange={setRating} />
+              <div className="rng-ticks"><span>0.0</span><span>5.0</span><span>10.0</span></div>
             </div>
-            <DragSlider value={rating} min={0} max={10} step={0.1}
-                        accent="oklch(0.74 0.14 80)" glow="oklch(0.92 0.06 80 / 0.6)"
-                        onChange={setRating} />
-            <div className="rng-ticks"><span>0.0</span><span>5.0</span><span>10.0</span></div>
-          </div>
+          )}
 
-          <div className="rng" style={{ width: '100%' }}>
-            <div className="rng-head">
-              <span className="rng-label">Difficulty</span>
-              <span className="diff-word" style={{ color: DIFF_COLOR(diff), borderColor: 'currentColor' }}>{DIFF_WORD(diff)}</span>
-              <ValEdit value={diff} min={0} max={100} step={0.1} unit="100" onChange={setDiff} />
+          {hasDiff && (
+            <div className="rng" style={{ width: '100%' }}>
+              <div className="rng-head">
+                <span className="rng-label">Difficulty</span>
+                <span className="diff-word" style={{ color: DIFF_COLOR(diff), borderColor: 'currentColor' }}>{DIFF_WORD(diff)}</span>
+                <ValEdit value={diff} min={0} max={100} step={0.1} unit="100" onChange={setDiff} />
+              </div>
+              <DragSlider value={diff} min={0} max={100} step={0.1}
+                          accent={DIFF_COLOR(diff)} glow="oklch(0.90 0.06 50 / 0.5)"
+                          onChange={setDiff} />
+              <div className="rng-ticks"><span>0.0</span><span>50.0</span><span>100.0</span></div>
             </div>
-            <DragSlider value={diff} min={0} max={100} step={0.1}
-                        accent={DIFF_COLOR(diff)} glow="oklch(0.90 0.06 50 / 0.5)"
-                        onChange={setDiff} />
-            <div className="rng-ticks"><span>0.0</span><span>50.0</span><span>100.0</span></div>
-          </div>
+          )}
         </div>
       )}
 
