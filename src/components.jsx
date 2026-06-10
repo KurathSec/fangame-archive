@@ -142,7 +142,7 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth,
     { k: 'explorer',    label: window.t('browse_games'),      icon: ic.archive,  count: gameCount },
     { k: 'donation',    label: window.t('donation_support'), icon: ic.heart,    count: null },
     { k: 'links',       label: window.t('community_links'),   icon: ic.ext,      count: null },
-    { k: 'updates',     label: window.t('update_log'),        icon: ic.log,      count: null },
+    { k: 'updates',     label: "Update Log",                  icon: ic.log,      count: null },
     { k: 'contact',     label: window.t('about_contact'),   icon: ic.mail,     count: null }
   ];
 
@@ -1329,11 +1329,11 @@ function UpdateLogView() {
           <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title={window.t('close_menu_title')}>
             {window.ic.menu}
           </button>
-          <span className="crumb"><b>{window.t('library')}</b><span>/</span>{window.t('update_log')}</span>
+          <span className="crumb"><b>{window.t('library')}</b><span>/</span>Update Log</span>
         </div>
         <div className="docview">
           <div className="doc">
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>{window.t('loading_update_log')}</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Loading update log...</p>
           </div>
         </div>
       </div>
@@ -1346,15 +1346,15 @@ function UpdateLogView() {
         <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title={window.t('close_menu_title')}>
           {window.ic.menu}
         </button>
-        <span className="crumb"><b>{window.t('library')}</b><span>/</span>{window.t('update_log')}</span>
+        <span className="crumb"><b>{window.t('library')}</b><span>/</span>Update Log</span>
       </div>
 
       <div className="docview">
         <div className="doc">
           <div className="doc-head">
-            <h1 className="doc-title"><span className="doc-title-ic">{ic.log}</span>{window.t('update_log')}</h1>
+            <h1 className="doc-title"><span className="doc-title-ic">{ic.log}</span>Update Log</h1>
             <p className="doc-sub">
-              {window.t('update_log_desc', { db_ver: window.DATABASE_VERSION || '51', app_ver: window.APP_VERSION || '2026.004' })}
+              {`A running record of database releases, new surfaces, and fixes shipped to the archive. The live database is currently on version ${window.DATABASE_VERSION || '51'}. The application version is version ${window.APP_VERSION || '2026.004'}.`}
             </p>
           </div>
 
