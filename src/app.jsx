@@ -38,8 +38,21 @@ function App() {
     }
   }, [activeGame]);
 
-  const [auth, setAuth] = React.useState('out');
-  const [identity, setIdentity] = React.useState(null);
+  // Optimistic auth state: render the last-known identity instantly on load so the
+  // sidebar doesn't flash "logged out" for the few seconds Clerk takes to resolve
+  // the session. Reconciled against Clerk / /api/me once they finish loading.
+  const [auth, setAuth] = React.useState(() => {
+    try {
+      const cached = JSON.parse(localStorage.getItem('archive_auth_cache') || 'null');
+      return cached && cached.auth ? cached.auth : 'out';
+    } catch (e) { return 'out'; }
+  });
+  const [identity, setIdentity] = React.useState(() => {
+    try {
+      const cached = JSON.parse(localStorage.getItem('archive_auth_cache') || 'null');
+      return cached && cached.identity ? cached.identity : null;
+    } catch (e) { return null; }
+  });
 
   React.useEffect(() => {
     window.setView = setView;
@@ -68,13 +81,18 @@ function App() {
             if (res.ok && active) {
               const data = await res.json();
               if (data.user) {
-                setAuth(data.user.role === 'admin' ? 'admin' : 'user');
-                setIdentity({
+                const resolvedAuth = data.user.role === 'admin' ? 'admin' : 'user';
+                const resolvedIdentity = {
                   nick: data.user.display_name,
                   color: localId.color,
                   initial: data.user.display_name[0].toUpperCase(),
                   avatar_url: data.user.avatar_url
-                });
+                };
+                setAuth(resolvedAuth);
+                setIdentity(resolvedIdentity);
+                try {
+                  localStorage.setItem('archive_auth_cache', JSON.stringify({ auth: resolvedAuth, identity: resolvedIdentity }));
+                } catch (e) {}
               }
             }
           } catch (e) {
@@ -84,6 +102,7 @@ function App() {
         } else {
           setAuth('out');
           setIdentity(null);
+          try { localStorage.removeItem('archive_auth_cache'); } catch (e) {}
           if (active) {
             setView(current => {
               if (current === 'collections') return 'explorer';
@@ -449,7 +468,7 @@ function RootApp() {
             }
 
             const script = document.createElement('script');
-            script.src = "/api/clerk-js";
+            script.src = window.CLERK_JS_URL || "/api/clerk-js";
             script.setAttribute('data-clerk-publishable-key', window.CLERK_PUBLISHABLE_KEY);
             script.crossOrigin = "anonymous";
             script.async = true;

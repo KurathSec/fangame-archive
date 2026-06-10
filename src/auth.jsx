@@ -165,7 +165,7 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                 }
 
                 const script = document.createElement('script');
-                script.src = "/api/clerk-js";
+                script.src = window.CLERK_JS_URL || "/api/clerk-js";
                 script.setAttribute('data-clerk-publishable-key', window.CLERK_PUBLISHABLE_KEY);
                 script.crossOrigin = "anonymous";
                 script.async = true;

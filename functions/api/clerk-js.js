@@ -1,5 +1,6 @@
 export async function onRequest(context) {
-  const url = "https://unpkg.com/@clerk/clerk-js@5/dist/clerk.browser.js";
+  // Pin to clerk-js v6 to match the production instance's clerk_js_version (reported by /v1/environment).
+  const url = "https://unpkg.com/@clerk/clerk-js@6/dist/clerk.browser.js";
   try {
     const response = await fetch(url);
     if (!response.ok) {

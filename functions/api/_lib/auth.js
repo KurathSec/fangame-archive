@@ -40,7 +40,12 @@ async function fetchJwks(jwksUrl) {
 function getJwksUrl(publishableKey) {
   if (!publishableKey) throw new Error("Missing CLERK_PUBLISHABLE_KEY");
   const parts = publishableKey.split("_");
-  const encodedDomain = parts[parts.length - 1];
+  let encodedDomain = parts[parts.length - 1];
+  // Clerk's publishable key is base64url-encoded and may omit padding; restore it before atob.
+  encodedDomain = encodedDomain.replace(/-/g, "+").replace(/_/g, "/");
+  while (encodedDomain.length % 4) {
+    encodedDomain += "=";
+  }
   let domainWithDollar = atob(encodedDomain);
   const domain = domainWithDollar.endsWith("$") ? domainWithDollar.slice(0, -1) : domainWithDollar;
   return `https://${domain}/.well-known/jwks.json`;
