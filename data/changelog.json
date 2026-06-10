@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.006",
+    "date": "2026-06-10",
+    "note": "Production authentication keys migration and collections stabilization",
+    "changes": [
+      ["Changed", "Migrated authentication and serverless API integration to production Clerk keys (pk_live/sk_live)."],
+      ["Fixed", "Resolved infinite recursion error in catalog by scoping localized translation variables within IIFEs."],
+      ["Fixed", "Synchronized favorites API state changes locally to immediately update bookmark states without page reload."],
+      ["Fixed", "Updated build distribution script to correctly package and cache-bust the new collections component."]
+    ]
+  },
+  {
     "ver": "2026.005",
     "date": "2026-06-10",
     "note": "Cloud-synced favorites bookmarks and collection management",
