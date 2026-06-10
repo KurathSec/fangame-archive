@@ -139,7 +139,6 @@ function BrandMark() {
 
 function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth, identity, onLogout }) {
   const BASE_NAV = [
-    { k: 'collections', label: window.t('nav.collections'),   icon: ic.star,     count: null },
     { k: 'explorer',    label: window.t('browse_games'),      icon: ic.archive,  count: gameCount },
     { k: 'donation',    label: window.t('donation_support'), icon: ic.heart,    count: null },
     { k: 'links',       label: window.t('community_links'),   icon: ic.ext,      count: null },
@@ -148,7 +147,8 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth,
   ];
 
   const MEMBER_NAV = [
-    { k: 'submit',      label: window.t('submit_game'),     icon: window.ic2.upload, count: null },
+    { k: 'collections', label: window.t('nav.collections'),   icon: ic.star,           count: null },
+    { k: 'submit',      label: window.t('submit_game'),       icon: window.ic2.upload, count: null },
     { k: 'mycontent',   label: window.t('my_content'),        icon: window.ic2.inbox,  count: null }
   ];
 

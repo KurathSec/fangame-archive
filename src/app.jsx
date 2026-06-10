@@ -84,6 +84,12 @@ function App() {
         } else {
           setAuth('out');
           setIdentity(null);
+          if (active) {
+            setView(current => {
+              if (current === 'collections') return 'explorer';
+              return current;
+            });
+          }
         }
       };
 
@@ -116,7 +122,9 @@ function App() {
     if (window.Clerk) {
       await Clerk.signOut();
       window.pushToast('Signed out', '', 'success');
-      if (view === 'mycontent') setView('explorer');
+      if (view === 'mycontent' || view === 'collections' || view === 'submit') {
+        setView('explorer');
+      }
     }
   };
 
