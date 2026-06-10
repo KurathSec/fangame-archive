@@ -110,6 +110,9 @@ const ic = {
 
   mail:    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2" y="3.5" width="12" height="9" rx="1.5"/><path d="m2 5 6 3.5 6-3.5"/></svg>,
   log:     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M8 4.7V8l2.4 1.4"/><path d="M2.6 8a5.4 5.4 0 1 0 1.7-3.9M2.4 3v2.4h2.4"/></svg>,
+  bookmark: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"><path d="M4 2.8h8v10.4l-4-2.9-4 2.9z"/></svg>,
+  bookmarkFill: <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.8h8v10.4l-4-2.9-4 2.9z"/></svg>,
+  starOutline: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="m8 2.3 1.8 3.7 4.1.6-3 2.9.7 4.1-3.6-1.9-3.6 1.9.7-4.1-3-2.9 4.1-.6z"/></svg>,
 };
 
 
@@ -136,6 +139,7 @@ function BrandMark() {
 
 function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth, identity, onLogout }) {
   const BASE_NAV = [
+    { k: 'collections', label: window.t('nav.collections'),   icon: ic.star,     count: null },
     { k: 'explorer',    label: window.t('browse_games'),      icon: ic.archive,  count: gameCount },
     { k: 'donation',    label: window.t('donation_support'), icon: ic.heart,    count: null },
     { k: 'links',       label: window.t('community_links'),   icon: ic.ext,      count: null },
@@ -547,6 +551,10 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
                 <>{ic.download} {window.t('download')}</>
               )}
             </button>
+
+            {auth !== 'out' && window.FavoriteButton && (
+              <window.FavoriteButton gameId={game.id} auth={auth} />
+            )}
 
             {isRoll && window.rollRandomGame && (
               <button

@@ -120,6 +120,15 @@ function App() {
     }
   };
 
+  const handleOpenLogin = () => {
+    if (typeof window.Clerk !== 'undefined' && window.Clerk.loaded) {
+      window.Clerk.openSignIn();
+    } else {
+      const btn = document.querySelector('.acct-block button');
+      if (btn) btn.click();
+    }
+  };
+
   React.useEffect(() => {
     window.__pushToast = (t) => {
       const id = Date.now() + Math.random();
@@ -154,7 +163,7 @@ function App() {
   return (
     <div className={`app${sidebarOpen ? ' sidebar-mobile-open' : ''}`}>
       {sidebarOpen && <div className="sidebar-scrim-mobile" onClick={() => setSidebarOpen(false)} />}
-      <window.Sidebar view={view} onView={(v) => { setView(v); setSidebarOpen(false); if (v !== 'explorer') setActiveGame(null); }}
+      <window.Sidebar view={view} onView={(v) => { setView(v); setSidebarOpen(false); if (v !== 'explorer' && v !== 'collections') setActiveGame(null); }}
                      tweaks={tweaks} setTweak={setTweak}
                      gameCount={window.DATA.GAMES.length}
                      storageSize={window.DATA.STORAGE_SIZE}
@@ -165,9 +174,10 @@ function App() {
         {view === 'links'       && <window.LinksView />}
         {view === 'updates'     && <window.UpdateLogView />}
         {view === 'contact'     && <window.ContactView />}
-        {view === 'submit'      && <window.SubmitGameView auth={auth} identity={identity} />}
-        {view === 'mycontent'   && <window.MyContentView auth={auth} identity={identity} />}
-        {activeGame && view === 'explorer' && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} auth={auth} identity={identity} />}
+        {view === 'submit'      && <window.SubmitGameView auth={auth} identity={identity} onOpenLogin={handleOpenLogin} />}
+        {view === 'mycontent'   && <window.MyContentView auth={auth} identity={identity} onOpenLogin={handleOpenLogin} />}
+        {view === 'collections' && <window.CollectionsView auth={auth} onOpenGame={openGame} onView={setView} onOpenLogin={handleOpenLogin} />}
+        {activeGame && (view === 'explorer' || view === 'collections') && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} auth={auth} identity={identity} />}
       </main>
 
       <window.Toasts items={toasts} />
