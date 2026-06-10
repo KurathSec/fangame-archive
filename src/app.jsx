@@ -449,26 +449,7 @@ function RootApp() {
             }
 
             const script = document.createElement('script');
-            
-            // Dynamically decode Clerk publishable key to extract the Frontend API domain
-            let frontendApi = '';
-            try {
-              const parts = window.CLERK_PUBLISHABLE_KEY.split('_');
-              if (parts.length >= 3) {
-                let b64 = parts[2];
-                const pad = (4 - (b64.length % 4)) % 4;
-                if (pad) b64 += '='.repeat(pad);
-                const decoded = atob(b64);
-                frontendApi = decoded.endsWith('$') ? decoded.slice(0, -1) : decoded;
-              }
-            } catch (e) {
-              console.error("Failed to decode publishable key:", e);
-            }
-
-            script.src = frontendApi
-              ? `https://${frontendApi}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`
-              : "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
-            
+            script.src = "/api/clerk-js";
             script.setAttribute('data-clerk-publishable-key', window.CLERK_PUBLISHABLE_KEY);
             script.crossOrigin = "anonymous";
             script.async = true;
