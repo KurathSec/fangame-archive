@@ -9,6 +9,17 @@ function DualRange({ min, max, step, value, onChange, format }) {
   const loPct = ((lo - min) / range) * 100;
   const hiPct = ((hi - min) / range) * 100;
 
+  const [localLo, setLocalLo] = React.useState(String(lo));
+  const [localHi, setLocalHi] = React.useState(String(hi));
+
+  React.useEffect(() => {
+    setLocalLo(String(lo));
+  }, [lo]);
+
+  React.useEffect(() => {
+    setLocalHi(String(hi));
+  }, [hi]);
+
   const onDown = (which) => (e) => {
     e.preventDefault();
     dragRef.current = which;
@@ -30,6 +41,32 @@ function DualRange({ min, max, step, value, onChange, format }) {
     window.addEventListener('pointerup', onUp);
   };
 
+  const handleInputChange = (which, valStr) => {
+    if (which === 'lo') {
+      setLocalLo(valStr);
+      const val = parseFloat(valStr);
+      if (!isNaN(val)) {
+        const clamped = Math.max(min, Math.min(hi, val));
+        onChange([clamped, hi]);
+      }
+    } else {
+      setLocalHi(valStr);
+      const val = parseFloat(valStr);
+      if (!isNaN(val)) {
+        const clamped = Math.max(lo, Math.min(max, val));
+        onChange([lo, clamped]);
+      }
+    }
+  };
+
+  const handleBlur = (which) => {
+    if (which === 'lo') {
+      setLocalLo(String(lo));
+    } else {
+      setLocalHi(String(hi));
+    }
+  };
+
   return (
     <>
       <div className="range" ref={trackRef}>
@@ -38,9 +75,28 @@ function DualRange({ min, max, step, value, onChange, format }) {
         <div className="range-handle" style={{ left: loPct + '%' }} onPointerDown={onDown('lo')} />
         <div className="range-handle" style={{ left: hiPct + '%' }} onPointerDown={onDown('hi')} />
       </div>
-      <div className="range-labels">
-        <span>{format(lo)}</span>
-        <span>{format(hi)}</span>
+      <div className="range-labels" style={{ alignItems: 'center' }}>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={localLo}
+          onChange={(e) => handleInputChange('lo', e.target.value)}
+          onBlur={() => handleBlur('lo')}
+          className="range-input"
+        />
+        <span className="range-separator">to</span>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={localHi}
+          onChange={(e) => handleInputChange('hi', e.target.value)}
+          onBlur={() => handleBlur('hi')}
+          className="range-input"
+        />
       </div>
     </>
   );

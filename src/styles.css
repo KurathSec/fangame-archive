@@ -1891,3 +1891,37 @@ div[data-field="lastName"] {
   display: none !important;
 }
 
+/* Range filter number inputs */
+.range-input {
+  width: 55px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--text);
+  text-align: center;
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 11px;
+  padding: 0;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+.range-input:focus {
+  border-color: var(--accent);
+}
+.range-input::-webkit-outer-spin-button,
+.range-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.range-input[type=number] {
+  -moz-appearance: textfield;
+}
+.range-separator {
+  align-self: center;
+  font-size: 10px;
+  color: var(--muted-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
