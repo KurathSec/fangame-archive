@@ -1449,7 +1449,7 @@ function UpdateLogView() {
             <h1 className="doc-title"><span className="doc-title-ic">{ic.log}</span>Update Log</h1>
             <p className="doc-sub">
               A running record of database releases, new surfaces, and fixes shipped to the archive. The
-              live database is currently on <b style={{ color: 'var(--text)', fontWeight: 600 }}>version {window.DATABASE_VERSION || '51'}</b>. The application version is <b style={{ color: 'var(--text)', fontWeight: 600 }}>version {window.APP_VERSION || '2026.002'}</b>.
+              live database is currently on <b style={{ color: 'var(--text)', fontWeight: 600 }}>version {window.DATABASE_VERSION || '51'}</b>. The application version is <b style={{ color: 'var(--text)', fontWeight: 600 }}>version {window.APP_VERSION || '2026.004'}</b>.
             </p>
           </div>
 

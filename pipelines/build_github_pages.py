@@ -161,9 +161,9 @@ def main():
     if os.path.exists(app_ver_path):
         with open(app_ver_path, "r", encoding="utf-8") as f_app:
             app_ver_data = json.load(f_app)
-        app_version = app_ver_data.get("version", "2026.002")
+        app_version = app_ver_data.get("version", "2026.004")
     else:
-        app_version = "2026.002"
+        app_version = "2026.004"
 
     db_version_hash = str(version)
     print(f"Loaded database version count: {db_version_hash}")

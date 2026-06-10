@@ -1,5 +1,23 @@
 [
   {
+    "ver": "2026.004",
+    "date": "2026-06-10",
+    "note": "Review options, precision filtering, and profile nickname-only support",
+    "changes": [
+      ["Added", "Clerk Authentication and Cloudflare Turnstile CAPTCHA integration."],
+      ["Added", "Native comments/reviews section with moderator approval workflow."],
+      ["Added", "Support for dynamic co-creator inputs and custom tags in game submissions."],
+      ["Added", "Enforced strict limits on custom tags (maximum 10 tags per entry, 20 characters per tag)."],
+      ["Added", "Optional rating and difficulty independent toggle switches in review editor."],
+      ["Added", "Numeric input boxes for precise range filtering of ratings and difficulty."],
+      ["Added", "Automated R2 mirroring for approved submissions (packages & screenshots) in GitHub Actions deploy pipeline."],
+      ["Changed", "Reconfigured user profile settings to map to a single Nickname field and hide Last Name."],
+      ["Changed", "Decoupled Clerk authentication loading and parallelized database downloads to optimize cold load speeds."],
+      ["Fixed", "Resolved auth redirect flow state loss using sessionStorage to restore UI drawer viewport state."],
+      ["Removed", "Operator filter and column in the Admin Portal audit logs table."]
+    ]
+  },
+  {
     "ver": "2026.003",
     "date": "2026-06-08",
     "note": "Refactor unrated metrics and layout improvements",
