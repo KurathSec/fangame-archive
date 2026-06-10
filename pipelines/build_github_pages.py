@@ -202,6 +202,10 @@ def main():
         os.path.join(SRC_DIR, "src", "account.css"),
         os.path.join(DIST_DIR, "src", "account.css")
     )
+    shutil.copy(
+        os.path.join(SRC_DIR, "src", "collections.jsx"),
+        os.path.join(DIST_DIR, "src", "collections.jsx")
+    )
     if os.path.exists(os.path.join(SRC_DIR, "public", "favicon.ico")):
         shutil.copy(
             os.path.join(SRC_DIR, "public", "favicon.ico"),
