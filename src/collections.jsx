@@ -79,7 +79,9 @@ const FavoritesAPI = {
         body: JSON.stringify({ gameId }),
       });
       if (!res.ok) throw new Error('POST /api/favorites -> ' + res.status);
-      favMockWrite([...favMockRead().filter((x) => x !== gameId)]); // keep local mirror fresh
+      const ids = favMockRead();
+      if (!ids.includes(gameId)) ids.unshift(gameId);
+      favMockWrite(ids);
       return;
     }
     await favWait(FAV_NET_DELAY);
@@ -98,6 +100,7 @@ const FavoritesAPI = {
         headers
       });
       if (!res.ok) throw new Error('DELETE /api/favorites -> ' + res.status);
+      favMockWrite(favMockRead().filter((x) => x !== gameId));
       return;
     }
     await favWait(FAV_NET_DELAY);
