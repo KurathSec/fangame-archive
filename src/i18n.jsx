@@ -1666,28 +1666,13 @@ window.TRANSLATIONS = {
   }
 };
 
-// Detect preferred browser language and fallback
+// Get default language (always English unless manually overridden by user)
 function getBrowserLanguage() {
   const saved = localStorage.getItem('fangame_archive_lang');
   if (saved && window.TRANSLATIONS[saved]) return saved;
-
-  const lang = navigator.language || navigator.userLanguage || 'en';
-  const shortLang = lang.split('-')[0].toLowerCase();
-  
-  if (lang.toLowerCase() === 'zh-cn' || lang.toLowerCase() === 'zh-sg') return 'zh-CN';
-  if (lang.toLowerCase() === 'zh-tw' || lang.toLowerCase() === 'zh-hk' || lang.toLowerCase() === 'zh-mo') return 'zh-TW';
-  if (shortLang === 'zh') {
-    if (lang.toLowerCase().includes('hans')) return 'zh-CN';
-    if (lang.toLowerCase().includes('hant')) return 'zh-TW';
-    return 'zh-CN';
-  }
-  if (shortLang === 'ja') return 'ja';
-  if (shortLang === 'ko') return 'ko';
-  if (shortLang === 'ru') return 'ru';
-  if (shortLang === 'fr') return 'fr';
-  if (shortLang === 'de') return 'de';
   return 'en';
 }
+
 
 window.CURRENT_LANGUAGE = getBrowserLanguage();
 
