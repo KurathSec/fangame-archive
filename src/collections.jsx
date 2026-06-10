@@ -1,6 +1,8 @@
 // Cloud-synced game collections — favorites / bookmarks.
 // Supports REST operations with Clerk authentication headers and fallback mock storage.
 
+(function() {
+
 // Local translation wrapper helper
 const t = function(key, fallback) {
   if (window.t) {
@@ -325,3 +327,6 @@ function CollectionsView({ auth, onOpenGame, onView, onOpenLogin }) {
 Object.assign(window, {
   favShotUrl, FavoritesAPI, useFavorites, FavoriteButton, FavCard, CollectionsView,
 });
+
+})();
+
