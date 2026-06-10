@@ -455,7 +455,10 @@ function RootApp() {
             try {
               const parts = window.CLERK_PUBLISHABLE_KEY.split('_');
               if (parts.length >= 3) {
-                const decoded = atob(parts[2]);
+                let b64 = parts[2];
+                const pad = (4 - (b64.length % 4)) % 4;
+                if (pad) b64 += '='.repeat(pad);
+                const decoded = atob(b64);
                 frontendApi = decoded.endsWith('$') ? decoded.slice(0, -1) : decoded;
               }
             } catch (e) {
