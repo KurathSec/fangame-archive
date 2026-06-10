@@ -14,7 +14,9 @@
       ["Changed", "Reconfigured user profile settings to map to a single Nickname field and hide Last Name."],
       ["Changed", "Decoupled Clerk authentication loading and parallelized database downloads to optimize cold load speeds."],
       ["Fixed", "Resolved auth redirect flow state loss using sessionStorage to restore UI drawer viewport state."],
-      ["Removed", "Operator filter and column in the Admin Portal audit logs table."]
+      ["Removed", "Operator filter and column in the Admin Portal audit logs table."],
+      ["Added", "Full multi-language support (i18n) for 8 languages (en, zh-CN, zh-TW, ja, ko, ru, fr, de) with automatic detection based on browser language and manual toggle dropdown in top bar."],
+      ["Removed", "Obsolete and unused administrative files: health.jsx and crawler.jsx."]
     ]
   },
   {

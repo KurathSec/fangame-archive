@@ -199,11 +199,11 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
               
               if (typeof window.Clerk === 'undefined') {
                 btn.disabled = true;
-                btn.innerHTML = '<span>Loading Auth...</span>';
+                btn.innerHTML = '<span>' + (window.t ? window.t('loading_auth_msg') : 'Loading Auth...') + '</span>';
                 
                 const loaded = await loadClerkScript();
                 if (!loaded || typeof window.Clerk === 'undefined') {
-                  alert("Authentication service (Clerk) failed to load. If you use an ad-blocker or script blocker, please disable it for this site and refresh.");
+                  alert(window.t ? window.t('clerk_load_fail_alert') : "Authentication service (Clerk) failed to load. If you use an ad-blocker or script blocker, please disable it for this site and refresh.");
                   btn.disabled = false;
                   btn.innerHTML = originalHTML;
                   return false;
@@ -217,20 +217,20 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                   const clerkInstance = new window.Clerk(window.CLERK_PUBLISHABLE_KEY);
                   window.Clerk = clerkInstance;
                 } catch (err) {
-                  alert("Failed to construct Clerk instance: " + err.message);
+                  alert((window.t ? window.t('clerk_construct_fail_alert') : "Failed to construct Clerk instance: ") + err.message);
                   return false;
                 }
               }
               
               if (typeof window.Clerk === 'object' && !window.Clerk.loaded) {
                 btn.disabled = true;
-                btn.innerHTML = '<span>Initializing Auth...</span>';
+                btn.innerHTML = '<span>' + (window.t ? window.t('initializing_auth_msg') : 'Initializing Auth...') + '</span>';
                 try {
                   await window.Clerk.load({
                     publishableKey: window.CLERK_PUBLISHABLE_KEY,
                     localization: {
-                      formFieldLabel__firstName: "Nickname",
-                      formFieldPlaceholder__firstName: "Enter nickname"
+                      formFieldLabel__firstName: window.t('clerk_nickname'),
+                      formFieldPlaceholder__firstName: window.t('clerk_nickname_placeholder')
                     },
                     appearance: {
                       elements: {
@@ -239,7 +239,7 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                     }
                   });
                 } catch (err) {
-                  alert("Failed to initialize authentication: " + err.message);
+                  alert((window.t ? window.t('clerk_init_fail_alert') : "Failed to initialize authentication: ") + err.message);
                   btn.disabled = false;
                   btn.innerHTML = originalHTML;
                   return false;
@@ -261,7 +261,7 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
             }
           }
         }}>
-          {ic2.login}<span>Login</span>
+          {ic2.login}<span>{window.t ? window.t('login_to_continue') : 'Login'}</span>
         </button>
       </div>
     );
@@ -280,20 +280,20 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
             </div>
           </div>
           <button className="acct-menu-item" onClick={() => { setOpen(false); onView('mycontent'); }}>
-            {ic2.inbox}<span>My Content</span>
+            {ic2.inbox}<span>{window.t('my_content')}</span>
           </button>
           <button className="acct-menu-item" onClick={() => { setOpen(false); typeof Clerk !== 'undefined' && Clerk.openUserProfile(); }}>
-            {ic2.gear}<span>Account</span>
+            {ic2.gear}<span>{window.t('account_menu_title')}</span>
           </button>
           {isAdmin && (
             <a className="acct-menu-item" href={window.ADMIN_URL || 'admin.html'} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
-              {ic2.shield}<span>Admin Dashboard</span>
+              {ic2.shield}<span>{window.t('admin_dashboard_title')}</span>
               <span className="ext-hint">{window.ic.ext}</span>
             </a>
           )}
           <div className="acct-menu-sep" />
           <button className="acct-menu-item danger" onClick={() => { setOpen(false); onLogout(); }}>
-            {ic2.logout}<span>Log Out</span>
+            {ic2.logout}<span>{window.t('logout_btn_text')}</span>
           </button>
         </div>
       )}
@@ -341,9 +341,9 @@ function ErrorState({ title, sub, onRetry }) {
   return (
     <div className="state-box">
       <div className="sx-ic" style={{ color: 'oklch(0.62 0.16 25)' }}>{window.ic.warning}</div>
-      <h4>{title || 'Something went wrong'}</h4>
+      <h4>{title || window.t('something_went_wrong')}</h4>
       {sub && <p>{sub}</p>}
-      {onRetry && <button className="doc-btn" style={{ marginTop: 12 }} onClick={onRetry}>{window.ic.refresh} Retry</button>}
+      {onRetry && <button className="doc-btn" style={{ marginTop: 12 }} onClick={onRetry}>{window.ic.refresh} {window.t('retry')}</button>}
     </div>
   );
 }

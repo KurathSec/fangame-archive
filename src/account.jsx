@@ -66,7 +66,7 @@ const TopBar = ({ crumb }) => (
     <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Toggle menu">
       {window.ic.menu}
     </button>
-    <span className="crumb"><b>Library</b><span>/</span>{crumb}</span>
+    <span className="crumb"><b>{window.t('library')}</b><span>/</span>{crumb}</span>
   </div>
 );
 
@@ -77,7 +77,7 @@ function LoginGate({ icon, title, sub, onOpenLogin }) {
       <div className="lg-ic">{icon || window.ic2.lock}</div>
       <h3>{title}</h3>
       <p>{sub}</p>
-      <button className="doc-btn accent" onClick={onOpenLogin}>{window.ic2.login} Login to continue</button>
+      <button className="doc-btn accent" onClick={onOpenLogin}>{window.ic2.login} {window.t('login_to_continue')}</button>
     </div>
   );
 }
@@ -117,7 +117,7 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
 
   const toggleTag = (t) => {
     if (!tags.includes(t) && tags.length >= 10) {
-      window.pushToast('Limit reached', 'You can select at most 10 tags.', 'warn');
+      window.pushToast(window.t('limit_reached_toast'), window.t('max_tags_toast_desc'), 'warn');
       return;
     }
     setTags((cur) => cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]);
@@ -127,11 +127,11 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
     const t = custom.trim().toLowerCase().replace(/\s+/g, '-');
     if (!t) return;
     if (t.length > 20) {
-      window.pushToast('Tag too long', 'Tags must be 20 characters or less.', 'warn');
+      window.pushToast(window.t('tag_too_long_toast'), window.t('tag_too_long_toast_desc'), 'warn');
       return;
     }
     if (tags.length >= 10) {
-      window.pushToast('Limit reached', 'You can select at most 10 tags.', 'warn');
+      window.pushToast(window.t('limit_reached_toast'), window.t('max_tags_toast_desc'), 'warn');
       return;
     }
     if (!tags.includes(t)) setTags((cur) => [...cur, t]);
@@ -145,11 +145,11 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
   const submit = async () => {
     setTouched(true);
     setErr('');
-    if (!nameValid) { setErr('Game name is required (min 2 characters).'); return; }
-    if (!authorValid) { setErr('At least one creator/author name is required.'); return; }
-    if (!form.url.trim() || !urlValid) { setErr('A valid external URL (http/https) is required.'); return; }
-    if (!verified) { setErr('Please complete the verification challenge.'); return; }
-    if (quota.left <= 0) { setErr('Daily submission limit reached (5/5). Try again tomorrow.'); window.pushToast('Limit reached', 'You have used all 5 submissions today', 'warn'); return; }
+    if (!nameValid) { setErr(window.t('game_name_required')); return; }
+    if (!authorValid) { setErr(window.t('at_least_one_creator')); return; }
+    if (!form.url.trim() || !urlValid) { setErr(window.t('url_required_error')); return; }
+    if (!verified) { setErr(window.t('complete_verification_error')); return; }
+    if (quota.left <= 0) { setErr(window.t('daily_limit_reached_desc')); window.pushToast(window.t('limit_reached_toast'), window.t('used_all_submissions_desc'), 'warn'); return; }
 
     setSubmitting(true);
     try {
@@ -183,10 +183,10 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
       }
 
       consumeQuota('submit', 5);
-      window.pushToast('Submission received', form.name.trim() + ' is pending review', 'success');
+      window.pushToast(window.t('submission_received_toast'), window.t('pending_review_toast_desc', { name: form.name.trim() }), 'success');
       setDone(true);
     } catch (e) {
-      setErr(e.message || 'Failed to submit game.');
+      setErr(e.message || window.t('failed_submit_game'));
     } finally {
       setSubmitting(false);
     }
@@ -194,11 +194,11 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
-      <TopBar crumb="Submit a Game" />
+      <TopBar crumb={window.t('submit_game')} />
       <div className="docview">
         <div className="doc" style={{ maxWidth: 680 }}>
           <div className="doc-head">
-            <h1 className="doc-title"><span className="doc-title-ic">{window.ic2.upload}</span>Submit a Game</h1>
+            <h1 className="doc-title"><span className="doc-title-ic">{window.ic2.upload}</span>{window.t('submit_game')}</h1>
             <p className="doc-sub">
               Found a fangame missing from the archive? Submit it for review. Approved entries are crawled,
               mirrored, and added to the public catalog.
@@ -206,16 +206,16 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
           </div>
 
           {auth === 'out' ? (
-            <LoginGate title="Login required" sub="You need an account to submit games to the archive. Submissions are tied to your profile and subject to a daily limit." onOpenLogin={onOpenLogin} />
+            <LoginGate title={window.t('login_required_title')} sub={window.t('submit_game_login_desc')} onOpenLogin={onOpenLogin} />
           ) : done ? (
             <div className="submit-banner">
               <div className="sb-ic">{window.ic.check}</div>
               <div>
-                <h3>Submission submitted, pending review</h3>
-                <p>Thanks! <b>{form.name.trim()}</b> is now in the moderation queue. You can track its status under <b>My Content → My Submissions</b>. Most submissions are reviewed within 48 hours.</p>
+                <h3>{window.t('pending_review_title')}</h3>
+                <p>{window.t('pending_review_desc', { name: form.name.trim() })}</p>
                 <div className="sb-actions">
                   <button className="doc-btn" onClick={() => { setForm({ name: '', url: '', desc: '' }); setAuthors([identity?.nick || '']); setTags([]); setShots(['']); setVerified(false); setTouched(false); setDone(false); }}>
-                    {window.ic.plus} Submit another
+                    {window.ic.plus} {window.t('submit_another')}
                   </button>
                 </div>
               </div>
@@ -224,47 +224,47 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
             <div className="form-card">
               <div className="form-card-body">
                 <div className="field">
-                  <label className="field-label">Game Name <span className="req">*</span></label>
+                  <label className="field-label">{window.t('game_name_label')} <span className="req">*</span></label>
                   <input className={'field-input' + (touched && !nameValid ? ' invalid' : '')} value={form.name}
                          placeholder="e.g. I Wanna Be The Guy" onChange={(e) => set('name', e.target.value)} />
-                  {touched && !nameValid && <span className="field-err">{window.ic.warning} Enter at least 2 characters</span>}
+                  {touched && !nameValid && <span className="field-err">{window.ic.warning} {window.t('enter_min_chars')}</span>}
                 </div>
-
+ 
                 <div className="field">
-                  <label className="field-label">Author Name(s) <span className="req">*</span></label>
+                  <label className="field-label">{window.t('creator_name_label')} <span className="req">*</span></label>
                   {authors.map((a, i) => (
                     <div className="shot-link-row" key={i} style={{ marginBottom: i < authors.length - 1 ? 8 : 0 }}>
-                      <input className={'field-input' + (touched && !a.trim() ? ' invalid' : '')} value={a} placeholder={i === 0 ? "Original creator" : "Co-creator / Collaborator"}
+                      <input className={'field-input' + (touched && !a.trim() ? ' invalid' : '')} value={a} placeholder={i === 0 ? window.t('original_creator_placeholder') : window.t('co_creator_placeholder')}
                              onChange={(e) => setAuthor(i, e.target.value)} />
                       {authors.length > 1 && (
-                        <button className="icon-x-btn" type="button" title="Remove" onClick={() => setAuthors((as) => as.filter((_, j) => j !== i))}>{window.ic.x}</button>
+                        <button className="icon-x-btn" type="button" title={window.t('remove_btn')} onClick={() => setAuthors((as) => as.filter((_, j) => j !== i))}>{window.ic.x}</button>
                       )}
                     </div>
                   ))}
                   {authors.length < 5 && (
-                    <button className="chip-add" type="button" style={{ marginTop: 8 }} onClick={() => setAuthors((as) => [...as, ''])}>{window.ic.plus} Add another author</button>
+                    <button className="chip-add" type="button" style={{ marginTop: 8 }} onClick={() => setAuthors((as) => [...as, ''])}>{window.ic.plus} {window.t('add_another_author')}</button>
                   )}
-                  {touched && !authorValid && <span className="field-err">{window.ic.warning} Enter at least one creator name</span>}
+                  {touched && !authorValid && <span className="field-err">{window.ic.warning} {window.t('at_least_one_creator')}</span>}
                 </div>
-
+ 
                 <div className="field">
-                  <label className="field-label">External URL <span className="req">*</span></label>
+                  <label className="field-label">{window.t('download_url')} <span className="req">*</span></label>
                   <input className={'field-input mono' + (touched && !urlValid ? ' invalid' : '')} value={form.url}
                          placeholder="https://host.example.com/game.zip" onChange={(e) => set('url', e.target.value)} />
                   {touched && !urlValid
-                    ? <span className="field-err">{window.ic.warning} Must start with http:// or https:// and be a valid URL</span>
-                    : <span className="field-help">Direct download or game page. Dead links are auto-detected during review.</span>}
+                    ? <span className="field-err">{window.ic.warning} {window.t('url_format_error')}</span>
+                    : <span className="field-help">{window.t('url_input_help')}</span>}
                 </div>
-
+ 
                 <div className="field">
-                  <label className="field-label">Tags <span className="opt">optional</span></label>
+                  <label className="field-label">{window.t('custom_tags')} <span className="opt">{window.t('desc_label_help')}</span></label>
                   <div className="chip-picker">
                     {POPULAR.map((t) => (
                       <button key={t} type="button" className={'tag' + (tags.includes(t) ? ' on' : '')} onClick={() => toggleTag(t)}>{t}</button>
                     ))}
                     {customTags.map((t) => (
                       <span key={t} className="tag on custom">{t}
-                        <button className="tag-x" type="button" title="Remove" onClick={() => toggleTag(t)}>{window.ic.x}</button>
+                        <button className="tag-x" type="button" title={window.t('remove_btn')} onClick={() => toggleTag(t)}>{window.ic.x}</button>
                       </span>
                     ))}
                     <span className="tag-input-wrap">
@@ -274,29 +274,29 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
                       <button className="tag-input-add" type="button" title="Add tag" disabled={!custom.trim()} onClick={addCustom}>{window.ic.plus}</button>
                     </span>
                   </div>
-                  <span className="field-help">{tags.length}/10 selected — pick all that apply (max 10 tags, 20 chars per tag).</span>
+                  <span className="field-help">{window.t('tags_selection_help', { count: tags.length })}</span>
                 </div>
 
                 <div className="field">
-                  <label className="field-label">Description <span className="opt">optional</span><span className="field-counter">{form.desc.length}/500</span></label>
+                  <label className="field-label">{window.t('description_label')} <span className="opt">{window.t('desc_label_help')}</span><span className="field-counter">{form.desc.length}/500</span></label>
                   <textarea className="field-textarea" value={form.desc} maxLength={500} rows={4}
-                            placeholder="Briefly describe the game — genre, length, notable features…"
+                            placeholder={window.t('desc_placeholder')}
                             onChange={(e) => set('desc', e.target.value)} />
                 </div>
 
                 <div className="field">
-                  <label className="field-label">Screenshot Links <span className="opt">optional</span></label>
+                  <label className="field-label">{window.t('screenshot_links_label')} <span className="opt">{window.t('desc_label_help')}</span></label>
                   {shots.map((s, i) => (
                     <div className="shot-link-row" key={i}>
                       <input className="field-input mono" value={s} placeholder="https://i.example.com/shot.png"
                              onChange={(e) => setShot(i, e.target.value)} />
                       {shots.length > 1 && (
-                        <button className="icon-x-btn" type="button" title="Remove" onClick={() => setShots((ss) => ss.filter((_, j) => j !== i))}>{window.ic.x}</button>
+                        <button className="icon-x-btn" type="button" title={window.t('remove_btn')} onClick={() => setShots((ss) => ss.filter((_, j) => j !== i))}>{window.ic.x}</button>
                       )}
                     </div>
                   ))}
                   {shots.length < 5 && (
-                    <button className="chip-add" type="button" style={{ marginTop: 8 }} onClick={() => setShots((s) => [...s, ''])}>{window.ic.plus} Add another link</button>
+                    <button className="chip-add" type="button" style={{ marginTop: 8 }} onClick={() => setShots((s) => [...s, ''])}>{window.ic.plus} {window.t('add_another_link')}</button>
                   )}
                 </div>
 
@@ -310,7 +310,7 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
 
               <div className="form-foot">
                 <button className="btn-submit" onClick={submit} disabled={quota.left <= 0 || submitting}>
-                  {submitting ? <window.Spinner light={true} /> : window.ic2.upload} <span>Submit for review</span>
+                  {submitting ? <window.Spinner light={true} /> : window.ic2.upload} <span>{window.t('submit_game_btn')}</span>
                 </button>
                 <span className={'quota' + (quota.left <= 1 ? ' low' : '')}>
                   Remaining today: <b>{quota.left}/{quota.max}</b>
@@ -326,7 +326,7 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
 
 // ── My Content ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
-  const map = { approved: 'Approved', pending: 'Pending', rejected: 'Rejected' };
+  const map = { approved: window.t('status_approved'), pending: window.t('status_pending'), rejected: window.t('status_rejected') };
   return <span className={'st-badge ' + status}><span className="d" />{map[status] || status}</span>;
 }
 
@@ -344,7 +344,7 @@ function RecordRow({ rec, kind }) {
           ) : (
             <>
               <div className="rec-snippet">“{rec.snippet}”</div>
-              <div className="rec-snippet on-game" style={{ marginTop: 4 }}>on {rec.game}{rec.rating ? ' · rated ' + rec.rating + '/10' : ''}</div>
+              <div className="rec-snippet on-game" style={{ marginTop: 4 }}>on {rec.game}{rec.rating ? ' · ' + window.t('rating_value', { rating: rec.rating }) : ''}</div>
             </>
           )}
           <div className="rec-time">{window.ic.log} {rec.time}
@@ -355,7 +355,7 @@ function RecordRow({ rec, kind }) {
               <button className={'rec-expand' + (open ? ' open' : '')} onClick={() => setOpen((o) => !o)}>
                 {window.ic.chevron} {open ? 'Hide' : 'View'} reason for rejection
               </button>
-              {open && <div className="rec-reason"><b>Rejected:</b> {rec.reason}</div>}
+              {open && <div className="rec-reason"><b>{window.t('status_rejected')}:</b> {rec.reason}</div>}
             </>
           )}
         </div>
@@ -424,34 +424,34 @@ function MyContentView({ auth, identity, onOpenLogin }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
-      <TopBar crumb="My Content" />
+      <TopBar crumb={window.t('my_content')} />
       <div className="docview">
         <div className="doc" style={{ maxWidth: 680 }}>
           <div className="doc-head">
-            <h1 className="doc-title"><span className="doc-title-ic">{window.ic2.inbox}</span>My Content</h1>
+            <h1 className="doc-title"><span className="doc-title-ic">{window.ic2.inbox}</span>{window.t('my_content')}</h1>
             <p className="doc-sub">Track the status of everything you've contributed — submitted games and posted reviews.</p>
           </div>
 
           {auth === 'out' ? (
-            <LoginGate icon={window.ic2.inbox} title="Sign in to view your content" sub="Your submissions and comments live here once you're logged in." onOpenLogin={onOpenLogin} />
+            <LoginGate icon={window.ic2.inbox} title={window.t('sign_in_view_content')} sub={window.t('view_content_signin_desc')} onOpenLogin={onOpenLogin} />
           ) : (
             <>
               <div className="mc-tabs">
                 <button className={'mc-tab' + (tab === 'subs' ? ' on' : '')} onClick={() => setTab('subs')}>
-                  {window.ic2.upload} My Submissions {phase === 'ready' && <span className="ct">{data.subs.length}</span>}
+                  {window.ic2.upload} {window.t('my_game_submissions')} {phase === 'ready' && <span className="ct">{data.subs.length}</span>}
                 </button>
                 <button className={'mc-tab' + (tab === 'cmts' ? ' on' : '')} onClick={() => setTab('cmts')}>
-                  {window.ic.mail} My Comments {phase === 'ready' && <span className="ct">{data.cmts.length}</span>}
+                  {window.ic.mail} {window.t('my_reviews_comments')} {phase === 'ready' && <span className="ct">{data.cmts.length}</span>}
                 </button>
               </div>
 
               {phase === 'loading' && <window.SkeletonList rows={3} />}
-              {phase === 'error' && <window.ErrorState sub="Couldn't load your content. Check your connection and try again." onRetry={load} />}
+              {phase === 'error' && <window.ErrorState sub={window.t('error_load_content')} onRetry={load} />}
               {phase === 'ready' && rows.length === 0 && (
                 <window.EmptyState
                   icon={tab === 'subs' ? window.ic2.upload : window.ic.mail}
-                  title={tab === 'subs' ? 'No submissions yet' : 'No comments yet'}
-                  sub={tab === 'subs' ? 'Games you submit for review will appear here.' : 'Reviews you post on game pages will appear here.'} />
+                  title={tab === 'subs' ? window.t('no_submissions_title') : window.t('no_comments_title')}
+                  sub={tab === 'subs' ? window.t('no_submissions_desc') : window.t('no_comments_desc')} />
               )}
               {phase === 'ready' && rows.map((r) => <RecordRow key={r.id} rec={r} kind={tab === 'subs' ? 'sub' : 'cmt'} />)}
             </>
@@ -644,7 +644,7 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
 
   return (
     <div className="cmt-editor">
-      <h5 style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)' }}>Write a review</h5>
+      <h5 style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)' }}>{window.t('write_review')}</h5>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginBottom: 12 }}>
         <label className="switch-wrap" style={{ marginBottom: 0 }}>
@@ -657,7 +657,7 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
           <div className="switch-track">
             <div className="switch-thumb" />
           </div>
-          <span className="switch-label">Include rating</span>
+          <span className="switch-label">{window.t('include_rating')}</span>
         </label>
 
         <label className="switch-wrap" style={{ marginBottom: 0 }}>
@@ -670,7 +670,7 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
           <div className="switch-track">
             <div className="switch-thumb" />
           </div>
-          <span className="switch-label">Include difficulty</span>
+          <span className="switch-label">{window.t('include_difficulty')}</span>
         </label>
       </div>
 
@@ -679,7 +679,7 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
           {hasRating && (
             <div className="rng" style={{ width: '100%' }}>
               <div className="rng-head">
-                <span className="rng-label">Rating</span>
+                <span className="rng-label">{window.t('rating')}</span>
                 <ValEdit value={rating} min={0} max={10} step={0.1} unit="10" onChange={setRating} />
               </div>
               <DragSlider value={rating} min={0} max={10} step={0.1}
@@ -692,7 +692,7 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
           {hasDiff && (
             <div className="rng" style={{ width: '100%' }}>
               <div className="rng-head">
-                <span className="rng-label">Difficulty</span>
+                <span className="rng-label">{window.t('difficulty')}</span>
                 <span className="diff-word" style={{ color: DIFF_COLOR(diff), borderColor: 'currentColor' }}>{DIFF_WORD(diff)}</span>
                 <ValEdit value={diff} min={0} max={100} step={0.1} unit="100" onChange={setDiff} />
               </div>
@@ -722,7 +722,7 @@ function CommentEditor({ auth, identity, gameId, onOpenLogin, onPosted }) {
         </span>
       </div>
 
-      <textarea className="field-textarea" value={body} rows={3} placeholder="Share your thoughts on this game…"
+      <textarea className="field-textarea" value={body} rows={3} placeholder={window.t('write_comment_placeholder')}
                 style={{ marginBottom: 11 }} onChange={(e) => setBody(e.target.value)} />
 
       <window.Turnstile verified={verified} onVerify={setVerified} />

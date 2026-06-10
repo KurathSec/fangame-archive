@@ -401,39 +401,40 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
         <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Toggle menu">
           {window.ic.menu}
         </button>
-        <span className="crumb"><b>Library</b><span>/</span>All Games</span>
+        <span className="crumb"><b>{window.t('library')}</b><span>/</span>{window.t('browse_games')}</span>
         <div className="search search-title-input" style={{ marginRight: '8px', maxWidth: '240px' }}>
           {React.cloneElement(window.ic.search, { className: 's-icon' })}
-          <input value={searchTitle} onChange={(e) => setSearchTitle(e.target.value)} placeholder="Search title..." />
+          <input value={searchTitle} onChange={(e) => setSearchTitle(e.target.value)} placeholder={window.t('search_title')} />
           {searchTitle ? <button className="search-clear" onClick={() => setSearchTitle('')}>{window.ic.x}</button> : null}
         </div>
         <div className="search search-creator-input" style={{ maxWidth: '240px' }}>
           {React.cloneElement(window.ic.search, { className: 's-icon' })}
-          <input value={searchCreator} onChange={(e) => setSearchCreator(e.target.value)} placeholder="Search author..." />
+          <input value={searchCreator} onChange={(e) => setSearchCreator(e.target.value)} placeholder={window.t('search_author')} />
           {searchCreator ? <button className="search-clear" onClick={() => setSearchCreator('')}>{window.ic.x}</button> : null}
         </div>
 
         <div className="tb-spacer" />
-        <button className="iconbtn" title="Toggle theme" onClick={() => setTweak('dark', !tweaks.dark)}>
+        {window.LanguageSelector && <window.LanguageSelector />}
+        <button className="iconbtn" title={window.t('toggle_theme')} onClick={() => setTweak('dark', !tweaks.dark)}>
           {tweaks.dark ? window.ic.sun : window.ic.moon}
         </button>
       </div>
 
       <div className="toolbar">
-        <span className="lbl">Sort by</span>
+        <span className="lbl">{window.t('sort_by')}</span>
         <div style={{ display: 'inline-flex', alignItems: 'center' }}>
           <select className="sel" value={sort} onChange={(e) => handleSortChange(e.target.value)}>
-            <option value="id">ID</option>
-            <option value="title">Title</option>
-            <option value="rating">Avg Rating</option>
-            <option value="diff">Avg Difficulty</option>
-            <option value="size">File Size</option>
-            <option value="rev">Review count</option>
+            <option value="id">{window.t('sort_id')}</option>
+            <option value="title">{window.t('sort_title')}</option>
+            <option value="rating">{window.t('sort_rating')}</option>
+            <option value="diff">{window.t('sort_difficulty')}</option>
+            <option value="size">{window.t('sort_size')}</option>
+            <option value="rev">{window.t('sort_reviews')}</option>
           </select>
           <button 
             className="iconbtn sort-dir-btn" 
             onClick={() => setDesc(!desc)} 
-            title={desc ? "Sort descending" : "Sort ascending"}
+            title={desc ? window.t('sort_descending') : window.t('sort_ascending')}
             style={{
               marginLeft: '6px',
               background: 'var(--panel-active)',
@@ -466,23 +467,23 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
           className="btn-roll"
           onClick={rollRandom}
           disabled={filtered.length === 0}
-          title="Pick a random game from the current filters"
+          title={window.t('pick_random_title')}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          {window.ic.dice} Roll Random
+          {window.ic.dice} {window.t('roll_random')}
         </button>
 
         <button
           className={`iconbtn mobile-filter-btn${filtersOpen ? ' active' : ''}`}
           onClick={() => setFiltersOpen(!filtersOpen)}
-          title="Toggle filters"
+          title={window.t('toggle_filters')}
         >
           {window.ic.list}
         </button>
 
         <div className="tb-spacer" />
         <span className="mono" style={{ color: 'var(--muted)', fontSize: 11.5 }}>
-          {filtered.length} of {window.DATA.GAMES.length} games
+          {window.t('games_count', { filtered: filtered.length, total: window.DATA.GAMES.length })}
         </span>
       </div>
 
@@ -490,23 +491,23 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
         {filtersOpen && <div className="filterpane-scrim-mobile" onClick={() => setFiltersOpen(false)} />}
         <aside className={`filterpane${filtersOpen ? ' mobile-open' : ''}`}>
           <div className="fp-section">
-            <h4>Rating <span className="reset" onClick={() => setRating([0, 10])}>reset</span></h4>
+            <h4>{window.t('rating')} <span className="reset" onClick={() => setRating([0, 10])}>{window.t('reset')}</span></h4>
             <DualRange min={0} max={10} step={0.1} value={rating} onChange={setRating} format={(v) => v.toFixed(1)} />
           </div>
           <div className="fp-section">
-            <h4>Difficulty <span className="reset" onClick={() => setDiff([0, 100])}>reset</span></h4>
+            <h4>{window.t('difficulty')} <span className="reset" onClick={() => setDiff([0, 100])}>{window.t('reset')}</span></h4>
             <DualRange min={0} max={100} step={1} value={diff} onChange={setDiff} format={(v) => String(v)} />
           </div>
           <div className="fp-section">
             <h4>
-              <span>Tags ({tags.size})</span>
+              <span>{window.t('tags_count', { count: tags.size })}</span>
               {showAllTags && (
                 <span className="shrink-btn" onClick={() => setShowAllTags(false)} style={{ cursor: 'pointer', color: 'var(--accent)', textTransform: 'none', fontWeight: 400, fontSize: '11px' }}>
-                  shrink
+                  {window.t('shrink')}
                 </span>
               )}
               <span className="reset" onClick={() => { setTags(new Map()); setTagSearch(''); setShowAllTags(false); }}>
-                reset
+                {window.t('reset')}
               </span>
             </h4>
 
@@ -514,7 +515,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
               <input
                 value={tagSearch}
                 onChange={(e) => setTagSearch(e.target.value)}
-                placeholder="Search tags..."
+                placeholder={window.t('search_tags')}
                 className="tag-search-input"
               />
               {tagSearch && (
@@ -524,7 +525,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
               )}
             </div>
             <div style={{ fontSize: '10.5px', color: 'var(--muted)', marginTop: '4px', marginBottom: '8px', paddingLeft: '2px' }}>
-              Click to cycle: <b>OR</b> → <b>+AND</b> → <b>-NOT</b> → Off
+              {window.t('tag_instruction')}
             </div>
 
             <div className="tag-cloud">
@@ -558,19 +559,19 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
                     color: 'var(--accent)'
                   }}
                 >
-                  Show all...
+                  {window.t('show_all_dots')}
                 </span>
               )}
             </div>
 
           </div>
           <div className="fp-section">
-            <h4>Archive flags</h4>
+            <h4>{window.t('archive_flags')}</h4>
             <div className="checklist">
               {[
-                ['local',     'Archived locally',       flagCounts.local.toLocaleString()],
-                ['shots',     'Has screenshots',        flagCounts.shots.toLocaleString()],
-                ['missing',   'Missing assets',         flagCounts.missing.toLocaleString()],
+                ['local',     window.t('archived_locally'),       flagCounts.local.toLocaleString()],
+                ['shots',     window.t('has_screenshots'),        flagCounts.shots.toLocaleString()],
+                ['missing',   window.t('missing_assets_flag'),         flagCounts.missing.toLocaleString()],
               ].map(([k, label, ct]) => (
                 <label key={k} className={'check' + (flags[k] ? ' on' : '')} onClick={() => toggleFlag(k)}>
                   <span className="box" />
@@ -590,13 +591,13 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
           ) : (
             <div className="list">
               <div className="list-head">
-                <span className="list-id">ID</span>
-                <span className="list-title">Title</span>
-                <span className="list-creator">Creator</span>
-                <span className="list-num list-rating">Rating</span>
-                <span className="list-num list-diff">Diff</span>
-                <span className="list-num list-size">Size</span>
-                <span className="list-badges">Archive</span>
+                <span className="list-id">{window.t('sort_id')}</span>
+                <span className="list-title">{window.t('sort_title')}</span>
+                <span className="list-creator">{window.t('creator_header')}</span>
+                <span className="list-num list-rating">{window.t('rating')}</span>
+                <span className="list-num list-diff">{window.t('difficulty')}</span>
+                <span className="list-num list-size">{window.t('size_header')}</span>
+                <span className="list-badges">{window.t('archive_header')}</span>
               </div>
               {pagedItems.map((g) => <ListRow key={g.id} game={g} active={g.id === activeId} onClick={() => onOpenGame(g)} />)}
             </div>
@@ -608,7 +609,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
                 className="pg-btn"
                 disabled={page === 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                title="Previous Page"
+                title={window.t('prev_page')}
               >
                 {window.ic.arrow_l}
               </button>
@@ -631,13 +632,13 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
                 className="pg-btn"
                 disabled={page === totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                title="Next Page"
+                title={window.t('next_page')}
               >
                 {window.ic.arrow_r}
               </button>
 
               <div className="pg-jump" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '12px' }}>
-                <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Go to</span>
+                <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{window.t('go_to')}</span>
                 <input
                   type="text"
                   placeholder={page}
@@ -666,13 +667,13 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
                       } else {
                         e.target.style.borderColor = 'var(--badge-broken)';
                         setTimeout(() => {
-                          e.target.style.borderColor = 'var(--border)';
+                           e.target.style.borderColor = 'var(--border)';
                         }, 1000);
                       }
                     }
                   }}
                 />
-                <span style={{ fontSize: '11px', color: 'var(--muted)' }}>of {totalPages}</span>
+                <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{window.t('page_jump_of', { total: totalPages })}</span>
               </div>
             </div>
           )}

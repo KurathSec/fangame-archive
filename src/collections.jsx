@@ -29,15 +29,16 @@ function CollectionsView({ tweaks, setTweak }) {
         <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Toggle menu">
           {window.ic.menu}
         </button>
-        <span className="crumb"><b>Collections</b><span>/</span>{col.name}</span>
+        <span className="crumb"><b>{window.t('collections')}</b><span>/</span>{col.name}</span>
         <div className="tb-spacer" />
-        <button className="iconbtn" title="Toggle theme" onClick={() => setTweak('dark', !tweaks.dark)}>
+        {window.LanguageSelector && <window.LanguageSelector />}
+        <button className="iconbtn" title={window.t('toggle_theme')} onClick={() => setTweak('dark', !tweaks.dark)}>
           {tweaks.dark ? window.ic.sun : window.ic.moon}
         </button>
       </div>
       <div className="col-layout">
         <aside className="col-list">
-          <h4>My Collections <span className="add">+ new</span></h4>
+          <h4>{window.t('my_collections')} <span className="add">{window.t('new_collection')}</span></h4>
           {window.DATA.COLLECTIONS.map((c) => (
             <div key={c.id} className={'col-item' + (c.id === activeId ? ' on' : '')} onClick={() => setActiveId(c.id)}>
               <span className="col-swatch" style={{ background: c.color }} />
@@ -47,10 +48,10 @@ function CollectionsView({ tweaks, setTweak }) {
           ))}
           <div style={{ marginTop: 12, padding: '8px 10px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.55 }}>
             <div className="mono" style={{ marginBottom: 4, color: 'var(--text-soft)' }}>~/.archive/collections.json</div>
-            Collections export to a portable JSON file you can share or sync across machines.
+            {window.t('collections_export_desc')}
           </div>
         </aside>
-
+ 
         <main className="col-work">
           <header className="col-hd">
             <span className="swatch-lg" style={{ background: col.color }} />
@@ -59,18 +60,18 @@ function CollectionsView({ tweaks, setTweak }) {
               <p>{col.desc}</p>
             </div>
             <div className="actions">
-              <button className="btn-secondary">Share config</button>
-              <button className="btn-primary">{window.ic.plus} Add games</button>
+              <button className="btn-secondary">{window.t('share_config')}</button>
+              <button className="btn-primary">{window.ic.plus} {window.t('add_games')}</button>
             </div>
           </header>
-
+ 
           <div className="col-table">
             <div className="col-row hd">
               <span></span>
               <span></span>
               <span>#</span>
-              <span>Game</span>
-              <span>Note</span>
+              <span>{window.t('table_game_header')}</span>
+              <span>{window.t('table_note_header')}</span>
               <span></span>
             </div>
             {games.map((g, i) => (
@@ -90,24 +91,24 @@ function CollectionsView({ tweaks, setTweak }) {
                   <div className="gtitle">{g.title}</div>
                   <div className="gcreator">by {g.creator} · <span className="mono">★ {g.rating !== null ? g.rating.toFixed(1) : 'N/A'}</span> · <span className="mono">diff {g.difficulty !== null ? g.difficulty : 'N/A'}</span></div>
                 </div>
-                <input className="note" defaultValue={col.notes[g.id] || ''} placeholder="Add a note..." />
+                <input className="note" defaultValue={col.notes[g.id] || ''} placeholder={window.t('add_note_placeholder')} />
                 <button className="small-btn" style={{ width: 26, padding: 0, display: 'grid', placeItems: 'center' }}>{window.ic.x}</button>
               </div>
             ))}
             {!games.length && (
-              <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>No games in this collection yet.</div>
+              <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)' }}>{window.t('no_games_in_collection')}</div>
             )}
           </div>
-
+ 
           <div style={{ marginTop: 14, display: 'flex', gap: 8, fontSize: 12, color: 'var(--muted)' }}>
-            <span className="mono">{games.length} games</span>
+            <span className="mono">{games.length} {window.t('games_suffix')}</span>
             <span>·</span>
-            <span className="mono">{games.reduce((s, g) => s + g.hours, 0).toFixed(1)}h logged</span>
+            <span className="mono">{window.t('hours_logged', { hours: games.reduce((s, g) => s + g.hours, 0).toFixed(1) })}</span>
             <span>·</span>
-            <span className="mono">avg diff {(() => {
+            <span className="mono">{window.t('avg_diff_suffix', { diff: (() => {
               const ratedGames = games.filter(g => g.difficulty !== null);
               return ratedGames.length ? Math.round(ratedGames.reduce((s, g) => s + g.difficulty, 0) / ratedGames.length) : '—';
-            })()}</span>
+            })() })}</span>
           </div>
         </main>
       </div>

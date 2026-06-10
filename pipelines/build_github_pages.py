@@ -183,6 +183,10 @@ def main():
         os.path.join(DIST_DIR, "src", "data.jsx")
     )
     shutil.copy(
+        os.path.join(SRC_DIR, "src", "i18n.jsx"),
+        os.path.join(DIST_DIR, "src", "i18n.jsx")
+    )
+    shutil.copy(
         os.path.join(SRC_DIR, "src", "explorer.jsx"),
         os.path.join(DIST_DIR, "src", "explorer.jsx")
     )

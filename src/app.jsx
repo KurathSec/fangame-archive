@@ -379,14 +379,20 @@ function cacheData(version, data) {
 function RootApp() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
-  const [statusText, setStatusText] = React.useState('Initializing stream fetch...');
+  const [statusText, setStatusText] = React.useState(window.t ? window.t('init_db') : 'Initializing stream fetch...');
   const [loadedBytes, setLoadedBytes] = React.useState(0);
   const [totalBytes, setTotalBytes] = React.useState(32011780 + 2332521);
+  const [lang, setLang] = React.useState(window.CURRENT_LANGUAGE || 'en');
+
+  React.useEffect(() => {
+    window.forceAppUpdate = () => setLang(window.CURRENT_LANGUAGE);
+    return () => { delete window.forceAppUpdate; };
+  }, []);
 
   React.useEffect(() => {
     async function loadData() {
       try {
-        setStatusText('Initializing database...');
+        setStatusText(window.t ? window.t('init_db') : 'Initializing database...');
         const loadClerkScript = () => {
           return new Promise((resolve) => {
             if (typeof window.Clerk !== 'undefined') {
@@ -476,8 +482,8 @@ function RootApp() {
                 await window.Clerk.load({
                   publishableKey: window.CLERK_PUBLISHABLE_KEY,
                   localization: {
-                    formFieldLabel__firstName: "Nickname",
-                    formFieldPlaceholder__firstName: "Enter nickname"
+                    formFieldLabel__firstName: window.t('clerk_nickname'),
+                    formFieldPlaceholder__firstName: window.t('clerk_nickname_placeholder')
                   },
                   appearance: {
                     elements: {
@@ -506,14 +512,14 @@ function RootApp() {
         const localVersion = cachedResult ? cachedResult.version : null;
 
         if (cachedResult && String(localVersion) === String(latestVersion)) {
-          setStatusText('Loading database from local cache...');
+          setStatusText(window.t('init_db'));
           gamesDb = cachedResult.data.gamesDb;
           profilesDb = cachedResult.data.profilesDb;
           fromCache = true;
         } else if (cachedResult && localVersion && latestVersion) {
           // Local cache is older, try incremental updates
           try {
-            setStatusText('Checking for incremental updates...');
+            setStatusText(window.t('fetching_updates'));
             let changesUrl = 'data/recent_changes.json';
             if (window.location.pathname.includes('/src/')) {
               changesUrl = '../data/recent_changes.json';
@@ -541,7 +547,7 @@ function RootApp() {
               }
               
               if (canIncremental) {
-                setStatusText('Applying incremental database updates...');
+                setStatusText(window.t('merging_db'));
                 gamesDb = cachedResult.data.gamesDb;
                 profilesDb = cachedResult.data.profilesDb;
                 
@@ -557,7 +563,7 @@ function RootApp() {
                   }
                 }
                 
-                setStatusText('Saving updated database to local cache...');
+                setStatusText(window.t('merging_db'));
                 await cacheData(latestVersion, { gamesDb, profilesDb });
                 fromCache = true;
                 console.log(`Incremental sync complete: v${localVersion} -> v${latestVersion}`);
@@ -569,7 +575,7 @@ function RootApp() {
         }
 
         if (!fromCache) {
-          setStatusText('Fetching database chunks concurrently...');
+          setStatusText(window.t('fetching_updates'));
           let parts = ['data/games_part_1.json', 'data/games_part_2.json', 'data/games_part_3.json'];
           let profilesUrl = 'data/profiles.json';
           if (window.location.pathname.includes('/src/')) {
@@ -592,7 +598,7 @@ function RootApp() {
             fetchAndParse(profilesUrl, 'profiles')
           ]);
 
-          setStatusText('Processing database...');
+          setStatusText(window.t('merging_db'));
           gamesDb = {};
           Object.assign(gamesDb, part1);
           Object.assign(gamesDb, part2);
@@ -601,7 +607,7 @@ function RootApp() {
 
           if (latestVersion) {
             try {
-              setStatusText('Saving database to local cache...');
+              setStatusText(window.t('merging_db'));
               await cacheData(latestVersion, { gamesDb, profilesDb });
             } catch (cacheErr) {
               console.warn('Failed to cache data:', cacheErr);
@@ -609,7 +615,7 @@ function RootApp() {
           }
         }
 
-        setStatusText('Preprocessing database schemas...');
+        setStatusText(window.t('merging_db'));
         
         const GAMES = [];
         const REVIEWS = {};

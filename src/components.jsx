@@ -136,16 +136,16 @@ function BrandMark() {
 
 function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth, identity, onLogout }) {
   const BASE_NAV = [
-    { k: 'explorer',    label: 'Browse Games',      icon: ic.archive,  count: gameCount },
-    { k: 'donation',    label: 'Donation & Support', icon: ic.heart,    count: null },
-    { k: 'links',       label: 'Community Links',   icon: ic.ext,      count: null },
-    { k: 'updates',     label: 'Update Log',        icon: ic.log,      count: null },
-    { k: 'contact',     label: 'About & Contact',   icon: ic.mail,     count: null }
+    { k: 'explorer',    label: window.t('browse_games'),      icon: ic.archive,  count: gameCount },
+    { k: 'donation',    label: window.t('donation_support'), icon: ic.heart,    count: null },
+    { k: 'links',       label: window.t('community_links'),   icon: ic.ext,      count: null },
+    { k: 'updates',     label: window.t('update_log'),        icon: ic.log,      count: null },
+    { k: 'contact',     label: window.t('about_contact'),   icon: ic.mail,     count: null }
   ];
 
   const MEMBER_NAV = [
-    { k: 'submit',      label: 'Submit a Game',     icon: window.ic2.upload, count: null },
-    { k: 'mycontent',   label: 'My Content',        icon: window.ic2.inbox,  count: null }
+    { k: 'submit',      label: window.t('submit_game'),     icon: window.ic2.upload, count: null },
+    { k: 'mycontent',   label: window.t('my_content'),        icon: window.ic2.inbox,  count: null }
   ];
 
   return (
@@ -156,13 +156,13 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth,
           <div className="sb-brand-name">Archive</div>
           <div className="sb-brand-sub mono">fangame library</div>
         </div>
-        <button className="sb-mobile-close" onClick={() => window.closeSidebar && window.closeSidebar()} title="Close menu">
+        <button className="sb-mobile-close" onClick={() => window.closeSidebar && window.closeSidebar()} title={window.t('close_menu_title')}>
           {ic.x}
         </button>
       </div>
 
       <div>
-        <div className="sb-section-label">Library</div>
+        <div className="sb-section-label">{window.t('library')}</div>
         <nav className="sb-nav">
           {BASE_NAV.map((n) => (
             <button key={n.k} className={'sb-item' + (view === n.k ? ' active' : '')} onClick={() => onView(n.k)}>
@@ -175,7 +175,7 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth,
           {auth !== 'out' && (
             <>
               <div style={{ height: '14px' }} />
-              <div className="sb-section-label" style={{ marginTop: '4px' }}>Member Area</div>
+              <div className="sb-section-label" style={{ marginTop: '4px' }}>{window.t('my_content')}</div>
               {MEMBER_NAV.map((n) => (
                 <button key={n.k} className={'sb-item' + (view === n.k ? ' active' : '')} onClick={() => onView(n.k)}>
                   {n.icon}
@@ -190,12 +190,11 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth,
 
       <div className="sb-foot">
         <window.AccountBlock auth={auth} identity={identity} onLogout={onLogout} onView={onView} />
-        <div className="sb-stat" style={{ marginTop: '10px' }}><span><span className="sb-pulse" />Storage</span><b className="mono">{storageSize || "619.87 GB"}</b></div>
-        <div className="sb-stat"><span>Archived</span><b className="mono">{gameCount.toLocaleString()}</b></div>
-        <div className="sb-stat"><span>Sync Status</span><b className="mono" style={{ color: 'oklch(0.72 0.15 152)' }}>Online</b></div>
-        <div style={{ padding: '10px 0 0 0', borderTop: '1px solid var(--border)', marginTop: '10px', fontSize: '9.5px', color: 'var(--muted)', letterSpacing: '0.01em', lineHeight: '1.45' }}>
-          Fangame Archive © Kureist 2026<br/>
-          Developer & Designer
+        <div className="sb-stat" style={{ marginTop: '10px' }}><span>{window.t('storage_stat_label')}</span><b className="mono">{storageSize || "619.87 GB"}</b></div>
+        <div className="sb-stat"><span>{window.t('archived_stat_label')}</span><b className="mono">{gameCount.toLocaleString()}</b></div>
+        <div className="sb-stat"><span>{window.t('sync_status_label')}</span><b className="mono" style={{ color: 'oklch(0.72 0.15 152)' }}>{window.t('online_status')}</b></div>
+        <div style={{ padding: '10px 0 0 0', borderTop: '1px solid var(--border)', marginTop: '10px', fontSize: '9.5px', color: 'var(--muted)', letterSpacing: '0.01em', lineHeight: '1.45', whiteSpace: 'pre-line' }}>
+          {window.t('sidebar_footer_credits')}
         </div>
       </div>
     </aside>
@@ -439,23 +438,18 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
             <h2 className="drawer-title">{game.title}</h2>
 
             <div className="drawer-meta">
-
-              by <a href="#" onClick={(e) => {
+              {window.t('by_author')} <a href="#" onClick={(e) => {
                 e.preventDefault();
                 if (window.setCreatorSearch) {
                   window.setCreatorSearch(game.creator);
                 }
                 onClose();
               }}>{game.creator}</a>
-
               {' · '}<span className="mono">{game.df_id}</span>
-
             </div>
 
             <div className="drawer-meta" style={{ marginTop: 2, fontSize: 11, opacity: 0.9 }}>
-
               <span className="mono" style={{ display: 'block', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{game.url}</span>
-
             </div>
 
           </div>
@@ -464,134 +458,72 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
         </header>
 
-
-
         <div className="drawer-body">
 
           {/* Stats Metrics Grid */}
 
           <section className="drawer-sec" style={{ 
-
             display: 'grid', 
-
             gridTemplateColumns: 'repeat(3, 1fr)', 
-
             gap: '8px', 
-
             marginBottom: '12px' 
-
           }}>
 
             <div style={{
-
               background: 'rgba(255, 255, 255, 0.025)',
-
               border: '1px solid rgba(255, 255, 255, 0.05)',
-
               borderRadius: '8px',
-
               padding: '8px 6px',
-
               textAlign: 'center',
-
               display: 'flex',
-
               flexDirection: 'column',
-
               gap: '2px'
-
             }}>
-
-              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)' }}>Rating</span>
-
+              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)' }}>{window.t('rating')}</span>
               <span style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
-
                 {game.rating !== null ? `${game.rating.toFixed(1)}/10.0` : 'N/A'}
-
               </span>
-
               <span style={{ fontSize: '9px', color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-
-                {game.reviews} {game.reviews === 1 ? 'review' : 'reviews'}
-
+                {game.reviews} {game.reviews === 1 ? window.t('review_singular') : window.t('review_plural')}
               </span>
-
             </div>
 
-            
-
             <div style={{
-
               background: 'rgba(255, 255, 255, 0.025)',
-
               border: '1px solid rgba(255, 255, 255, 0.05)',
-
               borderRadius: '8px',
-
               padding: '8px 6px',
-
               textAlign: 'center',
-
               display: 'flex',
-
               flexDirection: 'column',
-
               gap: '2px'
-
             }}>
-
-              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)' }}>Difficulty</span>
-
+              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)' }}>{window.t('difficulty')}</span>
               <span style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
-
                 {game.difficulty !== null ? `${game.difficulty.toFixed(1)}/100.0` : 'N/A'}
-
               </span>
-
               <span style={{ fontSize: '9px', color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-
                 {game.difficulty !== null ? 'Standard' : 'N/A'}
-
               </span>
-
             </div>
 
-            
-
             <div style={{
-
               background: 'rgba(255, 255, 255, 0.025)',
-
               border: '1px solid rgba(255, 255, 255, 0.05)',
-
               borderRadius: '8px',
-
               padding: '8px 6px',
-
               textAlign: 'center',
-
               display: 'flex',
-
               flexDirection: 'column',
-
               gap: '2px'
-
             }}>
-
-              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)' }}>File Size</span>
-
+              <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)' }}>{window.t('file_size_label')}</span>
               <span style={{ fontSize: '13px', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>
-
                 {game.file_size > 0 ? formatSize(game.file_size) : 'N/A'}
-
               </span>
-
               <span style={{ fontSize: '9px', color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-
                 {game.file_size > 0 ? (game.flags?.local ? 'R2 CDN' : 'External') : 'N/A'}
-
               </span>
-
             </div>
 
           </section>
@@ -599,61 +531,33 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
 
           <section className="drawer-sec" style={{ display: 'flex', gap: '8px' }}>
-
             <button
-
               className="launch-btn"
-
               style={{ flex: 1 }}
-
               disabled={!game.url || game.flags?.broken}
-
               onClick={() => {
-
                 if (game.url && !game.flags?.broken) {
-
                   window.open(game.url, '_blank', 'noopener,noreferrer');
-
                 }
-
               }}
-
             >
-
               {(!game.url || game.flags?.broken) ? (
-
-                <>{ic.x} Not Available</>
-
+                <>{ic.x} {window.t('not_available')}</>
               ) : (
-
-                <>{ic.download} Download</>
-
+                <>{ic.download} {window.t('download')}</>
               )}
-
             </button>
 
-
-
             {isRoll && window.rollRandomGame && (
-
               <button
-
                 className="roll-again-btn"
-
                 onClick={() => window.rollRandomGame()}
-
-                title="Roll another random game from current filters"
-
+                title={window.t('pick_random_title')}
                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-
               >
-
-                {ic.dice} Roll Again
-
+                {ic.dice} {window.t('roll_again')}
               </button>
-
             )}
-
           </section>
 
 
@@ -698,7 +602,7 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
           <section className="drawer-sec">
 
-            <h5>Screenshots <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 4 }}>({shots.length})</span></h5>
+            <h5>{window.t('screenshots')} <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 4 }}>({shots.length})</span></h5>
 
             {shots.length > 0 ? (
 
@@ -718,7 +622,7 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
               </div>
 
-            ) : <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>No screenshots captured.</p>}
+            ) : <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>{window.t('no_screenshots')}</p>}
 
           </section>
 
@@ -726,17 +630,17 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
           <section className="drawer-sec">
 
-            <h5>Community Reviews <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 4 }}>({loadingComments ? '...' : comments.length})</span></h5>
+            <h5>{window.t('reviews_comments')} <span style={{ color: 'var(--muted)', fontWeight: 400, marginLeft: 4 }}>({loadingComments ? '...' : comments.length})</span></h5>
 
             {loadingComments ? (
 
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>Loading reviews...</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>{window.t('loading_reviews')}</p>
 
             ) : (
 
               <>
 
-                {comments.length === 0 && <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>No reviews mirrored yet.</p>}
+                {comments.length === 0 && <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>{window.t('no_reviews_yet_mirrored')}</p>}
 
                 {comments.slice((commentPage - 1) * 5, commentPage * 5).map((r, i) => (
 
@@ -746,13 +650,13 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
                       <b><a href="#">{r.user}</a></b>
 
-                      {r.status === 'pending' && <span className="badge-mini own">Pending Review</span>}
+                      {r.status === 'pending' && <span className="badge-mini own">{window.t('pending_review_badge')}</span>}
 
-                      {r.source === 'imported' && <span className="badge-mini imported">Imported</span>}
+                      {r.source === 'imported' && <span className="badge-mini imported">{window.t('imported_badge')}</span>}
 
-                      {r.rating !== null && r.rating !== undefined && r.rating !== 'na' ? <span className="mono">rating {r.rating}/10</span> : <span className="mono" style={{ color: 'var(--muted)' }}>rating N/A</span>}
+                      {r.rating !== null && r.rating !== undefined && r.rating !== 'na' ? <span className="mono">{window.t('rating_value', { rating: r.rating })}</span> : <span className="mono" style={{ color: 'var(--muted)' }}>{window.t('rating_na')}</span>}
 
-                      {r.diff !== null && r.diff !== undefined && r.diff !== 'na' ? <span style={{ color: 'var(--muted)' }}>diff {r.diff}</span> : <span style={{ color: 'var(--muted)' }}>diff N/A</span>}
+                      {r.diff !== null && r.diff !== undefined && r.diff !== 'na' ? <span style={{ color: 'var(--muted)' }}>{window.t('diff_value', { diff: r.diff })}</span> : <span style={{ color: 'var(--muted)' }}>{window.t('diff_na')}</span>}
 
                       <span style={{ color: 'var(--muted)' }}>· ♡ {r.liked}</span>
 
@@ -808,13 +712,13 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
                     >
 
-                      Previous
+                      {window.t('prev_pagination')}
 
                     </button>
 
                     <span style={{ fontSize: '11px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
 
-                      Page {commentPage} of {Math.ceil(comments.length / 5)}
+                      {window.t('page_x_of_y', { current: commentPage, total: Math.ceil(comments.length / 5) })}
 
                     </span>
 
@@ -848,7 +752,7 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
                     >
 
-                      Next
+                      {window.t('next_pagination')}
 
                     </button>
 
@@ -964,7 +868,7 @@ function DonationView({ gameCount, storageSize }) {
 
         </button>
 
-        <span className="crumb"><b>Library</b><span>/</span>Donation &amp; Support</span>
+        <span className="crumb"><b>{window.t('library')}</b><span>/</span>{window.t('donation_support')}</span>
 
       </div>
 
@@ -976,13 +880,11 @@ function DonationView({ gameCount, storageSize }) {
 
           <div className="doc-head">
 
-            <h1 className="doc-title"><span className="doc-title-ic">{ic.heart}</span>Donation &amp; Support</h1>
+            <h1 className="doc-title"><span className="doc-title-ic">{ic.heart}</span>{window.t('donation_support')}</h1>
 
             <p className="doc-sub">
 
-              A community-driven archive of {gameCount ? gameCount.toLocaleString() : "17,000"}+ fangames and {storageSize || "618 GB"} of crawled content. Sponsorships go
-
-              directly toward server hosting, bandwidth, and CDN distribution — thank you for keeping the archive alive.
+              {window.t('donation_support_desc', { gameCount: gameCount ? gameCount.toLocaleString() : "17,000", storageSize: storageSize || "618 GB" })}
 
             </p>
 
@@ -992,7 +894,7 @@ function DonationView({ gameCount, storageSize }) {
 
           <div className="doc-section">
 
-            <div className="doc-section-label">Wallets &amp; sponsorship <span className="ct">{wallets.length}</span></div>
+            <div className="doc-section-label">{window.t('wallets_sponsorship')} <span className="ct">{wallets.length}</span></div>
 
             <div className="ntable">
 
@@ -1014,7 +916,7 @@ function DonationView({ gameCount, storageSize }) {
 
                     <a className="doc-btn accent" href={w.addr} target="_blank" rel="noopener noreferrer">
 
-                      {ic.ext} Sponsor
+                      {ic.ext} {window.t('sponsor')}
 
                     </a>
 
@@ -1022,7 +924,7 @@ function DonationView({ gameCount, storageSize }) {
 
                     <button className={'doc-btn' + (copied === w.coin ? ' on' : '')} onClick={() => handleCopy(w.addr, w.coin)}>
 
-                      {copied === w.coin ? <>{ic.check} Copied</> : <>{copyIc} Copy</>}
+                      {copied === w.coin ? <>{ic.check} {window.t('copied')}</> : <>{copyIc} {window.t('copy')}</>}
 
                     </button>
 
@@ -1044,9 +946,7 @@ function DonationView({ gameCount, storageSize }) {
 
             <div>
 
-              <b>Security notice.</b> Double-check the wallet address and network before sending. ETH, USDT, and
-
-              USDC addresses all use the ERC-20 network (Ethereum Mainnet).
+              <b>{window.t('security_notice')} </b>{window.t('security_notice_text')}
 
             </div>
 
@@ -1070,11 +970,11 @@ function LinksView() {
 
   const links = [
 
-    { name: 'Delicious Fruit',   desc: 'The historic flagship archive — the foundation of I Wanna cataloging and reviews for over a decade.', url: 'https://delicious-fruit.com/' },
+    { name: 'Delicious Fruit',   desc: window.t('delicious_fruit_desc'), url: 'https://delicious-fruit.com/' },
 
-    { name: 'I Wanna Wiki',      desc: 'A community-maintained encyclopedia of creator bios, detailed walkthroughs, and wiki listings.',        url: 'https://www.iwannawiki.com/' },
+    { name: 'I Wanna Wiki',      desc: window.t('iwanna_wiki_desc'),        url: 'https://www.iwannawiki.com/' },
 
-    { name: 'Dappermink Archive', desc: 'An exceptionally complete vault hosting hundreds of classic, modern, and obscure fangame binaries.',     url: 'https://archive.dappermink.me/home' }
+    { name: 'Dappermink Archive', desc: window.t('dappermink_desc'),     url: 'https://archive.dappermink.me/home' }
 
   ];
 
@@ -1096,7 +996,7 @@ function LinksView() {
 
         </button>
 
-        <span className="crumb"><b>Library</b><span>/</span>Community Links</span>
+        <span className="crumb"><b>{window.t('library')}</b><span>/</span>{window.t('community_links')}</span>
 
       </div>
 
@@ -1108,13 +1008,11 @@ function LinksView() {
 
           <div className="doc-head">
 
-            <h1 className="doc-title"><span className="doc-title-ic">{ic.link}</span>Community Links</h1>
+            <h1 className="doc-title"><span className="doc-title-ic">{ic.link}</span>{window.t('community_links')}</h1>
 
             <p className="doc-sub">
 
-              Portals to the archives, wikis, and community platforms that together form the backbone of the global
-
-              I&nbsp;Wanna fangame legacy.
+              {window.t('community_links_desc')}
 
             </p>
 
@@ -1124,7 +1022,7 @@ function LinksView() {
 
           <div className="doc-section">
 
-            <div className="doc-section-label">Partner sites <span className="ct">{links.length}</span></div>
+            <div className="doc-section-label">{window.t('partner_sites')} <span className="ct">{links.length}</span></div>
 
             <div className="ntable">
 
@@ -1262,7 +1160,7 @@ function ContactView() {
 
         </button>
 
-        <span className="crumb"><b>Library</b><span>/</span>About &amp; Contact</span>
+        <span className="crumb"><b>{window.t('library')}</b><span>/</span>{window.t('about_contact')}</span>
 
       </div>
 
@@ -1274,11 +1172,11 @@ function ContactView() {
 
           <div className="doc-head">
 
-            <h1 className="doc-title"><span className="doc-title-ic">{ic.mail}</span>About &amp; Contact</h1>
+            <h1 className="doc-title"><span className="doc-title-ic">{ic.mail}</span>{window.t('about_contact')}</h1>
 
             <p className="doc-sub">
 
-              Catalog credits, the technical stack that powers the archive, and where to reach the maintainer.
+              {window.t('about_contact_desc')}
 
             </p>
 
@@ -1288,13 +1186,13 @@ function ContactView() {
 
           <div className="doc-section">
 
-            <div className="doc-section-label">Credits</div>
+            <div className="doc-section-label">{window.t('credits')}</div>
 
             <div className="ntable">
 
               <div className="ntable-row prop-row">
 
-                <span className="prop-key">Creator</span>
+                <span className="prop-key">{window.t('creator')}</span>
 
                 <span className="prop-val">kureist</span>
 
@@ -1302,7 +1200,7 @@ function ContactView() {
 
               <div className="ntable-row prop-row">
 
-                <span className="prop-key">Special thanks</span>
+                <span className="prop-key">{window.t('special_thanks')}</span>
 
                 <span className="prop-val">Chance, Dappermink, null, Algosith</span>
 
@@ -1316,7 +1214,7 @@ function ContactView() {
 
           <div className="doc-section">
 
-            <div className="doc-section-label">Technical stack</div>
+            <div className="doc-section-label">{window.t('technical_stack')}</div>
 
             <div className="tag-group">
 
@@ -1348,7 +1246,7 @@ function ContactView() {
 
           <div className="doc-section">
 
-            <div className="doc-section-label">Contact</div>
+            <div className="doc-section-label">{window.t('contact')}</div>
 
             <div className="ntable">
 
@@ -1370,7 +1268,7 @@ function ContactView() {
 
 
 
-          <div className="doc-foot">Fangame Archive · Developer &amp; Designer © Kureist 2026</div>
+          <div className="doc-foot">{window.t('footer_credits')}</div>
 
         </div>
 
@@ -1420,14 +1318,14 @@ function UpdateLogView() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
         <div className="topbar">
-          <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Toggle menu">
+          <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title={window.t('close_menu_title')}>
             {window.ic.menu}
           </button>
-          <span className="crumb"><b>Library</b><span>/</span>Update Log</span>
+          <span className="crumb"><b>{window.t('library')}</b><span>/</span>{window.t('update_log')}</span>
         </div>
         <div className="docview">
           <div className="doc">
-            <p style={{ fontSize: 13, color: 'var(--muted)' }}>Loading update log...</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)' }}>{window.t('loading_update_log')}</p>
           </div>
         </div>
       </div>
@@ -1437,19 +1335,18 @@ function UpdateLogView() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
       <div className="topbar">
-        <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Toggle menu">
+        <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title={window.t('close_menu_title')}>
           {window.ic.menu}
         </button>
-        <span className="crumb"><b>Library</b><span>/</span>Update Log</span>
+        <span className="crumb"><b>{window.t('library')}</b><span>/</span>{window.t('update_log')}</span>
       </div>
 
       <div className="docview">
         <div className="doc">
           <div className="doc-head">
-            <h1 className="doc-title"><span className="doc-title-ic">{ic.log}</span>Update Log</h1>
+            <h1 className="doc-title"><span className="doc-title-ic">{ic.log}</span>{window.t('update_log')}</h1>
             <p className="doc-sub">
-              A running record of database releases, new surfaces, and fixes shipped to the archive. The
-              live database is currently on <b style={{ color: 'var(--text)', fontWeight: 600 }}>version {window.DATABASE_VERSION || '51'}</b>. The application version is <b style={{ color: 'var(--text)', fontWeight: 600 }}>version {window.APP_VERSION || '2026.004'}</b>.
+              {window.t('update_log_desc', { db_ver: window.DATABASE_VERSION || '51', app_ver: window.APP_VERSION || '2026.004' })}
             </p>
           </div>
 
@@ -1474,12 +1371,11 @@ function UpdateLogView() {
           <div className="callout">
             <span className="callout-ic">{ic.refresh}</span>
             <div>
-              <b>Auto-sync.</b> The crawler re-indexes mirrors every 6 hours. New entries land here once a
-              database version is published — your local cache updates incrementally on next visit.
+              <b>{window.t('auto_sync_title')}</b> {window.t('auto_sync_desc')}
             </div>
           </div>
 
-          <div className="doc-foot">Fangame Archive · Developer &amp; Designer © Kureist 2026</div>
+          <div className="doc-foot">{window.t('footer_credits')}</div>
         </div>
       </div>
     </div>
