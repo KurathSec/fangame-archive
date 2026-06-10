@@ -1925,3 +1925,46 @@ div[data-field="lastName"] {
   letter-spacing: 0.05em;
 }
 
+/* Custom Toggle Switch */
+.switch-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 14px;
+}
+.switch-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-soft);
+}
+.switch-input {
+  display: none;
+}
+.switch-track {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  border-radius: 99px;
+  background: var(--border-strong);
+  transition: background 0.16s ease;
+}
+.switch-input:checked + .switch-track {
+  background: var(--accent);
+}
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.16s ease;
+  box-shadow: var(--shadow-1);
+}
+.switch-input:checked + .switch-track .switch-thumb {
+  transform: translateX(14px);
+}
+
