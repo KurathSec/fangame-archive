@@ -1,5 +1,18 @@
 [
   {
+    "ver": "2026.005",
+    "date": "2026-06-10",
+    "note": "Cloud-synced favorites bookmarks and collection management",
+    "changes": [
+      ["Added", "D1 SQL database table user_favorites and unique indexes to store user bookmarks in the cloud."],
+      ["Added", "Serverless API endpoints GET /api/favorites, POST /api/favorites, and DELETE /api/favorites/:id with Clerk validation."],
+      ["Added", "Visual collections card grid view with lazy loading, skeleton states, and empty placeholders."],
+      ["Added", "Interactive bookmark/favorite toggle button in details drawer and on collection grid cards with pop scale animations."],
+      ["Changed", "Upgraded CollectionsView to leverage Favorites API with Clerk session token headers for authorization."],
+      ["Added", "Fully localized 21 new favorites/collections labels across all 8 supported languages."]
+    ]
+  },
+  {
     "ver": "2026.004",
     "date": "2026-06-10",
     "note": "Review options, precision filtering, and profile nickname-only support",
