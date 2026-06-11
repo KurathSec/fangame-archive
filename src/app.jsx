@@ -73,6 +73,10 @@ function App() {
         if (Clerk.user) {
           const localId = window.getClerkIdentity();
           setIdentity(localId);
+          // Trust Clerk's client session for the basic logged-in state so the UI flips
+          // immediately even if /api/me can't verify (e.g. backend env keys misconfigured).
+          // /api/me below only upgrades role (admin) and D1 display name when it succeeds.
+          if (active) setAuth('user');
           try {
             const token = await Clerk.session.getToken();
             const res = await fetch('/api/me', {
