@@ -1,6 +1,8 @@
 export async function onRequest(context) {
-  // Pin to clerk-js v6 to match the production instance's clerk_js_version (reported by /v1/environment).
-  const url = "https://unpkg.com/@clerk/clerk-js@6/dist/clerk.browser.js";
+  // Pin to clerk-js v5: v6 defaults to RHC (remotely-hosted UI) which breaks our manual
+  // Clerk.load() init. This proxy is a dead fallback; the app loads clerk-js from the
+  // Frontend API domain (window.CLERK_JS_URL) instead.
+  const url = "https://unpkg.com/@clerk/clerk-js@5/dist/clerk.browser.js";
   try {
     const response = await fetch(url);
     if (!response.ok) {
