@@ -500,7 +500,10 @@ function RootApp() {
               }
               
               if (typeof window.Clerk === 'object' && !window.Clerk.loaded) {
-                await window.Clerk.load({
+                // Memoize load() so app.jsx and the login button never call it concurrently.
+                // A second concurrent load() in clerk-js v6 clobbers the UI component wiring,
+                // causing "Clerk was not loaded with Ui components" on openSignIn().
+                await (window.__clerkLoadPromise = window.__clerkLoadPromise || window.Clerk.load({
                   publishableKey: window.CLERK_PUBLISHABLE_KEY,
                   localization: {
                     formFieldLabel__firstName: window.t('clerk_nickname'),
@@ -511,7 +514,7 @@ function RootApp() {
                       formFieldRow__lastName: { display: 'none' }
                     }
                   }
-                });
+                }));
               }
             }
           } catch (authErr) {

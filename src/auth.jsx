@@ -210,7 +210,9 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                 btn.disabled = true;
                 btn.innerHTML = '<span>' + (window.t ? window.t('initializing_auth_msg') : 'Initializing Auth...') + '</span>';
                 try {
-                  await window.Clerk.load({
+                  // Reuse the shared load() promise (see app.jsx) so we never run a second
+                  // concurrent load(), which would break clerk-js v6 UI component wiring.
+                  await (window.__clerkLoadPromise = window.__clerkLoadPromise || window.Clerk.load({
                     publishableKey: window.CLERK_PUBLISHABLE_KEY,
                     localization: {
                       formFieldLabel__firstName: window.t('clerk_nickname'),
@@ -221,7 +223,7 @@ function AccountBlock({ auth, identity, onOpenLogin, onLogout, onView }) {
                         formFieldRow__lastName: { display: 'none' }
                       }
                     }
-                  });
+                  }));
                 } catch (err) {
                   alert((window.t ? window.t('clerk_init_fail_alert') : "Failed to initialize authentication: ") + err.message);
                   btn.disabled = false;
