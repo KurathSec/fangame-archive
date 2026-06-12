@@ -322,6 +322,20 @@ def review_key(r):
     tags_tuple = tuple(sorted(r.get("tags", []))) if r.get("tags") else ()
     return ("ar", r.get("game_id"), r.get("rating"), r.get("difficulty"), r.get("date"), tags_tuple)
 
+def review_nums(g_reviews, field):
+    """Collect parseable numeric values for a review field, skipping None/'na'/''
+    and any malformed value (e.g. junk from a live scrape) instead of raising."""
+    out = []
+    for r in g_reviews:
+        v = r.get(field)
+        if v in (None, "na", ""):
+            continue
+        try:
+            out.append(float(v))
+        except (TypeError, ValueError):
+            pass
+    return out
+
 def parse_rating_val(val_str):
     val_str = val_str.strip()
     if val_str == "N/A" or val_str.lower() == "n/a":
@@ -1017,19 +1031,8 @@ def main():
         g_reviews = reviews_by_df_id.get(df_id, [])
         new_count = len(g_reviews)
         
-        def _nums(field):
-            out = []
-            for r in g_reviews:
-                v = r.get(field)
-                if v in (None, 'na', ''):
-                    continue
-                try:
-                    out.append(float(v))
-                except (TypeError, ValueError):
-                    pass  # skip malformed values (e.g. freshly-scraped junk) instead of crashing
-            return out
-        ratings = _nums("rating")
-        difficulties = _nums("difficulty")
+        ratings = review_nums(g_reviews, "rating")
+        difficulties = review_nums(g_reviews, "difficulty")
         
         new_rating = sum(ratings) / len(ratings) if ratings else None
         new_difficulty = sum(difficulties) / len(difficulties) if difficulties else None
@@ -1117,7 +1120,7 @@ def main():
                 if title_norm in title_to_seq_ids:
                     matches = title_to_seq_ids[title_norm]
                     unclaimed_matches = [m for m in matches if str(m) not in seq_map]
-                    if len(unclaimed_matches) == 1:
+                    if len(unclaimed_matches) == 1 and str(unclaimed_matches[0]) in games:
                         seq_id = unclaimed_matches[0]
                         seq_map[str(seq_id)] = [df_id, "title_match"]
                         orig_to_seq_map[str(df_id)] = str(seq_id)
@@ -1141,8 +1144,8 @@ def main():
                             
                         g_reviews = reviews_by_df_id.get(df_id, [])
                         new_count = len(g_reviews)
-                        ratings = [float(r["rating"]) for r in g_reviews if r.get("rating") not in (None, 'na')]
-                        difficulties = [float(r["difficulty"]) for r in g_reviews if r.get("difficulty") not in (None, 'na')]
+                        ratings = review_nums(g_reviews, "rating")
+                        difficulties = review_nums(g_reviews, "difficulty")
                         new_rating = sum(ratings) / len(ratings) if ratings else None
                         new_difficulty = sum(difficulties) / len(difficulties) if difficulties else None
                         
@@ -1168,10 +1171,12 @@ def main():
                             update_count += 1
                             log(f"  [RECALC HEALED] #{update_count} | Seq ID {seq_id} | DF ID {df_id} | '{title}' | Diff: {curr_diff}->{new_difficulty} | Rate: {curr_rating}->{new_rating} | Count: {curr_count}->{new_count}")
                             
-            if seq_id:
+            # A deleted (de-duplicated) game can still be claimed in seq_map as a tombstone
+            # so the live scrape won't re-add it; skip it here since it's no longer in games.
+            if seq_id and str(seq_id) in games:
                 # Game exists locally and its stats were already recalculated in Step 4A
                 # Let's check if it has no reviews and we need to update it using the live scraped list rating/difficulty
-                g = games[seq_id]
+                g = games[str(seq_id)]
                 g_reviews = reviews_by_df_id.get(df_id, [])
                 
                 # Only fallback/update using live scraped list if there are no reviews in our local reviews database
@@ -1295,8 +1300,8 @@ def main():
             log(f"  Merged Tags: {final_tags}")
             
             # Calculate rating/difficulty/count
-            ratings = [float(r["rating"]) for r in g_reviews if r.get("rating") not in (None, 'na')]
-            difficulties = [float(r["difficulty"]) for r in g_reviews if r.get("difficulty") not in (None, 'na')]
+            ratings = review_nums(g_reviews, "rating")
+            difficulties = review_nums(g_reviews, "difficulty")
             
             rating_count = len(g_reviews)
             rating = round(sum(ratings) / len(ratings), 2) if ratings else None
