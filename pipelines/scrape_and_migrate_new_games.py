@@ -1017,8 +1017,19 @@ def main():
         g_reviews = reviews_by_df_id.get(df_id, [])
         new_count = len(g_reviews)
         
-        ratings = [float(r["rating"]) for r in g_reviews if r.get("rating") not in (None, 'na')]
-        difficulties = [float(r["difficulty"]) for r in g_reviews if r.get("difficulty") not in (None, 'na')]
+        def _nums(field):
+            out = []
+            for r in g_reviews:
+                v = r.get(field)
+                if v in (None, 'na', ''):
+                    continue
+                try:
+                    out.append(float(v))
+                except (TypeError, ValueError):
+                    pass  # skip malformed values (e.g. freshly-scraped junk) instead of crashing
+            return out
+        ratings = _nums("rating")
+        difficulties = _nums("difficulty")
         
         new_rating = sum(ratings) / len(ratings) if ratings else None
         new_difficulty = sum(difficulties) / len(difficulties) if difficulties else None
@@ -1047,7 +1058,7 @@ def main():
         reviews_tags = set()
         for r in g_reviews:
             for t in r.get("tags", []):
-                t_clean = t.strip().lower()
+                t_clean = (t or "").strip().lower()
                 if t_clean:
                     reviews_tags.add(t_clean)
                     
@@ -1060,8 +1071,8 @@ def main():
             wiki_tags.update(w_tags)
         else:
             url = (g.get("download_url") or "").strip().lower()
-            title_lower = g.get("title", "").strip().lower()
-            creator = g.get("creator", {}).get("name", "").strip().lower() if isinstance(g.get("creator"), dict) else ""
+            title_lower = (g.get("title") or "").strip().lower()
+            creator = ((g.get("creator", {}).get("name") or "").strip().lower()) if isinstance(g.get("creator"), dict) else ""
             
             if url in wiki_by_url:
                 w_game = wiki_by_url[url]
@@ -1077,7 +1088,7 @@ def main():
         if "archive" in g.get("tags", []):
             new_tags.add("archive")
             
-        curr_tags = set(t.strip().lower() for t in g.get("tags", []))
+        curr_tags = set((t or "").strip().lower() for t in g.get("tags", []) if t is not None)
         
         if curr_tags != new_tags:
             g["tags"] = sorted(list(new_tags))
