@@ -1059,7 +1059,7 @@ def main():
             w_tags = wiki_game_tags.get(w_id, set())
             wiki_tags.update(w_tags)
         else:
-            url = g.get("download_url", "").strip().lower()
+            url = (g.get("download_url") or "").strip().lower()
             title_lower = g.get("title", "").strip().lower()
             creator = g.get("creator", {}).get("name", "").strip().lower() if isinstance(g.get("creator"), dict) else ""
             
