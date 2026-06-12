@@ -304,6 +304,24 @@ def fetch_wiki_tags(w_id):
 # ── 💬 REVIEWS SCRAPER & INTEGRATION ──────────────────────────────────────────
 REVIEWS_JSON = "temp/reviews_scraped.json"
 
+def review_key(r):
+    """Stable identity for a scraped review, used for de-duplication on merge.
+
+    A written comment is identified by (game_id, author, user_id, text) so the same
+    review re-scraped with a drifted date/rating/likes is NOT re-appended as a dupe.
+    A named rating-only entry collapses on (game_id, author, user_id, rating, difficulty).
+    Anonymous rating-only entries keep their full tuple so distinct anonymous ratings
+    (which feed avg_rating / rating_count) are preserved.
+    """
+    text = (r.get("text") or "").strip()
+    author = (r.get("author") or "").strip().lower()
+    if text:
+        return ("c", r.get("game_id"), author, r.get("user_id"), text)
+    if author != "anonymous":
+        return ("nr", r.get("game_id"), author, r.get("user_id"), r.get("rating"), r.get("difficulty"))
+    tags_tuple = tuple(sorted(r.get("tags", []))) if r.get("tags") else ()
+    return ("ar", r.get("game_id"), r.get("rating"), r.get("difficulty"), r.get("date"), tags_tuple)
+
 def parse_rating_val(val_str):
     val_str = val_str.strip()
     if val_str == "N/A" or val_str.lower() == "n/a":
@@ -761,32 +779,11 @@ def main():
     # Deduplicate and merge
     existing_keys = set()
     for r in scraped_reviews:
-        tags_tuple = tuple(sorted(r.get("tags", []))) if r.get("tags") else ()
-        key = (
-            r.get("author"),
-            r.get("user_id"),
-            r.get("game_id"),
-            r.get("text"),
-            r.get("rating"),
-            r.get("difficulty"),
-            r.get("date"),
-            tags_tuple
-        )
-        existing_keys.add(key)
-        
+        existing_keys.add(review_key(r))
+
     new_reviews_count = 0
     for r in latest_reviews:
-        tags_tuple = tuple(sorted(r.get("tags", []))) if r.get("tags") else ()
-        key = (
-            r.get("author"),
-            r.get("user_id"),
-            r.get("game_id"),
-            r.get("text"),
-            r.get("rating"),
-            r.get("difficulty"),
-            r.get("date"),
-            tags_tuple
-        )
+        key = review_key(r)
         if key not in existing_keys:
             scraped_reviews.append(r)
             existing_keys.add(key)
@@ -1244,17 +1241,7 @@ def main():
             if new_game_reviews:
                 log(f"  Found {len(new_game_reviews)} reviews for new game. Merging...")
                 for r in new_game_reviews:
-                    tags_tuple = tuple(sorted(r.get("tags", []))) if r.get("tags") else ()
-                    key = (
-                        r.get("author"),
-                        r.get("user_id"),
-                        r.get("game_id"),
-                        r.get("text"),
-                        r.get("rating"),
-                        r.get("difficulty"),
-                        r.get("date"),
-                        tags_tuple
-                    )
+                    key = review_key(r)
                     if key not in existing_keys:
                         scraped_reviews.append(r)
                         existing_keys.add(key)

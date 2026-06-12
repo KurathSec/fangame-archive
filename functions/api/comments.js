@@ -130,8 +130,10 @@ export async function onRequestPost(context) {
     const createdTs = Date.now();
 
     // 3. Write native comment into D1 as 'pending'
+    // INSERT OR IGNORE pairs with the unique dedup index (game_id, user, content) so an
+    // accidental exact re-post cannot create a duplicate row.
     await env.DB.prepare(`
-      INSERT INTO comments (game_id, user, user_id, rating, difficulty, date, content, tags, source, status, created_ts)
+      INSERT OR IGNORE INTO comments (game_id, user, user_id, rating, difficulty, date, content, tags, source, status, created_ts)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'native', 'pending', ?)
     `)
     .bind(
