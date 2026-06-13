@@ -2,7 +2,8 @@
 #
 # Scraped reviews live in temp/reviews_scraped.json (which feeds rating averages via
 # games.json). The detail drawer, however, reads review *text* from D1 via /api/comments.
-# This bridges the gap: it inserts each written (non-empty-text) review as
+# This bridges the gap: it inserts each review that carries content (text, a rating, a
+# difficulty, or tags — rating-only entries are kept, only fully-empty ones are skipped) as
 #   source='imported', status='approved'
 # mapped from its Delicious Fruit id to the sequential catalog id. De-duplication is
 # handled by the UNIQUE (game_id, user, content) index via INSERT OR IGNORE, so the
@@ -45,14 +46,22 @@ def _sql_num(v):
         return "NULL"
 
 
+def _has_value(v):
+    return v not in (None, "", "na")
+
+
 def build_statements(reviews, orig_to_seq):
-    """Build INSERT OR IGNORE statements for written reviews that map to a catalog id."""
+    """Build INSERT OR IGNORE statements for reviews that map to a catalog id and carry
+    any content — text, a rating, a difficulty, or tags. Rating-only reviews (no text)
+    are kept on purpose: they display rating/difficulty/tags. Only fully-empty entries
+    are skipped."""
     stmts = []
-    skipped_no_text = skipped_unmapped = 0
+    skipped_empty = skipped_unmapped = 0
     for r in reviews:
         text = (r.get("text") or "").strip()
-        if not text:
-            skipped_no_text += 1
+        tags_list = r.get("tags") or []
+        if not (text or _has_value(r.get("rating")) or _has_value(r.get("difficulty")) or tags_list):
+            skipped_empty += 1
             continue
         seq_id = orig_to_seq.get(str(r.get("game_id")))
         if seq_id is None:
@@ -63,7 +72,7 @@ def build_statements(reviews, orig_to_seq):
             likes = int(likes)
         except (TypeError, ValueError):
             likes = 0
-        tags = json.dumps(r.get("tags") or [])
+        tags = json.dumps(tags_list)
         stmts.append(
             "INSERT OR IGNORE INTO comments "
             "(game_id, user, user_id, rating, difficulty, likes, date, content, tags, source, status, created_ts) "
@@ -72,7 +81,7 @@ def build_statements(reviews, orig_to_seq):
             f"{_sql_str(r.get('date'))}, {_sql_str(text)}, {_sql_str(tags)}, "
             "'imported', 'approved', NULL);"
         )
-    return stmts, skipped_no_text, skipped_unmapped
+    return stmts, skipped_empty, skipped_unmapped
 
 
 def run_batches(stmts):
@@ -105,9 +114,9 @@ def sync_reviews_to_d1(reviews, apply=False):
         if isinstance(val, list) and val:
             orig_to_seq[str(val[0])] = seq_id
 
-    stmts, no_text, unmapped = build_statements(reviews, orig_to_seq)
-    print(f"  written reviews to sync (INSERT OR IGNORE): {len(stmts)}")
-    print(f"  skipped — no text (rating-only): {no_text}")
+    stmts, empty, unmapped = build_statements(reviews, orig_to_seq)
+    print(f"  reviews to sync (INSERT OR IGNORE): {len(stmts)}")
+    print(f"  skipped — completely empty (no text/rating/difficulty/tags): {empty}")
     print(f"  skipped — game id not mapped   : {unmapped}")
     if not apply or not stmts:
         return len(stmts)
