@@ -74,10 +74,21 @@ def build_statements(reviews, orig_to_seq):
         except (TypeError, ValueError):
             likes = 0
         tags = json.dumps(tags_list)
+        author = r.get("author")
+        named = bool(author) and str(author).strip().lower() != "anonymous"
+        # A named user has one review per game: replace any existing imported row for
+        # (game, user) so a re-scrape (e.g. a previously-truncated review now captured in
+        # full) UPDATES it instead of inserting a duplicate. Anonymous rows have no stable
+        # identity beyond content, so they stay content-deduped via the unique index.
+        if named:
+            stmts.append(
+                f"DELETE FROM comments WHERE game_id={int(seq_id)} AND user={_sql_str(author)} AND source='imported';"
+            )
+        verb = "INSERT" if named else "INSERT OR IGNORE"
         stmts.append(
-            "INSERT OR IGNORE INTO comments "
+            f"{verb} INTO comments "
             "(game_id, user, user_id, rating, difficulty, likes, date, content, tags, source, status, created_ts) "
-            f"VALUES ({int(seq_id)}, {_sql_str(r.get('author'))}, NULL, "
+            f"VALUES ({int(seq_id)}, {_sql_str(author)}, NULL, "
             f"{_sql_num(r.get('rating'))}, {_sql_num(r.get('difficulty'))}, {likes}, "
             f"{_sql_str(r.get('date'))}, {_sql_str(text)}, {_sql_str(tags)}, "
             "'imported', 'approved', NULL);"
@@ -126,7 +137,7 @@ def sync_reviews_to_d1(reviews, apply=False):
             orig_to_seq[str(val[0])] = seq_id
 
     stmts, empty, unmapped = build_statements(reviews, orig_to_seq)
-    print(f"  reviews to sync (INSERT OR IGNORE): {len(stmts)}")
+    print(f"  SQL statements to run (named reviews use delete+insert): {len(stmts)}")
     print(f"  skipped — completely empty (no text/rating/difficulty/tags): {empty}")
     print(f"  skipped — game id not mapped   : {unmapped}")
     if not apply or not stmts:
