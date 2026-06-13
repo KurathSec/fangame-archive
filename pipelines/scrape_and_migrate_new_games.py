@@ -796,13 +796,15 @@ def main():
         existing_keys.add(review_key(r))
 
     new_reviews_count = 0
+    newly_added = []
     for r in latest_reviews:
         key = review_key(r)
         if key not in existing_keys:
             scraped_reviews.append(r)
             existing_keys.add(key)
+            newly_added.append(r)
             new_reviews_count += 1
-            
+
     log(f"Merged {new_reviews_count} new reviews from feed.")
     
     # Save back reviews
@@ -815,6 +817,17 @@ def main():
         log("Saved reviews database successfully.")
     except Exception as e:
         log(f"  [WARNING] Failed to save reviews database: {e}")
+
+    # Make the newly-scraped reviews visible in the drawer by inserting them into D1
+    # (source='imported', status='approved'). Idempotent via the unique index; failures
+    # here must not abort the rest of the sync.
+    if newly_added:
+        try:
+            from sync_reviews_to_d1 import sync_reviews_to_d1
+            log(f"Syncing {len(newly_added)} new reviews into D1 (imported/approved)...")
+            sync_reviews_to_d1(newly_added, apply=True)
+        except Exception as e:
+            log(f"  [WARNING] Failed to sync new reviews into D1: {e}")
 
     # Build reviews by DF ID mapping
     reviews_by_df_id = {}
