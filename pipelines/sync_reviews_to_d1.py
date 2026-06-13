@@ -21,6 +21,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -87,17 +88,27 @@ def build_statements(reviews, orig_to_seq):
 def run_batches(stmts):
     """Execute the statements against remote D1 in batches via wrangler."""
     total = 0
+    n_batches = (len(stmts) + BATCH_SIZE - 1) // BATCH_SIZE
     for i in range(0, len(stmts), BATCH_SIZE):
         batch = stmts[i:i + BATCH_SIZE]
         with open(TEMP_SQL, "w", encoding="utf-8") as f:
             f.write("\n".join(batch))
-        print(f"  Executing batch {i // BATCH_SIZE + 1} ({len(batch)} rows)...")
-        res = subprocess.run(
-            ["npx", "wrangler", "d1", "execute", DB_NAME, "--remote", f"--file={TEMP_SQL}"],
-            shell=True,
-        )
-        if res.returncode != 0:
-            print(f"  [ERROR] wrangler batch failed (exit {res.returncode}). Aborting.")
+        bn = i // BATCH_SIZE + 1
+        ok = False
+        for attempt in range(1, 6):  # retry transient network failures (idempotent)
+            tag = "" if attempt == 1 else f" [retry {attempt - 1}]"
+            print(f"  Executing batch {bn}/{n_batches} ({len(batch)} rows){tag}...")
+            res = subprocess.run(
+                ["npx", "wrangler", "d1", "execute", DB_NAME, "--remote", f"--file={TEMP_SQL}"],
+                shell=True,
+            )
+            if res.returncode == 0:
+                ok = True
+                break
+            print(f"  batch {bn} failed (exit {res.returncode}); retrying in 5s...")
+            time.sleep(5)
+        if not ok:
+            print(f"  [ERROR] batch {bn} failed after retries. Re-run the script to resume (idempotent).")
             break
         total += len(batch)
     if os.path.exists(TEMP_SQL):
