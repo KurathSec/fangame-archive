@@ -1,23 +1,43 @@
 # Fangame Archive Explorer
 
-This repository contains the front-end code, serverless API endpoints, and data processing scripts for the Fangame Archive Explorer—a client-side catalog and search engine for platformer games.
+A serverless, client-rendered catalog and review platform for *I Wanna Be The Guy* fangames — **20,000+ games** and **150,000+ user reviews**, hosted entirely on the Cloudflare developer platform.
+
+**Stack:** React (in-browser Babel) · Cloudflare Pages + Pages Functions · R2 · D1 · KV · Clerk auth · Turnstile · Python ingestion pipelines.
 
 > [!IMPORTANT]
-> **No Database or Game Files Included**
-> This repository only includes the website code, data compilation pipelines, and Cloudflare Pages configuration. It **does not** contain the actual `games.json` database (~32MB) or the 618GB of game archives and screenshot assets. You will need to set up local database files from samples to run or test the project locally.
+> **No database or game files are included.**
+> This repository contains only the website code, serverless API endpoints, data-processing pipelines, and Cloudflare configuration. It does **not** include the `games.json` catalog (~32 MB), the ~600 GB of game archives, or the screenshot assets. To run locally, seed the `data/` folder from the provided `*.sample.json` files.
+
+---
+
+## Architecture at a Glance
+
+| Layer | Technology | Role |
+|---|---|---|
+| **Frontend** | React 18 + Babel Standalone (no build step) | Catalog UI, search/filter, detail drawer, collections |
+| **Hosting / API** | Cloudflare Pages + Pages Functions | Static assets and serverless `/api/*` endpoints |
+| **Object storage** | Cloudflare R2 (`fangame-files`, `fangame-screenshots`) | Game archives, screenshots, master JSON |
+| **Database** | Cloudflare D1 (`fangame-comments`) | Reviews, users, submissions, favorites, audit log |
+| **Cache** | Cloudflare KV | Clerk profile cache + per-user daily quotas |
+| **Identity** | Clerk (production instance) | Login, sessions, OAuth (Google/Discord/Microsoft), email code |
+| **Bot defense** | Cloudflare Turnstile | CAPTCHA on all write endpoints |
+| **Pipelines** | Python + GitHub Actions (cron / push) | Scrape, recompute metrics, chunk, sync to R2, deploy |
+
+The catalog is split into chunks under Cloudflare Pages' 25 MB per-file limit and streamed into an IndexedDB client cache with incremental, version-based updates. Full detail lives in **[`project_architecture.md`](project_architecture.md)**.
 
 ---
 
 ## Key Features
 
-* **High-Density Catalog**: A compact, responsive grid view displaying game IDs, titles, authors, difficulty/rating averages, and tags.
-* **Three-State Tag Filter**:
-  * *Grey (Unchecked)*: Ignore tag.
-  * *Blue (Include)*: Show only games containing all checked tags.
-  * *Red (Exclude)*: Hide any game containing these tags.
-* **Filtered Randomizer**: The "Roll Random" button pulls a random game exclusively from your currently filtered list.
-* **Details Drawer**: Pop-up panel for game metadata, player reviews, and screenshot previews.
-* **Serverless APIs**: Cloudflare Pages Functions linking to a Cloudflare D1 SQL database for comments and bot search queries.
+* **High-density catalog** — responsive grid/list of game IDs, titles, authors, rating/difficulty averages, and tags, with client-side pagination.
+* **Three-state tag filter** — *grey* (ignore), *blue* (include — must match all), *red* (exclude — hide any match).
+* **Precise range filters** — rating/difficulty sliders paired with numeric inputs for exact (decimal) bounds.
+* **Filtered randomizer** — "Roll Random" draws only from the current filtered set.
+* **Detail drawer** — metadata, screenshots, and live reviews fetched on demand, with Markdown + click-to-reveal spoilers.
+* **Accounts & reviews** — Clerk-backed login; submit reviews (optional rating/difficulty, custom tags) and suggest new games, all gated by Turnstile and daily quotas, then moderated.
+* **Collections** — per-user favorites synced to D1.
+* **Internationalization** — 8 languages (`en`, `zh-CN`, `zh-TW`, `ja`, `ko`, `ru`, `fr`, `de`) with live switching.
+* **Public search API** — `/api/search?q=` / `?id=` for bots and integrations, edge-cached.
 
 ---
 
@@ -25,68 +45,91 @@ This repository contains the front-end code, serverless API endpoints, and data 
 
 ```text
 fangame-archive/
-├── database/                 # D1 SQL schemas and ID mappings
-│   ├── schema.sql            # Comments table structure for D1
-│   └── seq_to_orig_map.json  # Internal sequential ID mapping database
-├── data/                     # JSON database directory (Ignored by Git)
-│   ├── games.sample.json     # Sample database structure
-│   ├── profiles.sample.json  # Sample profiles structure
-│   └── recent_changes.sample.json # Sample changelog structure
-├── functions/                # Cloudflare Pages Functions
-│   └── api/
-│       ├── comments.js       # Comment retrieval and submission
-│       └── search.js         # API endpoint for bot queries
-├── public/                   # Static assets served at the root
+├── public/                       # Static assets served at the root
+│   ├── index.html                # Entry point: config globals + Babel script mounts
 │   ├── favicon.ico
-│   ├── index.html            # Main entrypoint HTML
-│   └── js/                   # Legacy libraries
-├── src/                      # Frontend SPA source code (React & CSS)
-│   ├── app.jsx               # App loading and streaming logic
-│   ├── components.jsx        # Sidebar, listings, detail drawer, and lightbox
-│   ├── explorer.jsx          # Tag matrix filter matching
-│   └── styles.css            # Responsive layout and design tokens
-├── pipelines/                # Data pipelines and build scripts
-│   ├── build_github_pages.py        # Compiles React files and chunks databases
-│   ├── ingest_local_folder_games.py # Uploads local game zips to R2 and updates metadata
-│   ├── scrape_and_migrate_new_games.py # Scrapes external database updates
-│   ├── sync_screenshots_to_r2.py    # Incrementally checks and uploads screenshots to R2
-│   └── update_storage_stats.py      # Recalculates total bucket size
-├── .gitignore                # Git ignore configuration
-├── wrangler.toml             # Cloudflare Pages & D1 database bindings
-├── deploy.bat                # Build and deploy script
-└── sync_and_deploy.bat       # Full scraper, sync, build, and deploy script
+│   ├── img/                      # Static images
+│   └── js/                       # Vendored libraries
+├── src/                          # Frontend SPA (React via in-browser Babel)
+│   ├── app.jsx                   # RootApp: cache hydration, DB streaming, Clerk init, router
+│   ├── auth.jsx                  # Clerk loading, account block, avatars, Turnstile wrapper
+│   ├── account.jsx               # Review editor, submission form, "my content"
+│   ├── components.jsx            # Sidebar, cards/rows, detail drawer, lightbox
+│   ├── explorer.jsx              # Search + tri-state tag filter + pagination
+│   ├── collections.jsx           # Favorites grid + FavoritesAPI client
+│   ├── i18n.jsx                  # Dictionaries, window.t(), language selector
+│   ├── data.jsx                  # In-memory data shaping (window.DATA)
+│   ├── tweaks-panel.jsx          # Theme/density/layout tweaks
+│   └── styles.css / account.css  # Design tokens and layout
+├── functions/                    # Cloudflare Pages Functions (Workers runtime)
+│   ├── _middleware.js            # CORS + Clerk JWT verification + JIT user provisioning
+│   └── api/
+│       ├── _lib/                 # auth (JWKS verify), http helpers, validators (Turnstile)
+│       ├── me/                   # /api/me, /api/me/comments, /api/me/submissions
+│       ├── comments.js           # GET approved+own / POST review (Turnstile + quota)
+│       ├── submissions.js        # POST game submission
+│       ├── favorites.js          # GET/POST favorites  (+ favorites/[id].js DELETE)
+│       ├── search.js             # Public keyword/ID search (edge-cached)
+│       └── clerk-js.js           # Legacy first-party clerk-js proxy (fallback)
+├── pipelines/                    # Python ingestion, cleanup, and build scripts
+│   ├── scrape_and_migrate_new_games.py  # Master sync: scrape, recompute, reconcile
+│   ├── build_github_pages.py            # Chunk DB + compile static dist
+│   ├── merge_approved_submissions.py    # Merge approved user submissions into catalog/R2
+│   ├── ingest_local_folder_games.py     # Bulk-ingest local game zips to R2
+│   ├── sync_db_r2.py                    # download | upload master JSON ↔ R2
+│   ├── sync_screenshots_to_r2.py        # Upload missing screenshots to R2
+│   ├── update_storage_stats.py          # Recompute total storage figure
+│   ├── dedupe_reviews.py                # De-duplicate temp/reviews_scraped.json
+│   ├── apply_duplicate_resolution.py    # Apply keep/delete/clear_link resolution to catalog + R2
+│   └── config.py                        # R2 / Cloudflare credentials (git-ignored)
+├── database/
+│   ├── schema.sql                # D1 schema (comments, users, submissions, favorites, audit)
+│   └── seq_to_orig_map.json      # Sequential ID ↔ origin ID mapping
+├── data/                         # Catalog JSON (git-ignored; seed from *.sample.json)
+├── wrangler.toml                 # Pages project, D1 + KV bindings
+├── dev_server.py                 # Local dev server
+├── deploy.bat / sync_and_deploy.bat   # Build/deploy workflows
+└── project_architecture.md       # Full system architecture & developer reference
 ```
 
 ---
 
-## Local Development Setup
+## Local Development
 
-To run the dev server locally:
-
-1. **Create local mock databases**:
-   Go to the `data/` folder, duplicate the sample files, and remove the `.sample` extension:
+1. **Seed mock databases** — copy the samples in `data/`, dropping the `.sample`:
    ```bash
    cp data/games.sample.json data/games.json
    cp data/recent_changes.sample.json data/recent_changes.json
    cp data/profiles.sample.json data/profiles.json
    ```
-
-2. **Configure Cloudflare Credentials**:
-   Copy `.env.example` in the root directory to `.env` and fill in your Cloudflare account and R2 keys. This file is git-ignored.
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Start the server**:
-   Run the development script:
+2. **Configure credentials** — copy `.env.example` → `.env` and fill in Cloudflare account + R2 keys (git-ignored). Pipeline scripts also read `pipelines/config.py`.
+3. **Run the dev server**:
    ```bash
    py dev_server.py
    ```
-   Open `http://localhost:8000` in your browser. The server maps requests to `/src/`, `/data/`, and `/ratings/` directories dynamically.
+   Open `http://localhost:8000`. The server maps `/src/`, `/data/`, and `/ratings/` dynamically.
+
+> Auth and write APIs depend on Clerk + D1 + Turnstile and only function against the deployed Cloudflare environment; local dev primarily exercises the read-only catalog UI.
 
 ---
 
-## Build and Deployment
+## Build & Deployment
 
-* **Full Sync**: Run `sync_and_deploy.bat` to scrape the latest game catalogs, sync screenshots to R2, split the main database into chunked JSON files, and deploy to Cloudflare Pages.
-* **Code Build Only**: Run `deploy.bat` to compile JSX components and styles into `github_pages_dist/` and push it to Cloudflare Pages.
+| Command | Action |
+|---|---|
+| `deploy.bat` | Download DBs from R2 → compile static `github_pages_dist/` → `wrangler pages deploy` |
+| `sync_and_deploy.bat` | Full pipeline: download → scrape/recompute → ingest → sync screenshots → upload → deploy |
+| `.github/workflows/deploy.yml` | CI: runs on push to `main` (matching paths) or every 6 h |
+
+Apply D1 schema changes explicitly (not part of deploy):
+```bash
+npx wrangler d1 execute fangame-comments --remote --file database/schema.sql
+```
+
+> **Operational notes:** environment-variable changes in Cloudflare Pages apply only to *new* deployments (always redeploy after editing keys), and pipeline edits to `games.json` must be rebased on the current R2 master before upload. See the [Operational Runbook](project_architecture.md#10-operational-runbook-common-failure-modes).
+
+---
+
+## Documentation
+
+* **[`project_architecture.md`](project_architecture.md)** — comprehensive reference: data schemas, the Clerk auth/identity flow, every API endpoint, the frontend component model, caching strategy, the ingestion/de-duplication pipelines, data-integrity invariants, and an operational runbook.

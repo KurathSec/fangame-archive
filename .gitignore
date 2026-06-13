@@ -75,4 +75,3 @@ Desktop.ini
 .env.local
 .env.*
 pipelines/archive/
-project_architecture.md
