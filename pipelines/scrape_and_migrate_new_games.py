@@ -384,7 +384,9 @@ def scrape_latest_reviews(limit=120):
             res = fetch_url_with_retry(url, headers=headers)
             if res and res.ok:
                 res.encoding = 'utf-8'
-                soup = BeautifulSoup(res.text, "html.parser")
+                # Convert <br> to newlines in the raw HTML: html.parser mis-nests text after
+                # a <br/>, so br.replace_with("\n") would drop every line past the first.
+                soup = BeautifulSoup(re.sub(r'(<br\s*/?>\s*)+', '\n', res.text, flags=re.I), "html.parser")
                 review_divs = soup.find_all("div", class_="review")
                 if not review_divs:
                     break
@@ -466,7 +468,7 @@ def scrape_latest_reviews(limit=120):
                     })
                 log(f"  Page {page_num} scraped ({len(review_divs)} reviews).")
             else:
-                log(f"  [WARNING] Failed to fetch page {page_num}: {res.status_code}")
+                log(f"  [WARNING] Failed to fetch page {page_num}: {res.status_code if res else 'no response'}")
         except Exception as e:
             log(f"  [WARNING] Exception fetching page {page_num}: {e}")
             
@@ -485,7 +487,7 @@ def scrape_all_game_reviews(game_id, game_title=""):
         res.encoding = 'utf-8'
         html = res.text
         
-        soup = BeautifulSoup(html, "html.parser")
+        soup = BeautifulSoup(re.sub(r'(<br\s*/?>\s*)+', '\n', html, flags=re.I), "html.parser")
         review_divs = soup.find_all("div", class_="review")
         
         def parse_reviews_from_soup(s_soup):
@@ -569,7 +571,7 @@ def scrape_all_game_reviews(game_id, game_title=""):
             res_p = fetch_url_with_retry(f"{base_url}&rpage={p}", headers=headers)
             if res_p and res_p.ok:
                 res_p.encoding = 'utf-8'
-                soup_p = BeautifulSoup(res_p.text, "html.parser")
+                soup_p = BeautifulSoup(re.sub(r'(<br\s*/?>\s*)+', '\n', res_p.text, flags=re.I), "html.parser")
                 reviews.extend(parse_reviews_from_soup(soup_p))
     except Exception as e:
         log(f"  [WARNING] Exception scraping detail reviews for game ID {game_id}: {e}")
