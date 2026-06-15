@@ -1500,10 +1500,27 @@ def main():
             try: shutil.rmtree(TEMP_BASE_DIR)
             except Exception: pass
             
+    # Final normalization: a game with no ratings (rating_count == 0) is unrated, so
+    # its avg_rating/avg_difficulty must be null (N/A), never 0.0. Runs after Steps 4A/4B
+    # so rating_count is final (e.g. Delicious Fruit games keep their aggregate rating).
+    # Editing games here — rather than only in the build — means the correction is carried
+    # in the version delta below, so it reaches cached/incremental clients, not just fresh
+    # full-loads. This also backfills historical 0.0 rows (e.g. older Wiki-only ingests).
+    norm_count = 0
+    with db_lock:
+        for seq_id, g in games.items():
+            if not g.get("rating_count"):
+                if g.get("avg_rating") is not None or g.get("avg_difficulty") is not None:
+                    g["avg_rating"] = None
+                    g["avg_difficulty"] = None
+                    norm_count += 1
+    if norm_count:
+        log(f"Normalized {norm_count} unrated game(s) (rating_count=0) to null rating/difficulty.")
+
     # Generate timeline delta changes
     log("\nGenerating database timeline delta changes...")
     RECENT_CHANGES_PATH = "data/recent_changes.json"
-    
+
     updated = {}
     deleted = []
     
