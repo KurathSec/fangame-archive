@@ -362,7 +362,7 @@ The Python compiler writes runtime globals (`window.DATABASE_VERSION`, `APP_VERS
 The merged catalog is exposed as `window.DATA = { TAGS, GAMES, REVIEWS, SCREENSHOTS, COLLECTIONS, … }`.
 
 ### 5.3 Search & filter engine (`src/explorer.jsx`)
-State: `searchTitle`, `searchCreator`, `tags` (`Map` of tag → `'or'|'and'|'not'`), `rating`/`diff` range tuples, `page`. Tag logic: **AND** (must include all), **OR** (must include at least one when any OR filter is active), **NOT** (must exclude all). Range filters exclude unrated (`null`) games unless the bound sits at its default minimum. Inline `<input type="number">` controls allow precise (decimal) bounds, committed on blur. The **"Roll Random"** action (`window.rollRandomGame`) draws exclusively from the currently filtered set.
+State: `searchTitle`, `searchCreator`, `tags` (`Map` of tag → `'or'|'and'|'not'`), `rating`/`diff` range tuples, `sort`/`desc`, `page`. The catalog **defaults to sorting by game `id` descending** (newest-first); the toolbar lets users change the sort field (`id`/`title`/`rating`/`diff`/`size`/`rev`) and direction. Tag logic: **AND** (must include all), **OR** (must include at least one when any OR filter is active), **NOT** (must exclude all). Range filters exclude unrated (`null`) games unless the bound sits at its default minimum. Inline `<input type="number">` controls allow precise (decimal) bounds, committed on blur. The **"Roll Random"** action (`window.rollRandomGame`) draws exclusively from the currently filtered set.
 
 The **author-search dispatcher** is registered by `Explorer` and invoked by every author link (card, list row, drawer header):
 ```javascript
@@ -376,6 +376,7 @@ window.setCreatorSearch = (creatorName) => {
 
 ### 5.4 Detail drawer, reviews & favorites (`src/components.jsx`, `src/collections.jsx`)
 - Opening a game drawer lazily fetches `GET /api/comments?game_id=…` and pages results client-side.
+- The drawer header carries a **copy-share-link button** beside the title; it copies the game's deep link (`?game=<id>`) to the clipboard (with an `execCommand` fallback for non-secure contexts) and shows a toast. See §5.7 for the underlying routing.
 - `CommentEditor` exposes optional rating/difficulty via independent toggles (`hasRating`/`hasDiff`) — disabled toggles submit `null`. Custom tags validated to ≤10 × ≤20 chars. Bodies render via `CommentBody` (bold/italic/links/newlines) with `||spoiler||` → blurred `Spoiler` component.
 - **Turnstile** widgets mount on-demand when a write form opens, yielding the token submitted to the API.
 - **Favorites client** (`FavoritesAPI` in `collections.jsx`) wraps `GET/POST /api/favorites` and `DELETE /api/favorites/:id`, attaching the Clerk bearer token. It mirrors state to `localStorage` and broadcasts a `favorites:changed` event so every favorite button and the Collections grid stay in sync. When no auth token is present it degrades to a local-only mock.
@@ -396,6 +397,16 @@ Cross-component actions are dispatched through window-level hooks rather than pr
 
 ### 5.6 Internationalization (`src/i18n.jsx`)
 Dictionaries for 8 locales (`en`, `zh-CN`, `zh-TW`, `ja`, `ko`, `ru`, `fr`, `de`); proper nouns (game/creator names, "Archive", "fangame") stay untranslated. `window.t` resolves keys with English fallback and `{named}` interpolation. The default is English; a manual selection persists to `localStorage['fangame_archive_lang']`. The header `LanguageSelector` switches locale live.
+
+### 5.7 Shareable deep links (`src/app.jsx`)
+Each game has a shareable URL of the form `…/?game=<id>` driven entirely by the **History API** — no reload, no server-side rendering, so SPA speed and the IndexedDB cache are untouched. The query-param form (rather than a `/game/<id>` path) keeps the document path at `/`, so the **relative** asset references in `index.html` continue to resolve and **no SPA fallback / `_redirects` config is required**.
+
+The drawer state (`activeGame`) and the URL stay in sync at three points:
+- **Open** (`openGame`) → `history.pushState` writes `?game=<id>`, adding a history entry so the browser **Back** button closes the drawer.
+- **Close / leave catalog** (`closeDrawer`, sidebar nav away from explorer/collections) → `history.replaceState` strips the param, so Back returns to the prior page rather than re-opening the game.
+- **Back/Forward** (`popstate`) → reads `?game` and re-resolves `activeGame` against `window.DATA.GAMES`; this path never calls `pushState`, so it cannot loop with the writers.
+
+On first paint the `view`/`activeGame` initializers read `?game` **before** the existing `sessionStorage` restore (used for the OAuth redirect round-trip, §3.4), so a deep link wins and opens straight into that game's drawer. An unknown id falls through harmlessly to the normal catalog. The copy-share-link button in the drawer header (§5.4) produces this same URL.
 
 ---
 

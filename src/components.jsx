@@ -415,6 +415,37 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
   if (game === null) return null;
 
+  // Copy this game's shareable deep link (?game=<id>) to the clipboard.
+  const shareGame = async () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('game', String(game.id));
+    const link = url.toString();
+    let ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(link);
+        ok = true;
+      }
+    } catch (e) {}
+    if (!ok) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = link;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (e) {}
+    }
+    if (window.__pushToast) {
+      window.__pushToast(ok
+        ? { title: window.t('copied'), kind: 'success' }
+        : { title: link, sub: window.t('share_link'), kind: 'info' });
+    }
+  };
+
 
 
 
@@ -439,7 +470,18 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
           <div style={{ flex: 1, minWidth: 0 }}>
 
-            <h2 className="drawer-title">{game.title}</h2>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <h2 className="drawer-title">{game.title}</h2>
+              <button type="button" className="iconbtn share-btn"
+                title={window.t('share_link')} aria-label={window.t('share_link')}
+                onClick={shareGame}
+                style={{ width: 26, height: 26, flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+              </button>
+            </div>
 
             <div className="drawer-meta">
               {window.t('by_author')} <a href="#" onClick={(e) => {

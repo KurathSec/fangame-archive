@@ -205,7 +205,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
   const [showAllTags, setShowAllTags] = React.useState(false);
 
   const [flags,  setFlags]    = React.useState({ local: false, shots: false, missing: false });
-  const [sort,   setSort]     = React.useState('rating');
+  const [sort,   setSort]     = React.useState('id');
   const [desc,   setDesc]     = React.useState(true);
   const [page,   setPage]     = React.useState(1);
   const [tagSearch, setTagSearch] = React.useState('');

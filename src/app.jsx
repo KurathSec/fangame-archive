@@ -9,9 +9,22 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 function App() {
   const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
   const [view, setView] = React.useState(() => {
+    // A deep link (?game=<id>) always opens inside the catalog.
+    try {
+      if (new URLSearchParams(window.location.search).get('game')) return 'explorer';
+    } catch (e) {}
     return sessionStorage.getItem('archive_view') || 'explorer';
   });
   const [activeGame, setActiveGame] = React.useState(() => {
+    // Deep link takes priority: a shared/bookmarked ?game=<id> URL opens
+    // straight into that game's drawer.
+    try {
+      const urlId = new URLSearchParams(window.location.search).get('game');
+      if (urlId && window.DATA && window.DATA.GAMES) {
+        const g = window.DATA.GAMES.find(x => String(x.id) === String(urlId));
+        if (g) return g;
+      }
+    } catch (e) {}
     const saved = sessionStorage.getItem('archive_active_game');
     if (saved) {
       try {
@@ -182,19 +195,59 @@ function App() {
   }, []);
 
   const [isRoll, setIsRoll] = React.useState(false);
+
+  // Reflect the open game into the URL (?game=<id>) via the History API — no
+  // reload, so each game gets a shareable link while keeping SPA speed.
+  // Opening pushes a history entry (Back closes the drawer); closing/leaving
+  // replaces it (Back returns to the prior page rather than re-opening).
+  const syncGameUrl = (game, { replace = false } = {}) => {
+    try {
+      const url = new URL(window.location.href);
+      if (game) url.searchParams.set('game', String(game.id));
+      else url.searchParams.delete('game');
+      const state = { game: game ? game.id : null };
+      if (replace) window.history.replaceState(state, '', url);
+      else window.history.pushState(state, '', url);
+    } catch (e) {}
+  };
+
   const openGame = (g, rolled = false) => {
     setActiveGame(g);
     setIsRoll(rolled);
+    syncGameUrl(g);
   };
   const closeDrawer = () => {
     setActiveGame(null);
     setIsRoll(false);
+    syncGameUrl(null, { replace: true });
   };
+
+  // Browser Back/Forward: re-sync the drawer to the URL's ?game param. This only
+  // reads the URL (no pushState), so it never loops with syncGameUrl above.
+  React.useEffect(() => {
+    const onPop = () => {
+      let id = null;
+      try { id = new URLSearchParams(window.location.search).get('game'); } catch (e) {}
+      if (id && window.DATA && window.DATA.GAMES) {
+        const g = window.DATA.GAMES.find(x => String(x.id) === String(id));
+        if (g) {
+          setActiveGame(g);
+          setIsRoll(false);
+          setView(v => (v === 'explorer' || v === 'collections') ? v : 'explorer');
+          return;
+        }
+      }
+      setActiveGame(null);
+      setIsRoll(false);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   return (
     <div className={`app${sidebarOpen ? ' sidebar-mobile-open' : ''}`}>
       {sidebarOpen && <div className="sidebar-scrim-mobile" onClick={() => setSidebarOpen(false)} />}
-      <window.Sidebar view={view} onView={(v) => { setView(v); setSidebarOpen(false); if (v !== 'explorer' && v !== 'collections') setActiveGame(null); }}
+      <window.Sidebar view={view} onView={(v) => { setView(v); setSidebarOpen(false); if (v !== 'explorer' && v !== 'collections') { setActiveGame(null); syncGameUrl(null, { replace: true }); } }}
                      tweaks={tweaks} setTweak={setTweak}
                      gameCount={window.DATA.GAMES.length}
                      storageSize={window.DATA.STORAGE_SIZE}

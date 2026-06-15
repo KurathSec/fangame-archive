@@ -1,5 +1,23 @@
 [
   {
+    "ver": "2026.007",
+    "date": "2026-06-15",
+    "note": "Shareable game links, default sort, and consolidated auth/pipeline fixes",
+    "changes": [
+      ["Added", "Shareable per-game deep links: opening a game updates the address bar (?game=<id>) via the History API with no reload, and visiting that link opens straight into the game's detail drawer."],
+      ["Added", "Copy-share-link button beside each game title in the detail drawer, with clipboard fallback and a toast confirmation, localized across all 8 languages."],
+      ["Changed", "Default catalog sort is now newest-first by game ID (descending)."],
+      ["Fixed", "Restored the Clerk sign-in UI by pinning clerk-js to v5 and loading it from the Frontend API domain so code-split chunks resolve correctly."],
+      ["Fixed", "Memoized Clerk.load() to prevent a UI-wiring race that could no-op the login button."],
+      ["Changed", "Render the logged-in state immediately from the Clerk session without waiting on /api/me."],
+      ["Fixed", "Added the user_favorites table to the D1 schema so the Collections feature no longer errors."],
+      ["Added", "Duplicate-resolution tool to remove or unlink duplicate games across the catalog and R2, with a dry-run safety model and version-delta bookkeeping."],
+      ["Fixed", "De-duplicated the scraped-reviews corpus and hardened the metrics recalc against null download URLs, malformed fields, and deleted (tombstoned) games."],
+      ["Added", "Scraped reviews (including rating-only entries) now sync into D1 so they appear in the game detail drawer."],
+      ["Fixed", "Capture full multi-line review text, retry D1 sync on transient network failures, and avoid duplicate/truncated reviews on re-scrape."]
+    ]
+  },
+  {
     "ver": "2026.006",
     "date": "2026-06-10",
     "note": "Production authentication keys migration and collections stabilization",
