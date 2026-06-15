@@ -1226,6 +1226,10 @@ def main():
     
     # 5. Process new games
     wiki_only_games_to_process = []
+    # Brand-new games' freshly-scraped reviews, to push into D1 after Step 6 writes the
+    # seq map to disk — sync_reviews_to_d1 resolves game_id->seq_id from that file, and
+    # these games' mappings don't exist on disk until then.
+    new_game_reviews_for_d1 = []
     existing_normalized_titles = set(title_to_seq_ids.keys())
     for sg in new_games_to_process:
         existing_normalized_titles.add(normalize_str(sg["title"]))
@@ -1271,6 +1275,7 @@ def main():
             new_game_reviews = scrape_all_game_reviews(df_id, title)
             if new_game_reviews:
                 log(f"  Found {len(new_game_reviews)} reviews for new game. Merging...")
+                new_game_reviews_for_d1.extend(new_game_reviews)
                 for r in new_game_reviews:
                     key = review_key(r)
                     if key not in existing_keys:
@@ -1617,7 +1622,18 @@ def main():
         os.replace(tmp_map_path, SEQ_MAP_PATH)
         
     log("Databases successfully written to disk.")
-    
+
+    # 6B. Sync brand-new games' reviews into D1 now that the seq map is on disk. The feed
+    # sync earlier only covers reviews for games that already existed; a new game's reviews
+    # would otherwise never reach D1 (they rarely reappear in the global "latest" feed).
+    if new_game_reviews_for_d1:
+        try:
+            from sync_reviews_to_d1 import sync_reviews_to_d1
+            log(f"Syncing {len(new_game_reviews_for_d1)} new-game review(s) into D1 (imported/approved)...")
+            sync_reviews_to_d1(new_game_reviews_for_d1, apply=True)
+        except Exception as e:
+            log(f"  [WARNING] Failed to sync new-game reviews into D1: {e}")
+
     # 7. Synchronize storage statistics
     log("\nRunning storage statistics synchronizer...")
     try:
