@@ -109,10 +109,13 @@ def run_batches(stmts):
         for attempt in range(1, 6):  # retry transient network failures (idempotent)
             tag = "" if attempt == 1 else f" [retry {attempt - 1}]"
             print(f"  Executing batch {bn}/{n_batches} ({len(batch)} rows){tag}...")
-            res = subprocess.run(
-                ["npx", "wrangler", "d1", "execute", DB_NAME, "--remote", f"--file={TEMP_SQL}"],
-                shell=True,
-            )
+            # Pass a single command STRING with shell=True. A list with shell=True is broken
+            # on POSIX (the CI runner): only the first item reaches the shell as the command
+            # and the rest become the shell's own args, so `wrangler d1 execute` never runs —
+            # the scrape looks successful but no reviews reach D1. (Matches the string form
+            # used in merge_approved_submissions.py.)
+            cmd = f'npx -y wrangler d1 execute {DB_NAME} --remote --file="{TEMP_SQL}"'
+            res = subprocess.run(cmd, shell=True)
             if res.returncode == 0:
                 ok = True
                 break
