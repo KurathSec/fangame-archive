@@ -1478,8 +1478,8 @@ def main():
                     "name": creator_name,
                     "url": creator_url
                 },
-                "avg_rating": 0.0,
-                "avg_difficulty": 0.0,
+                "avg_rating": None,
+                "avg_difficulty": None,
                 "download_url": download_url,
                 "tags": tags,
                 "screenshots": screenshots,

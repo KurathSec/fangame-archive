@@ -68,6 +68,13 @@ def main():
             
         game_data["avg_difficulty"] = avg_diff
 
+        # A game with no reviews has no rating/difficulty: force N/A (null) even if a
+        # source stored a literal 0.0 (e.g. Wiki-only ingests). "0 reviews => unrated"
+        # always holds, so this also backfills historical 0.0 rows in games.json.
+        if not game_data.get("rating_count"):
+            game_data["avg_rating"] = None
+            game_data["avg_difficulty"] = None
+
         # Remove reviews to save space since comments are now served via D1 SQL API
         if "reviews" in game_data:
             del game_data["reviews"]
