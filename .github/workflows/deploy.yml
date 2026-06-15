@@ -54,6 +54,10 @@ jobs:
 
       - name: Run Scraper and Compilation Pipeline
         env:
+          # CLOUDFLARE_API_TOKEN is required so the in-pipeline D1 review sync
+          # (npx wrangler d1 execute) can authenticate; without it the scrape
+          # succeeds but new reviews never reach the D1 comments table.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
