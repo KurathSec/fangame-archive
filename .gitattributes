@@ -1,0 +1,37 @@
+# Normalize line endings: store everything as LF in the repo and check out
+# as LF on every platform. This prevents spurious CRLF/LF diffs when files
+# are copied between machines or edited on Windows.
+* text=auto eol=lf
+
+# Explicitly treat common text formats as LF.
+*.js     text eol=lf
+*.jsx    text eol=lf
+*.ts     text eol=lf
+*.tsx    text eol=lf
+*.json   text eol=lf
+*.css    text eol=lf
+*.scss   text eol=lf
+*.html   text eol=lf
+*.md     text eol=lf
+*.py     text eol=lf
+*.toml   text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.sh     text eol=lf
+*.txt    text eol=lf
+LICENSE  text eol=lf
+
+# Binary files: never normalize.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.webp   binary
+*.ico    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.eot    binary
+*.zip    binary
+*.gz     binary
+*.pdf    binary

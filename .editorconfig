@@ -1,0 +1,9 @@
+# EditorConfig — keeps editors saving files in Linux (LF) format.
+# https://editorconfig.org  (supported natively by VS Code, JetBrains, etc.)
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+trim_trailing_whitespace = true
