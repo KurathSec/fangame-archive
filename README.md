@@ -80,8 +80,12 @@ fangame-archive/
 │   ├── sync_screenshots_to_r2.py        # Upload missing screenshots to R2
 │   ├── update_storage_stats.py          # Recompute total storage figure
 │   ├── dedupe_reviews.py                # De-duplicate temp/reviews_scraped.json
+│   ├── sync_reviews_to_d1.py            # Bridge scraped reviews → D1 comments (drawer text)
 │   ├── apply_duplicate_resolution.py    # Apply keep/delete/clear_link resolution to catalog + R2
 │   └── config.py                        # R2 / Cloudflare credentials (git-ignored)
+├── .github/workflows/
+│   ├── deploy.yml                # CI: sync + scrape + build + deploy (push / 6 h cron)
+│   └── backfill_reviews.yml      # Manual one-shot: load the full review corpus into D1
 ├── database/
 │   ├── schema.sql                # D1 schema (comments, users, submissions, favorites, audit)
 │   └── seq_to_orig_map.json      # Sequential ID ↔ origin ID mapping
@@ -120,6 +124,9 @@ fangame-archive/
 | `deploy.bat` | Download DBs from R2 → compile static `github_pages_dist/` → `wrangler pages deploy` |
 | `sync_and_deploy.bat` | Full pipeline: download → scrape/recompute → ingest → sync screenshots → upload → deploy |
 | `.github/workflows/deploy.yml` | CI: runs on push to `main` (matching paths) or every 6 h |
+| `.github/workflows/backfill_reviews.yml` | Manual one-shot (`workflow_dispatch`): loads the full scraped-review corpus into D1 |
+
+> **Reviews are dual-stored.** `temp/reviews_scraped.json` feeds the rating **averages** in `games.json`; the detail drawer renders review **text from D1**. The regular deploy syncs only each run's *new* reviews into D1 — the **backfill workflow** is what loads the historical corpus (e.g. to seed an empty D1). See [§8.7](project_architecture.md#87-reviews-dual-store-model--d1-sync-sync_reviews_to_d1py).
 
 Apply D1 schema changes explicitly (not part of deploy):
 ```bash

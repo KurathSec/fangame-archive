@@ -84,6 +84,12 @@ graph TD
 - `window.CLERK_PUBLISHABLE_KEY`, `window.CLERK_JS_URL` (FAPI-hosted SDK URL), `window.TURNSTILE_SITE_KEY`.
 - `window.SCREENSHOT_BASE_URL`, `window.DATABASE_VERSION`, `window.APP_VERSION`, `window.ADMIN_URL`.
 
+**Pipeline / CI credentials** (GitHub Actions secrets; locally `pipelines/config.py` and/or `.env`, both git-ignored — see [`.env.example`](.env.example)):
+- `CLOUDFLARE_ACCOUNT_ID`, `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` — R2 (S3-compatible) access for `sync_db_r2.py`, screenshot/game uploads.
+- `CLOUDFLARE_API_TOKEN` — a single token scoped for **D1 edit + Pages deploy** (and used by `wrangler` for both the review sync §8.7 and `pages deploy`). Keep it least-privilege; rotating it requires updating the GitHub secret only (no redeploy needed for pipeline steps, but Pages env-var rotations do — §7).
+
+> **Security posture (by design).** CORS is `Access-Control-Allow-Origin: *` and the read endpoints (`/api/search`, `GET /api/comments`, `/api/me`) are intentionally public — the catalog is open data. All **writes** require a verified Clerk JWT (§3.5) plus Turnstile (§4.1); roles are resolved server-side from D1 and never trusted from the client (§6). Secrets live only in Pages env vars / CI secrets, never in the repo or client bundle.
+
 ---
 
 ## 2. Data Model
@@ -152,6 +158,7 @@ A mapping may persist as a **tombstone** after its game is removed from `games.j
   "tags": []
 }
 ```
+> **Reviews live in two stores — this is the single most important thing to know about them.** `reviews_scraped.json` is the offline corpus and is consumed **only** to compute `avg_rating`/`avg_difficulty`/`rating_count` into `games.json`. The detail drawer, however, renders review **text from D1** (`/api/comments`, §4). The two are bridged by [`sync_reviews_to_d1.py`](#87-reviews-dual-store-model--d1-sync-sync_reviews_to_d1py) (§8.7). A review's `game_id` here is its **origin id** (Delicious Fruit id, or `WIKI-<n>` for wiki-sourced games), which the bridge maps to the sequential catalog id via `seq_to_orig_map`. Consequence: a review can correctly feed an average yet be **absent from the drawer** if it was never synced into D1 — see §8.7 and the runbook (§10).
 
 **Build artifact `data/search_index.json`** — slim per-game records (`id`, `title`, `creator`, `url`, `tags`) consumed by the `/api/search` endpoint.
 
@@ -432,6 +439,14 @@ A layered strategy guarantees clients see fresh data without manual cache clears
 
 > **Deploy caveats learned in production:** (a) the JSX cache-buster only changes when `DATABASE_VERSION` changes — a code-only redeploy needs a Cloudflare cache purge + hard refresh to take effect; (b) Pages **environment-variable changes apply only to new deployments** — always redeploy after editing keys.
 
+### 7.1 Two version counters (don't conflate them)
+| Global | Source | Meaning | Bumped by |
+|---|---|---|---|
+| `DATABASE_VERSION` | `recent_changes.json` `version` (monotonic int) | catalog/content version; drives the IndexedDB cache key, incremental deltas, and every `?v=` cache-buster | the **scrape** when catalog data changes (§8.1.7) |
+| `APP_VERSION` | `data/app_version.json` (`Year.NNN`) | human-facing release label shown in the Update Log | edited by hand for a release |
+
+The **build (`build_github_pages.py`) only reads both — it never bumps them.** This is a recurring footgun: a fix applied *only* in the build (e.g. a transform on the chunked output) produces correct files but **does not change `DATABASE_VERSION`**, so cached/incremental clients never reload it. To propagate a data correction, edit the source (`games.json`) inside the scrape so it lands in a version delta (cf. the `rating_count==0` normalization, §8.1.6 / §8.6).
+
 ---
 
 ## 8. Python Pipelines (`pipelines/`)
@@ -447,11 +462,13 @@ Run: `python pipelines/scrape_and_migrate_new_games.py` (via `sync_and_deploy.ba
    * named rating-only entry → `("nr", game_id, author, user_id, rating, difficulty)`;
    * anonymous rating-only entry → full tuple incl. date, so distinct anonymous ratings stay counted toward averages.
    This prevents the historical duplicate-accumulation where the old full-tuple key let date-drifted re-scrapes pile up.
+   * **D1 sync of the new reviews** — the freshly-merged (`newly_added`) reviews are immediately pushed into D1 via `sync_reviews_to_d1(...)` (§8.7) so they appear in the drawer. **Only the newly-merged reviews are pushed here**; the pre-existing backlog in `reviews_scraped.json` is *not* re-sent every run — that is what the one-shot backfill workflow is for (§8.7, §9.4). A run that merges nothing logs `Merged 0 new reviews from feed`, which is normal.
 3. **Recompute metrics — Step 4A** (`for seq_id, g in games.items()`): for each non-WIKI game, gather its reviews by Delicious Fruit id and compute `avg_rating`, `avg_difficulty`, `rating_count`. All rating/difficulty parsing goes through **`review_nums()`**, which skips `None`/`'na'`/`''` and any non-numeric value via `try/except` (live-scraped junk can't crash the run).
 4. **Tag aggregation** — review tags ∪ matched I Wanna Wiki page tags, preserving an existing `archive` tag.
-5. **Live-catalog reconcile — Step 4B** (`if scraped_games:`): compare the live `full.php?q=ALL` list against local. New releases get a fresh sequential id, details from `game_details.php`, and the zip mirrored to R2. **Deleted (de-duplicated) games are skipped here** — see the tombstone invariant in §8.6 — guarded by `str(seq_id) in games`.
-6. **Version delta** — if anything changed, bump `recent_changes.json` `version` and append a timeline entry (`updated`/`deleted`); prune timeline history to keep the file < 10 MB.
-7. **Compile** — invoke `update_storage_stats.py` then `build_github_pages.py`.
+5. **Live-catalog reconcile — Step 4B** (`if scraped_games:`): compare the live `full.php?q=ALL` list against local. New releases get a fresh sequential id, details from `game_details.php`, and the zip mirrored to R2. Each new game's reviews are scraped and queued; they are pushed into D1 after Step 6 (below) writes `seq_to_orig_map.json` to disk — the bridge resolves ids from that file and the new mapping does not exist on disk until then. **Deleted (de-duplicated) games are skipped here** — see the tombstone invariant in §8.6 — guarded by `str(seq_id) in games`.
+6. **Normalize unrated** — immediately before the delta, any game with `rating_count == 0` has `avg_rating`/`avg_difficulty` forced to `null` (§8.6). Because this edits `games.json` (not just the build output), the correction is carried in the version delta and reaches cached/incremental clients, not only fresh full-loads.
+7. **Version delta** — if anything changed, bump `recent_changes.json` `version` and append a timeline entry (`updated`/`deleted`); prune timeline history to keep the file < 10 MB.
+8. **Compile & sync** — persist `games.json`/`seq_to_orig_map.json`, push brand-new games' reviews into D1 (§8.7), then invoke `update_storage_stats.py` and `build_github_pages.py`.
 
 ### 8.2 `build_github_pages.py` — static compiler
 Run: `python pipelines/build_github_pages.py`.
@@ -464,6 +481,7 @@ Run: `python pipelines/build_github_pages.py`.
 - `sync_screenshots_to_r2.py` — upload missing screenshots from `ratings/screenshots/`.
 - `update_storage_stats.py` — sum `file_size` of R2-hosted games; update sidebar/donation storage figure.
 - `merge_approved_submissions.py` — fetch `approved` (un-merged) submissions from D1, copy package → `fangame-files` (`Game/{id}{ext}`) and screenshots → `fangame-screenshots` (`ratings/screenshots/{id}_shot_{n}{ext}`), build the catalog entry, bump version, and mark the submission `merged` with its `assigned_game_id`.
+- `sync_reviews_to_d1.py` — the reviews → D1 bridge (full detail in §8.7). Importable (`sync_reviews_to_d1(reviews, apply=True)`, used by the master sync) and runnable as a CLI (`py … sync_reviews_to_d1.py [file] [apply]`) for the full backfill (§9.4).
 
 ### 8.4 `dedupe_reviews.py` — source de-duplication
 Repeatable cleanup of `temp/reviews_scraped.json` using the same identity model as `review_key` (§8.1.2). Collapses duplicate written comments and named rating-only entries to the **best** representative (prefers a row that has a date, then higher `likes`), while leaving anonymous rating-only entries intact so rating averages are unaffected. Removing true duplicates *corrects* previously double-counted averages.
@@ -488,6 +506,28 @@ The pipeline and APIs depend on a few invariants that the cleanup tools delibera
 * **seq_map tombstones** — a deleted game keeps its `seq_to_orig_map` entry. This claims its Delicious Fruit id so the live-scrape reconcile (§8.1.5) treats it as *already mapped* and does **not** re-add the duplicate. The pipeline therefore must tolerate a mapped `seq_id` that is absent from `games` (every `games[seq_id]` read in Step 4B is guarded by `str(seq_id) in games`).
 * **`comments` dedup index** — an optional `UNIQUE (game_id, user, content)` index makes imports idempotent; the comments `POST` uses `INSERT OR IGNORE` so it coexists with the index without 500s.
 * **`clear_link` ⇒ `download_url=null`** — every pipeline accessor of `download_url` must be null-safe (`(g.get("download_url") or "")`); the storage-stat summers already skip falsy URLs, so cleared games drop out of the storage total automatically.
+* **`rating_count == 0` ⇒ unrated (null)** — a game with no reviews must carry `avg_rating = avg_difficulty = null` (renders as *N/A*), never `0.0`. Enforced in **two** places: the scrape's final normalization (Step 6, so the correction propagates via the version delta) and `build_github_pages.py` (chunking backstop, so any stray `0.0` is also nulled in the served chunks). The build's nullify alone is *not* enough — it never bumps the version, so cached/incremental clients keep the stale value.
+* **Review → D1 mapping & ordering** — `sync_reviews_to_d1` resolves a review's origin `game_id` → `seq_id` from the **on-disk** `seq_to_orig_map.json`. New games' reviews must therefore be synced **after** the seq map is persisted (Step 6/8), or they are skipped as *unmapped*. The `comments` rows are written `source='imported'`, `status='approved'`, `user_id=NULL`; the GET join is a `LEFT JOIN users`, so null-`user_id` imports still return.
+
+### 8.7 Reviews dual-store model & D1 sync (`sync_reviews_to_d1.py`)
+
+Reviews are split across two stores on purpose (see §2.1):
+
+| Store | Holds | Read by | Written by |
+|---|---|---|---|
+| `temp/reviews_scraped.json` (R2) | full offline corpus | the scrape, to compute `avg_*`/`rating_count` into `games.json` | scrape merge (§8.1.2), `dedupe_reviews.py` |
+| D1 `comments` (`source='imported'`) | review **text** + rating/difficulty/tags | the drawer via `GET /api/comments` (§4) | **`sync_reviews_to_d1.py`** |
+
+`sync_reviews_to_d1(reviews, apply)`:
+1. Builds `origin_id → seq_id` from `seq_to_orig_map.json` (`val[0]` is the origin id) and maps each review's `game_id`. Unmapped reviews are skipped and counted; fully-empty entries (no text/rating/difficulty/tags) are skipped — rating-only rows are kept on purpose.
+2. Emits SQL: a **named** author uses `DELETE … WHERE game_id=? AND user=? AND source='imported'` then `INSERT` (so a re-scrape that now captures a previously-truncated review **updates** in place); **anonymous** rows use `INSERT OR IGNORE`, content-deduped by the `UNIQUE (game_id, user, content)` index (§8.6).
+3. Executes batches (`BATCH_SIZE=2000`) via `npx -y wrangler d1 execute <db> --remote --file=…` with retries. **Auth:** needs `CLOUDFLARE_API_TOKEN` (D1 edit) + `CLOUDFLARE_ACCOUNT_ID` in the environment.
+
+> **`shell=True` gotcha (cross-platform):** the wrangler call must pass a single command **string** with `shell=True`. A *list* with `shell=True` works on Windows but is broken on POSIX (the CI runner): only the first list item reaches the shell as the command and the rest become the shell's own args, so `wrangler d1 execute` never runs — the script looks successful but writes nothing. This is the "CI green, no rows" failure class; `merge_approved_submissions.py` uses the correct string form.
+
+**Two sync paths, by design:**
+- **Incremental (every run):** the master sync pushes only that run's *newly-merged* feed reviews and brand-new games' reviews (§8.1). It does **not** re-send the existing backlog.
+- **Full backfill (manual):** `sync_reviews_to_d1.py apply` over the whole corpus — the only thing that loads historical reviews into a fresh/empty D1. Exposed as the `Backfill Reviews to D1` workflow (§9.4). Idempotent, so it is safe to re-run.
 
 ---
 
@@ -498,13 +538,19 @@ The pipeline and APIs depend on a few invariants that the cleanup tools delibera
 - **`sync_and_deploy.bat`** — `sync_db_r2 download` → `scrape_and_migrate_new_games` → `ingest_local_folder_games` → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `wrangler pages deploy`.
 
 ### 9.2 Cloud (`.github/workflows/deploy.yml`)
-On push to `main` (matching paths) or every 6 h: set up Python 3.10 + Node 20 → `sync_db_r2 download` → `merge_approved_submissions` → `scrape_and_migrate_new_games` → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `npx -y wrangler pages deploy`.
+On push to `main` (matching paths) or every 6 h: set up Python 3.10 + Node 20 → `sync_db_r2 download` → `merge_approved_submissions` → `scrape_and_migrate_new_games` → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `npx -y wrangler pages deploy`. The **scraper step must receive `CLOUDFLARE_API_TOKEN`** (in addition to the R2 keys) so the in-pipeline D1 review sync (§8.7) can authenticate; without it the scrape still succeeds but new reviews never reach D1.
 
 ### 9.3 D1 migrations
 Apply schema changes to the live DB explicitly (not part of the deploy):
 ```
 npx wrangler d1 execute fangame-comments --remote --file database/schema.sql
 ```
+
+### 9.4 Review backfill (`.github/workflows/backfill_reviews.yml`)
+A separate, **manually-triggered** (`workflow_dispatch`) one-shot: `sync_db_r2 download` → `sync_reviews_to_d1.py apply` over the whole corpus (§8.7). This is the only path that loads the historical review backlog into D1 (the 6-hourly deploy only pushes each run's *new* reviews). Run it once to seed an empty D1 or after a long sync outage; it is idempotent. Requires `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`. **Verify it actually ran** by checking the log for `Executing batch N/…` and a non-zero `attempted … inserts` — a successful-looking run with neither is the `shell=True` no-op (§8.7).
+
+### 9.5 Testing & verification
+There is no automated test suite. Changes are verified manually: the read-only catalog UI via `dev_server.py` (open a fresh **incognito** window to bypass the IndexedDB cache and exercise a real full-load), and write/auth/D1 paths only against the deployed Cloudflare environment (Clerk + Turnstile + D1 do not run locally). Pipeline edits can be dry-run where supported (`dedupe_reviews.py`, `apply_duplicate_resolution.py`, `sync_reviews_to_d1.py` without `apply`) before applying.
 
 ---
 
@@ -525,3 +571,8 @@ npx wrangler d1 execute fangame-comments --remote --file database/schema.sql
 | Cron: `KeyError: '<id>'` at `games[seq_id]` | A `delete`d game's seq_map tombstone resolved to a now-absent `games` entry | Guard the access with `str(seq_id) in games` (§8.6); the tombstone is intentional |
 | Cron run clobbers freshly-added games / version collision | Edited a stale local `games.json` and uploaded without rebasing | `download` current master → re-apply edit → `upload` (§8.5 rebase caution) |
 | Deleted duplicates reappear after a scrape | seq_map tombstone was removed, freeing the df_id for re-add | Keep the tombstone entry; never strip deleted ids from `seq_to_orig_map.json` |
+| Reviews scraped (counted in averages) but **not visible in the drawer** | They are in `reviews_scraped.json` (feeds `games.json`) but were never inserted into D1 — the per-run sync only pushes *new* reviews, not the backlog | Run the `Backfill Reviews to D1` workflow (§9.4); confirm `attempted … inserts` is non-zero |
+| `Merged 0 new reviews from feed` every run | Normal — the feed had nothing new to merge, so there is nothing to push to D1 | No action; use the backfill (§9.4) to load the existing backlog |
+| CI step green but D1 unchanged (no reviews written) | `sync_reviews_to_d1` invoked `wrangler` as a **list** with `shell=True` → no-op on POSIX | Pass a single command **string** with `shell=True` (§8.7); already fixed |
+| In-pipeline D1 sync silently does nothing | Scraper step missing `CLOUDFLARE_API_TOKEN` | Add the token to the scraper step env, **redeploy/re-run** (§9.2) |
+| A specific game's reviews still missing after backfill | Its reviews carry an origin `game_id` not present as a key in `seq_to_orig_map` (e.g. a wiki-mapped game whose reviews use a Delicious Fruit id) — counted as *unmapped* | Reconcile the seq map so the review's origin id resolves to the `seq_id` |
