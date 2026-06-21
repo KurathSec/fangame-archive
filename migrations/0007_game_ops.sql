@@ -3,9 +3,9 @@
 -- the CI applies them to games.json + R2 and marks them applied/failed.
 CREATE TABLE IF NOT EXISTS game_ops (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  op            TEXT NOT NULL,                       -- 'delete' | 'clear_link' | 'replace_link'
+  op            TEXT NOT NULL,                       -- 'delete' | 'clear_link' | 'replace_link' | 'upload_replace'
   game_id       INTEGER NOT NULL,                    -- sequential catalog id
-  new_url       TEXT,                                -- replacement download URL (replace_link only)
+  new_url       TEXT,                                -- replace_link: replacement URL; upload_replace: R2 staging key
   status        TEXT NOT NULL DEFAULT 'pending',     -- 'pending' | 'applied' | 'failed'
   requested_by  TEXT,                                -- moderator Access JWT email
   reason        TEXT,                                -- audit reason

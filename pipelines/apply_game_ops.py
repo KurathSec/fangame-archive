@@ -1,7 +1,12 @@
-# Apply admin-queued game operations (delete / clear_link / replace_link) from
-# the D1 `game_ops` table into the catalog (data/games.json) and R2, then mark
-# each row applied/failed. Runs in the 6-hourly CI right after the approved-
-# submission merge and before the scrape.
+# Apply admin-queued game operations (delete / clear_link / replace_link /
+# upload_replace) from the D1 `game_ops` table into the catalog (data/games.json)
+# and R2, then mark each row applied/failed. Runs in the 6-hourly CI right after
+# the approved-submission merge and before the scrape.
+#
+# For `upload_replace` the moderator already streamed the file into R2 under a
+# `PendingUploads/<id>-<ts>.<ext>` staging key (carried in the row's new_url);
+# this step promotes it to Game/<id>.<ext>, repoints the catalog, and removes
+# both the old game file and the staging object.
 #
 # Reuses the existing, proven building blocks:
 #   * apply_duplicate_resolution.py — R2 key mapping + batched deletes + the
@@ -115,10 +120,11 @@ def main():
     if not r2:
         print("[WARNING] No R2 client; replace_link mirroring and R2 deletes will be skipped.")
 
-    updated = {}        # gid -> game obj (clear_link / replace_link)
+    updated = {}        # gid -> game obj (clear_link / replace_link / upload_replace)
     deleted = []        # gid (delete)
     file_keys = []      # (bucket, key) R2 game files to delete
     shot_keys = []      # (bucket, key) R2 screenshots to delete
+    uploaded_keys = set()  # (bucket, key) we just wrote this run — never delete these
     outcomes = []       # (op_id, status, note)
 
     os.makedirs(TEMP_DIR, exist_ok=True)
@@ -177,6 +183,7 @@ def main():
                                    ExtraArgs={"ContentType": "application/octet-stream"})
                     entry["download_url"] = f"{PUBLIC_GAMES_DOMAIN}/{key}"
                     entry["file_size"] = size
+                    uploaded_keys.add((GAMES_BUCKET, key))
                     outcomes.append((op_id, "applied", f"mirrored new file to R2 ({size} bytes)"))
                 except Exception as ex:
                     entry["download_url"] = new_url
@@ -188,6 +195,46 @@ def main():
                 entry["file_size"] = 0
                 outcomes.append((op_id, "applied", f"could not mirror ({err or 'no R2 client'}); set external URL"))
             updated[gid] = entry
+
+        elif kind == "upload_replace":
+            # The moderator already streamed the file into R2 staging; new_url
+            # carries that staging key (e.g. PendingUploads/19567-1718...zip).
+            staging_key = new_url
+            if not staging_key:
+                outcomes.append((op_id, "failed", "upload_replace missing staging key"))
+                continue
+            if not r2:
+                outcomes.append((op_id, "failed", "no R2 client; cannot mirror uploaded file"))
+                continue
+            _, ext = os.path.splitext(staging_key)
+            ext = ext.lower()
+            if ext not in GAME_EXTS:
+                ext = ".zip"
+            local_path = os.path.join(TEMP_DIR, f"upload_{gid}{ext}")
+            try:
+                r2.download_file(GAMES_BUCKET, staging_key, local_path)
+            except Exception as ex:
+                outcomes.append((op_id, "failed", f"could not fetch staged file: {ex}"))
+                continue
+            size = os.path.getsize(local_path)
+            new_key = f"Game/{gid}{ext}"
+            old_k = r2_game_key(entry.get("download_url"))  # before we overwrite it
+            try:
+                r2.upload_file(local_path, GAMES_BUCKET, new_key,
+                               ExtraArgs={"ContentType": "application/octet-stream"})
+            except Exception as ex:
+                outcomes.append((op_id, "failed", f"R2 upload failed: {ex}"))
+                continue
+            # Promotion succeeded: repoint the catalog, drop the old game file
+            # (skipped automatically if it shares new_key), and bin the staging copy.
+            if old_k:
+                file_keys.append((FILES_BUCKET, old_k))
+            entry["download_url"] = f"{PUBLIC_GAMES_DOMAIN}/{new_key}"
+            entry["file_size"] = size
+            uploaded_keys.add((GAMES_BUCKET, new_key))
+            file_keys.append((GAMES_BUCKET, staging_key))
+            updated[gid] = entry
+            outcomes.append((op_id, "applied", f"mirrored uploaded file to R2 ({size} bytes)"))
 
         else:
             outcomes.append((op_id, "failed", f"unknown op '{kind}'"))
@@ -221,12 +268,15 @@ def main():
         print(f"\nCatalog updated: {len(deleted)} deleted, {len(updated)} changed. "
               f"Version -> {new_version}.")
 
-        if (file_keys or shot_keys) and r2:
-            n = _r2_batch_delete(file_keys + shot_keys)
+        # Never delete an object we (re)wrote this run — guards the case where the
+        # old game file and the freshly promoted file share the same key.
+        to_delete = [x for x in (file_keys + shot_keys) if x not in uploaded_keys]
+        if to_delete and r2:
+            n = _r2_batch_delete(to_delete)
             print(f"Deleted {n} object(s) from R2.")
-        elif file_keys or shot_keys:
+        elif to_delete:
             print("[WARNING] R2 client missing; skipped deleting "
-                  f"{len(file_keys) + len(shot_keys)} object(s).")
+                  f"{len(to_delete)} object(s).")
     else:
         print("\nNo catalog changes to write.")
 
