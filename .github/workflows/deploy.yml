@@ -52,6 +52,16 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: python pipelines/merge_approved_submissions.py
 
+      - name: Apply Admin Game Operations
+        # Drains the D1 `game_ops` queue written by the admin panel
+        # (delete / clear_link / replace_link) into games.json + R2.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: python pipelines/apply_game_ops.py
+
       - name: Run Scraper and Compilation Pipeline
         env:
           # CLOUDFLARE_API_TOKEN is required so the in-pipeline D1 review sync

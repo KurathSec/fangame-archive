@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import json
 import time
 import subprocess
@@ -12,6 +13,25 @@ try:
 except ImportError:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     from config import CLOUDFLARE_ACCOUNT_ID, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+
+# Reuse the scraper's proven, host-aware downloaders (Mediafire / Dropbox /
+# Google Drive / MEGA resolvers + HTML-vs-binary detection). Without these, a
+# user-submitted link to a host *page* (not a direct file) gets saved as the
+# game's HTML landing page and mirrored to R2 as a "bad link" instead of the
+# real archive — the failure this addresses. Imported lazily so a problem in the
+# heavy scraper module degrades a single download (we fall back to the external
+# URL) rather than crashing the whole merge step at startup.
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+_NETDISK_FNS = None
+
+
+def _netdisk_fns():
+    global _NETDISK_FNS
+    if _NETDISK_FNS is None:
+        from scrape_and_migrate_new_games import download_netdisk_file, is_binary_stream, HEADERS
+        _NETDISK_FNS = (download_netdisk_file, is_binary_stream, HEADERS)
+    return _NETDISK_FNS
 
 try:
     import boto3
@@ -57,6 +77,67 @@ def download_file(url, local_path):
     except Exception as e:
         print(f"  [ERROR] Failed to download from {url}: {e}")
         return False
+
+
+# Hosts that serve a download *page*, not a direct file — route them through the
+# scraper's resolvers so we fetch the actual binary, not the HTML wrapper.
+NETDISK_HOSTS = (
+    "mediafire.com", "dropbox.com", "drive.google.com", "docs.google.com",
+    "mega.nz", "mega.co.nz",
+)
+
+
+def _download_direct(url, local_dir):
+    """Stream a direct download link, rejecting HTML/JSON 'landing pages'.
+
+    Returns (local_path, None) on success or (None, error). Unlike a naive GET,
+    this refuses to save a web page as if it were the game archive.
+    """
+    try:
+        _, is_binary_stream, headers = _netdisk_fns()
+        with requests.get(url, headers=headers, stream=True, timeout=60, allow_redirects=True) as res:
+            res.raise_for_status()
+            if not is_binary_stream(res):
+                return None, "URL returned a web page (HTML/JSON), not a downloadable file"
+            filename = None
+            cd = res.headers.get("Content-Disposition", "")
+            if "filename=" in cd:
+                m = re.search(r"filename\*?=(?:UTF-8'')?\"?([^\";]+)\"?", cd)
+                if m:
+                    filename = urllib.parse.unquote(m.group(1)).strip()
+            if not filename:
+                filename = os.path.basename(urllib.parse.urlparse(url).path)
+            if not filename:
+                filename = "game.zip"
+            filename = re.sub(r'[\\/:*?"<>|]', '_', filename)
+            local_path = os.path.join(local_dir, filename)
+            with open(local_path, "wb") as f:
+                for chunk in res.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+        if os.path.getsize(local_path) == 0:
+            os.remove(local_path)
+            return None, "Downloaded file was empty"
+        return local_path, None
+    except Exception as e:
+        return None, str(e)
+
+
+def acquire_game_file(url, local_dir):
+    """Resolve + download the real game binary. Returns (local_path, error).
+
+    Known file hosts use the scraper's host-specific resolvers; anything else is
+    treated as a direct link but still verified to be a binary, so we never
+    mirror a 'bad link' landing page into R2.
+    """
+    url_lower = (url or "").lower()
+    if any(h in url_lower for h in NETDISK_HOSTS):
+        try:
+            download_netdisk_file, _, _ = _netdisk_fns()
+        except Exception as e:
+            return None, f"host resolver unavailable: {e}"
+        return download_netdisk_file(url, local_dir)
+    return _download_direct(url, local_dir)
 
 def main():
     print("==========================================================")
@@ -158,26 +239,22 @@ def main():
             
         print(f"\nProcessing submission #{sub_id}: '{title}' by {author}...")
         
-        # A. Download and Upload Game File to R2
-        parsed_url = urllib.parse.urlparse(url)
-        path_part = parsed_url.path.split('?')[0]
-        _, ext = os.path.splitext(path_part)
-        ext = ext.lower()
-        if ext not in [".zip", ".rar", ".7z", ".exe", ".tar", ".gz"]:
-            ext = ".zip" # Default fallback
-            
-        local_game_path = os.path.join(local_temp_dir, f"game_{sub_id}{ext}")
+        # A. Download (host-aware) and Upload Game File to R2
         print(f"  Downloading game package from {url}...")
-        download_success = download_file(url, local_game_path)
-        
+        local_game_path, dl_err = acquire_game_file(url, local_temp_dir)
+
         game_download_url = url
         file_size = 0
-        
-        if download_success:
-            file_size = os.path.getsize(local_game_path)
+
+        if local_game_path:
+            real_size = os.path.getsize(local_game_path)
+            _, ext = os.path.splitext(local_game_path)
+            ext = ext.lower()
+            if ext not in [".zip", ".rar", ".7z", ".exe", ".tar", ".gz"]:
+                ext = ".zip"  # Default fallback
             if r2_client:
                 r2_game_key = f"Game/{max_id}{ext}"
-                print(f"  Uploading game to R2 bucket '{GAMES_BUCKET}' key '{r2_game_key}' ({file_size / (1024*1024):.2f} MB)...")
+                print(f"  Uploading game to R2 bucket '{GAMES_BUCKET}' key '{r2_game_key}' ({real_size / (1024*1024):.2f} MB)...")
                 try:
                     r2_client.upload_file(
                         local_game_path,
@@ -186,13 +263,14 @@ def main():
                         ExtraArgs={'ContentType': 'application/octet-stream'}
                     )
                     game_download_url = f"{PUBLIC_GAMES_DOMAIN}/{r2_game_key}"
+                    file_size = real_size
                     print(f"  [SUCCESS] Uploaded game to R2: {game_download_url}")
                 except Exception as e:
                     print(f"  [ERROR] R2 game upload failed: {e}. Falling back to original URL.")
             else:
                 print("  R2 client missing. Falling back to original URL.")
         else:
-            print("  [WARNING] Game download failed. Falling back to original URL.")
+            print(f"  [WARNING] Could not mirror game file ({dl_err}). Keeping the original submission URL as the download link.")
             
         # B. Download and Upload Screenshots to R2
         screenshots_list = []
