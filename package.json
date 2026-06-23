@@ -11,5 +11,8 @@
   "devDependencies": {
     "esbuild": "^0.28.0",
     "wrangler": "^4"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
