@@ -14,6 +14,12 @@ wrangler.max.toml
 .cloudflare/
 
 # ==========================================
+# 2b. Node / build tooling (esbuild, wrangler)
+# ==========================================
+node_modules/
+npm-debug.log*
+
+# ==========================================
 # 3. Python Cache & Virtual Environments
 # ==========================================
 __pycache__/

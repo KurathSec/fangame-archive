@@ -2,6 +2,7 @@ import os
 import shutil
 import re
 import json
+import subprocess
 
 DIST_DIR = "github_pages_dist"
 SRC_DIR = "."
@@ -86,7 +87,9 @@ def main():
     for i, part in enumerate(parts):
         part_path = os.path.join(DIST_DIR, "data", f"games_part_{i+1}.json")
         with open(part_path, "w", encoding="utf-8") as f_part:
-            json.dump(part, f_part, indent=2, ensure_ascii=False)
+            # Compact JSON (no indent): smaller JSON.parse target + IndexedDB footprint.
+            # Wire transfer is already gzip/brotli-compressed by Cloudflare.
+            json.dump(part, f_part, separators=(",", ":"), ensure_ascii=False)
         size_bytes = os.path.getsize(part_path)
         games_sizes.append(size_bytes)
         print(f"  Part {i+1}: {len(part)} games | {size_bytes / (1024*1024):.2f} MB")
@@ -106,7 +109,8 @@ def main():
         
     index_path = os.path.join(DIST_DIR, "data", "search_index.json")
     with open(index_path, "w", encoding="utf-8") as f_idx:
-        json.dump(search_index, f_idx, indent=2, ensure_ascii=False)
+        # Compact JSON: the /api/search Worker re-parses this on every edge-cache miss.
+        json.dump(search_index, f_idx, separators=(",", ":"), ensure_ascii=False)
     print(f"  Search index generated: {len(search_index)} games | {os.path.getsize(index_path) / (1024*1024):.2f} MB")
 
     # Copy profiles.json
@@ -348,10 +352,69 @@ function getShotUrl(path) {
     with open(os.path.join(DIST_DIR, "src", "app.jsx"), "w", encoding="utf-8") as f:
         f.write(app_content)
 
+    # 5.5 Precompile JSX -> JS with esbuild (production toolchain). Local dev
+    # (dev_server.py + public/index.html) keeps in-browser Babel + dev React; only the
+    # deployed dist is precompiled. Classic JSX runtime (React.createElement on the global
+    # `React`), NO bundling -- the components are order-dependent global scripts that
+    # cross-reference via window.*, so the index.html load order must be preserved.
+    print("Precompiling JSX to JS with esbuild...")
+    probe = subprocess.run("npx --no-install esbuild --version", shell=True,
+                           capture_output=True, text=True)
+    if probe.returncode != 0:
+        raise SystemExit(
+            "ERROR: esbuild not found. Run `npm install` (or `npm ci`) before building "
+            "(see OPTIMIZATION_WORKFLOW.md / README)."
+        )
+    print(f"  esbuild {probe.stdout.strip()}")
+    src_out_dir = os.path.join(DIST_DIR, "src")
+    jsx_files = sorted(fn for fn in os.listdir(src_out_dir) if fn.endswith(".jsx"))
+    jsx_args = " ".join('"%s"' % os.path.join(src_out_dir, fn) for fn in jsx_files)
+    esbuild_cmd = (
+        f'npx --no-install esbuild {jsx_args} --outdir="{src_out_dir}" '
+        f'--loader:.jsx=jsx --jsx=transform '
+        f'--jsx-factory=React.createElement --jsx-fragment=React.Fragment '
+        f'--target=es2019 --minify-whitespace --minify-syntax --log-level=warning'
+    )
+    subprocess.run(esbuild_cmd, shell=True, check=True)
+    for fn in jsx_files:
+        os.remove(os.path.join(src_out_dir, fn))
+    print(f"  Precompiled {len(jsx_files)} JSX files to .js")
+
     # 6. Modify index.html (remove unneeded scripts, add window config)
     print("Modifying index.html...")
     with open(os.path.join(SRC_DIR, "public", "index.html"), "r", encoding="utf-8") as f:
         html_content = f.read()
+
+    # --- Production toolchain swap (dist only; public/index.html stays dev-friendly) ---
+    # React development -> production builds (smaller + faster; behaviour identical).
+    html_content = re.sub(
+        r'<script src="https://unpkg\.com/react@18\.3\.1/umd/react\.development\.js"[^>]*></script>',
+        '<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" '
+        'integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" '
+        'crossorigin="anonymous"></script>',
+        html_content)
+    html_content = re.sub(
+        r'<script src="https://unpkg\.com/react-dom@18\.3\.1/umd/react-dom\.development\.js"[^>]*></script>',
+        '<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" '
+        'integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" '
+        'crossorigin="anonymous"></script>',
+        html_content)
+    # Drop in-browser Babel: JSX is precompiled to .js at build time (step 5.5 above).
+    html_content = re.sub(
+        r'[ \t]*<script src="https://unpkg\.com/@babel/standalone[^"]*"[^>]*></script>\n',
+        '', html_content)
+    # Rewrite the precompiled module scripts: text/babel .jsx -> deferred .js
+    # (load order preserved; the ?v= cache-buster below is re-applied to the .js refs).
+    html_content = re.sub(
+        r'<script type="text/babel" src="src/([^"?]+)\.jsx(\?v=[^"]*)?"></script>',
+        r'<script defer src="src/\1.js\2"></script>',
+        html_content)
+    # Preload the catalog chunks so the largest downloads start in parallel with JS parse.
+    preload_links = "".join(
+        f'  <link rel="preload" as="fetch" crossorigin '
+        f'href="data/games_part_{i}.json?v={db_version_hash}">\n'
+        for i in (1, 2, 3))
+    html_content = html_content.replace("</head>", preload_links + "</head>", 1)
 
     # Add or update SCREENSHOT_BASE_URL config in <head>
     if "window.DATABASE_VERSION" in html_content:
@@ -386,13 +449,13 @@ function getShotUrl(path) {
     # Update or append cache-buster to all local JSX scripts in index.html to force immediate browser cache refresh
     if "?v=" in html_content:
         html_content = re.sub(
-            r'src="src/([^"]+?\.jsx)\?v=[^"]*"',
+            r'src="src/([^"]+?\.js)\?v=[^"]*"',
             f'src="src/\\1?v={db_version_hash}"',
             html_content
         )
     else:
         html_content = re.sub(
-            r'src="src/([^"]+?\.jsx)"',
+            r'src="src/([^"]+?\.js)"',
             f'src="src/\\1?v={db_version_hash}"',
             html_content
         )

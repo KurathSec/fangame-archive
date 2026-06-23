@@ -699,16 +699,25 @@ function RootApp() {
         setStatusText(window.t('merging_db'));
         
         const GAMES = [];
-        const REVIEWS = {};
         const SCREENSHOTS = {};
         const TAGS_COUNT = {};
         let totalR2Size = 0;
 
+        // Per-game curation is stored under `archive_game_<id>` keys. Enumerate the
+        // present keys once instead of probing localStorage ~20k times per load
+        // (almost all are absent). Behaviour is identical; only the probe count drops.
+        const curationKeys = new Set();
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('archive_game_')) curationKeys.add(k);
+          }
+        } catch (e) {}
+
         for (const [idStr, rawGame] of Object.entries(gamesDb)) {
           const id = parseInt(idStr, 10);
           const gameTagsSet = new Set();
-          const gameReviews = [];
-          
+
           if (rawGame.tags) {
             rawGame.tags.forEach(t => {
               if (t) {
@@ -735,15 +744,8 @@ function RootApp() {
                 });
               }
               
-              gameReviews.push({
-                user: r.author || 'Anonymous',
-                date: r.date || '',
-                rating: (r.rating !== null && r.rating !== undefined && r.rating !== 'na') ? Number(r.rating) : null,
-                diff: (r.difficulty !== null && r.difficulty !== undefined && r.difficulty !== 'na') ? Number(r.difficulty) : null,
-                liked: r.likes || 0,
-                body: r.text || '',
-                tags: (r.tags || []).map(t => t.trim().toLowerCase()).filter(Boolean)
-              });
+              // Review text is served on demand from D1 via /api/comments; no in-memory
+              // REVIEWS map is built (window.DATA.REVIEWS has no readers).
             });
           }
           
@@ -759,11 +761,11 @@ function RootApp() {
             });
           }
           
-          const savedCurationStr = localStorage.getItem(`archive_game_${id}`);
           let curation = { status: 'unplayed', personal: 0, notes: '' };
-          if (savedCurationStr) {
+          const curKey = `archive_game_${id}`;
+          if (curationKeys.has(curKey)) {
             try {
-              curation = JSON.parse(savedCurationStr);
+              curation = JSON.parse(localStorage.getItem(curKey));
             } catch (e) {}
           }
           
@@ -823,7 +825,6 @@ function RootApp() {
           };
           
           GAMES.push(gameObj);
-          REVIEWS[id] = gameReviews;
           SCREENSHOTS[id] = gameScreenshots;
           if (gameObj.flags.local) {
             totalR2Size += gameObj.file_size;
@@ -834,90 +835,13 @@ function RootApp() {
           .map(([name, count]) => ({ name, count }))
           .sort((a, b) => b.count - a.count);
 
-        const needleGameIds = GAMES.filter(g => g.tags.includes('needle')).slice(0, 6).map(g => g.id);
-        const avoidanceGameIds = GAMES.filter(g => g.tags.includes('avoidance')).slice(0, 5).map(g => g.id);
-        const adventureGameIds = GAMES.filter(g => g.tags.includes('adventure')).slice(0, 4).map(g => g.id);
-        const bossGameIds = GAMES.filter(g => g.tags.includes('boss')).slice(0, 4).map(g => g.id);
-
-        const COLLECTIONS = [
-          {
-            id: 'c1',
-            name: 'Practice Needle Maps',
-            color: 'oklch(0.65 0.13 152)',
-            desc: 'Forgiving needle for warm-ups. Saves every 3-5 screens.',
-            games: needleGameIds,
-            notes: needleGameIds.reduce((acc, id) => { acc[id] = 'Check screen layout for S' + (id % 100); return acc; }, {})
-          },
-          {
-            id: 'c2',
-            name: 'Avoidance Only',
-            color: 'oklch(0.65 0.13 30)',
-            desc: 'For practice runs of pattern-style avoidances.',
-            games: avoidanceGameIds,
-            notes: {}
-          },
-          {
-            id: 'c3',
-            name: 'Adventure Quest',
-            color: 'oklch(0.7 0.12 70)',
-            desc: 'Excellent adventure fangames with great exploration.',
-            games: adventureGameIds,
-            notes: {}
-          },
-          {
-            id: 'c4',
-            name: 'Boss Showdowns',
-            color: 'oklch(0.65 0.13 30)',
-            desc: 'Intense boss fights and combat compilations.',
-            games: bossGameIds,
-            notes: {}
-          }
-        ];
-
-        const MISSING_ASSETS = GAMES.filter(g => g.flags.missing).slice(0, 30).map(g => ({
-          id: g.id,
-          title: g.title,
-          missing: g.id % 2 === 0 ? 'zip' : 'screenshots',
-          size: g.id % 2 === 0 ? '~ 12 MB' : '~ 1.5 MB',
-          source: g.creator_url !== '#' ? g.creator_url : 'dl-mirror.example',
-          age: (g.id % 10 + 1) + 'd'
-        }));
-
-        const DEAD_URLS = GAMES.filter(g => g.flags.broken).slice(0, 30).map(g => ({
-          id: g.id,
-          title: g.title,
-          url: g.url || 'https://delicious-fruit.com/ratings/game_details.php?id=' + g.id,
-          code: g.id % 3 === 0 ? 'HTTP 404' : (g.id % 3 === 1 ? 'DNS_FAIL' : 'HTTP 503'),
-          checked: '2026-05-22'
-        }));
-
-        const ORPHANED = [
-          { path: 'ratings/screenshots/old_unused_shot.png', size: '1.2 MB', modified: '2025-11-04' },
-          { path: 'ratings/screenshots/test_capture.png', size: '440 KB', modified: '2026-04-12' },
-          { path: 'downloads/partial_download_tmp.zip', size: '32.1 MB', modified: '2026-05-18' }
-        ];
-
-        const CRAWLER_LOG = [
-          { t: '14:02:11', tag: 'info', msg: 'crawler.exe v0.7.3 ready' },
-          { t: '14:02:11', tag: 'info', msg: 'reading config from ./archive.toml' },
-          { t: '14:02:12', tag: 'info', msg: 'connecting to <accent>delicious-fruit-mirror.local</accent>...' },
-          { t: '14:02:13', tag: 'ok',   msg: 'handshake complete · 14873 known game IDs' },
-          { t: '14:02:14', tag: 'info', msg: 'fetching index.json (<num>35.4 MB</num>)' },
-          { t: '14:02:16', tag: 'ok',   msg: 'index parsed · <num>+3</num> new · <num>17</num> updated · <num>14853</num> unchanged' },
-          { t: '14:02:17', tag: 'info', msg: 'enqueued screenshot jobs (<num>43</num>)' },
-          { t: '14:02:19', tag: 'ok',   msg: 'GET /img/10458/10458_00001e0b.png · <num>240 KB</num>' },
-          { t: '14:02:21', tag: 'ok',   msg: 'GET /img/10458/10458_00001e0a.png · <num>180 KB</num>' },
-          { t: '14:02:23', tag: 'warn', msg: 'HTTP 503 from defunct-host — marking URL dead' },
-          { t: '14:02:24', tag: 'ok',   msg: 'GET /img/11598/spike-cathedral.png · <num>312 KB</num>' },
-          { t: '14:02:26', tag: 'info', msg: 'reviews: paging /api/reviews?since=2026-05-21' },
-          { t: '14:02:28', tag: 'ok',   msg: '<num>+34</num> reviews ingested' },
-          { t: '14:02:30', tag: 'info', msg: 'writing db deltas (<num>52</num> ops)' },
-          { t: '14:02:31', tag: 'ok',   msg: 'commit · games.json (<num>35.4 MB</num>) saved' },
-          { t: '14:02:31', tag: 'info', msg: 'next sync scheduled in 6h' },
-        ];
-
         const R2_STORAGE_SIZE = (totalR2Size / (1024 * 1024 * 1024)).toFixed(2) + " GB";
-        window.DATA = { TAGS, GAMES, REVIEWS, SCREENSHOTS, COLLECTIONS, MISSING_ASSETS, DEAD_URLS, ORPHANED, CRAWLER_LOG, STORAGE_SIZE: R2_STORAGE_SIZE };
+        // REVIEWS/COLLECTIONS are empty stubs kept only for window.DATA shape-compatibility:
+        // review text is fetched on demand from D1 via /api/comments, and no view reads
+        // window.DATA.REVIEWS or window.DATA.COLLECTIONS. The former mock datasets
+        // (MISSING_ASSETS / DEAD_URLS / ORPHANED / CRAWLER_LOG) had zero readers and each
+        // ran a full-catalog scan per load, so they were removed.
+        window.DATA = { TAGS, GAMES, SCREENSHOTS, STORAGE_SIZE: R2_STORAGE_SIZE, REVIEWS: {}, COLLECTIONS: [] };
         
         window.addEventListener('tweakchange', (e) => {
           const savedTweaks = JSON.parse(localStorage.getItem('archive_tweaks') || '{}');

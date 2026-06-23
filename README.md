@@ -2,7 +2,7 @@
 
 A serverless, client-rendered catalog and review platform for *I Wanna Be The Guy* fangames — **20,000+ games** and **150,000+ user reviews**, hosted entirely on the Cloudflare developer platform.
 
-**Stack:** React (in-browser Babel) · Cloudflare Pages + Pages Functions · R2 · D1 · KV · Clerk auth · Turnstile · Python ingestion pipelines.
+**Stack:** React 18 (dev: in-browser Babel · prod: esbuild-precompiled) · Cloudflare Pages + Pages Functions · R2 · D1 · KV · Clerk auth · Turnstile · Python ingestion pipelines.
 
 > [!IMPORTANT]
 > **No database or game files are included.**
@@ -14,7 +14,7 @@ A serverless, client-rendered catalog and review platform for *I Wanna Be The Gu
 
 | Layer | Technology | Role |
 |---|---|---|
-| **Frontend** | React 18 + Babel Standalone (no build step) | Catalog UI, search/filter, detail drawer, collections |
+| **Frontend** | React 18 — dev: in-browser Babel · prod: esbuild-precompiled | Catalog UI, search/filter, detail drawer, collections |
 | **Hosting / API** | Cloudflare Pages + Pages Functions | Static assets and serverless `/api/*` endpoints |
 | **Object storage** | Cloudflare R2 (`fangame-files`, `fangame-screenshots`) | Game archives, screenshots, master JSON |
 | **Database** | Cloudflare D1 (`fangame-comments`) | Reviews, users, submissions, favorites, audit log |
@@ -23,7 +23,7 @@ A serverless, client-rendered catalog and review platform for *I Wanna Be The Gu
 | **Bot defense** | Cloudflare Turnstile | CAPTCHA on all write endpoints |
 | **Pipelines** | Python + GitHub Actions (cron / push) | Scrape, recompute metrics, chunk, sync to R2, deploy |
 
-The catalog is split into chunks under Cloudflare Pages' 25 MB per-file limit and streamed into an IndexedDB client cache with incremental, version-based updates. Full detail lives in **[`project_architecture.md`](project_architecture.md)**.
+The catalog is split into **minified** chunks under Cloudflare Pages' 25 MB per-file limit and streamed into an IndexedDB client cache with incremental, version-based updates. Full detail lives in **[`project_architecture.md`](project_architecture.md)**.
 
 ---
 
@@ -73,7 +73,7 @@ fangame-archive/
 │       └── clerk-js.js           # Legacy first-party clerk-js proxy (fallback)
 ├── pipelines/                    # Python ingestion, cleanup, and build scripts
 │   ├── scrape_and_migrate_new_games.py  # Master sync: scrape, recompute, reconcile
-│   ├── build_github_pages.py            # Chunk DB + compile static dist
+│   ├── build_github_pages.py            # Chunk+minify DB, esbuild-precompile JSX, compile dist
 │   ├── merge_approved_submissions.py    # Merge approved user submissions into catalog/R2
 │   ├── ingest_local_folder_games.py     # Bulk-ingest local game zips to R2
 │   ├── sync_db_r2.py                    # download | upload master JSON ↔ R2
@@ -91,8 +91,11 @@ fangame-archive/
 │   └── seq_to_orig_map.json      # Sequential ID ↔ origin ID mapping
 ├── data/                         # Catalog JSON (git-ignored; seed from *.sample.json)
 ├── wrangler.toml                 # Pages project, D1 + KV bindings
-├── dev_server.py                 # Local dev server
+├── package.json                  # Pinned build/deploy tooling (esbuild, wrangler)
+├── requirements.txt              # Python pipeline dependencies
+├── dev_server.py                 # Local dev server (in-browser Babel; no build needed)
 ├── deploy.bat / sync_and_deploy.bat   # Build/deploy workflows
+├── OPTIMIZATION_WORKFLOW.md       # Behavior-preserving perf/architecture workflow
 └── project_architecture.md       # Full system architecture & developer reference
 ```
 
@@ -118,6 +121,8 @@ fangame-archive/
 ---
 
 ## Build & Deployment
+
+> **Local prerequisite:** run `npm install` once — the build precompiles the JSX with **esbuild** and deploys with **wrangler** (both pinned in `package.json`). Local UI iteration via `dev_server.py` needs no build (it uses in-browser Babel).
 
 | Command | Action |
 |---|---|

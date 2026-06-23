@@ -13,10 +13,27 @@ on:
       - 'pipelines/**'
       - 'wrangler.toml'
       - '.github/workflows/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'requirements.txt'
+
+# Serialize runs: the 6-hourly cron and a push must never run at the same time, or
+# two pipelines race on the R2 master games.json and collide the version counter
+# (see project_architecture.md §8.5 rebase caution / §10). Queue, don't cancel, so an
+# in-flight sync finishes cleanly.
+concurrency:
+  group: fangame-archive-deploy
+  cancel-in-progress: false
+
+# Least privilege: the job deploys to Cloudflare Pages via an API token; it does not
+# push back to the repository.
+permissions:
+  contents: read
 
 jobs:
   sync-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout Repository
@@ -26,16 +43,24 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 boto3 mega.py
+          pip install -r requirements.txt
+
+      - name: Install Node Dependencies
+        # esbuild (used by build_github_pages.py, invoked inside the scraper step) and
+        # wrangler (used by the deploy step) come from the pinned devDependencies.
+        run: npm ci
 
       - name: Download Databases from R2
         env:
@@ -63,10 +88,12 @@ jobs:
         run: python pipelines/apply_game_ops.py
 
       - name: Run Scraper and Compilation Pipeline
+        # CLOUDFLARE_API_TOKEN is required so the in-pipeline D1 review sync
+        # (npx wrangler d1 execute) can authenticate; without it the scrape
+        # succeeds but new reviews never reach the D1 comments table.
+        # This step also invokes build_github_pages.py, which precompiles the JSX
+        # with esbuild (installed by `npm ci` above).
         env:
-          # CLOUDFLARE_API_TOKEN is required so the in-pipeline D1 review sync
-          # (npx wrangler d1 execute) can authenticate; without it the scrape
-          # succeeds but new reviews never reach the D1 comments table.
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -91,4 +118,4 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx -y wrangler pages deploy github_pages_dist --project-name fangame-archive
+        run: npx wrangler pages deploy github_pages_dist --project-name fangame-archive

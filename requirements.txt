@@ -1,0 +1,7 @@
+# Python dependencies for the ingestion / build pipelines (pipelines/*.py).
+# Mirrors the inline list previously installed in CI; kept unpinned to preserve
+# the existing dependency resolution. Install with: pip install -r requirements.txt
+requests
+beautifulsoup4
+boto3
+mega.py

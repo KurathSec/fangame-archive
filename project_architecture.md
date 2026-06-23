@@ -344,7 +344,7 @@ Successful GETs are stored in the **edge cache** (`caches.default`, `Cache-Contr
 
 ## 5. Frontend Architecture (`src/`)
 
-A React 18 SPA transpiled **in-browser by Babel Standalone** (`type="text/babel"` scripts). There is no bundler step at runtime; the Python build only rewrites paths and injects config. Component tree:
+A React 18 SPA. **In local dev** (`dev_server.py` serving `public/index.html`) it is transpiled **in-browser by Babel Standalone** (`type="text/babel"` scripts) against the React *development* build. **In production** the build (`build_github_pages.py`, §8.2) precompiles every `src/*.jsx` to plain `.js` with **esbuild** (classic JSX runtime, no bundling — the global-script load order is preserved), swaps in the React *production* build, and drops Babel; runtime behaviour is identical. Component tree:
 
 ```
 index.html (config globals + script mounts)
@@ -359,14 +359,14 @@ index.html (config globals + script mounts)
 ```
 
 ### 5.1 Configuration injection (`index.html`)
-The Python compiler writes runtime globals (`window.DATABASE_VERSION`, `APP_VERSION`, `SCREENSHOT_BASE_URL`, Clerk + Turnstile keys, `CLERK_JS_URL`) and appends `?v=<version>` cache-busters to every JSX/CSS import.
+The Python compiler writes runtime globals (`window.DATABASE_VERSION`, `APP_VERSION`, `SCREENSHOT_BASE_URL`, Clerk + Turnstile keys, `CLERK_JS_URL`) and appends `?v=<version>` cache-busters to every script/CSS import. In the production build it also rewrites the `text/babel` `.jsx` script tags to deferred precompiled `.js`, swaps React dev→prod, removes the Babel runtime, and injects `<link rel="preload">` hints for the three catalog chunks (§8.2).
 
 ### 5.2 Bootloader & client cache (`src/app.jsx`)
 `RootApp` hydrates the catalog into memory with a three-tier strategy against **IndexedDB `DeliciousArchiveDB`**:
 1. **Cache hit** — if `String(localVersion) === String(DATABASE_VERSION)`, load instantly from IndexedDB (no network).
 2. **Incremental update** — otherwise fetch `recent_changes.json?v=…` and replay `updated`/`deleted` timeline deltas from `localVersion` → latest, then persist.
 3. **Full fallback** — if the timeline is incomplete (history pruned), fetch `games_part_1..3.json` in parallel, merge, and persist.
-The merged catalog is exposed as `window.DATA = { TAGS, GAMES, REVIEWS, SCREENSHOTS, COLLECTIONS, … }`.
+The merged catalog is exposed as `window.DATA = { TAGS, GAMES, SCREENSHOTS, STORAGE_SIZE, … }`. The hydration loop deliberately avoids per-load waste: it does **not** build an in-memory review map (review text is fetched on demand from D1 via `/api/comments`, so `window.DATA.REVIEWS` is an empty stub), and it enumerates the `archive_game_<id>` curation keys in `localStorage` **once** rather than probing per game.
 
 ### 5.3 Search & filter engine (`src/explorer.jsx`)
 State: `searchTitle`, `searchCreator`, `tags` (`Map` of tag → `'or'|'and'|'not'`), `rating`/`diff` range tuples, `sort`/`desc`, `page`. The catalog **defaults to sorting by game `id` descending** (newest-first); the toolbar lets users change the sort field (`id`/`title`/`rating`/`diff`/`size`/`rev`) and direction. Tag logic: **AND** (must include all), **OR** (must include at least one when any OR filter is active), **NOT** (must exclude all). Range filters exclude unrated (`null`) games unless the bound sits at its default minimum. Inline `<input type="number">` controls allow precise (decimal) bounds, committed on blur. The **"Roll Random"** action (`window.rollRandomGame`) draws exclusively from the currently filtered set.
@@ -431,7 +431,7 @@ On first paint the `view`/`activeGame` initializers read `?game` **before** the 
 A layered strategy guarantees clients see fresh data without manual cache clears:
 
 1. **Config injection** — the build writes the current `DATABASE_VERSION` into `index.html`.
-2. **Script cache-busting** — every JSX/CSS import gets `?v=<version>`; a new deploy changes the query and forces re-download.
+2. **Script cache-busting** — every script/CSS import gets `?v=<version>`; a new deploy changes the query and forces re-download. (Production scripts are esbuild-precompiled `.js`; dev serves `.jsx` via Babel.)
 3. **DB fetch cache-busting** — catalog fetches append `?v=${window.DATABASE_VERSION}` to bypass CDN/browser caches.
 4. **Edge cache** — `/api/search` results cached at `caches.default` for 10 min.
 5. **KV TTLs** — Clerk profiles 1 h (bypassed on `/api/me`); quota counters 36 h.
@@ -471,10 +471,14 @@ Run: `python pipelines/scrape_and_migrate_new_games.py` (via `sync_and_deploy.ba
 8. **Compile & sync** — persist `games.json`/`seq_to_orig_map.json`, push brand-new games' reviews into D1 (§8.7), then invoke `update_storage_stats.py` and `build_github_pages.py`.
 
 ### 8.2 `build_github_pages.py` — static compiler
-Run: `python pipelines/build_github_pages.py`.
-1. Chunk `games.json` into `games_part_1..3.json` (each < 25 MB).
-2. Emit slim `search_index.json`.
-3. Rewrite `src/app.jsx` to read the 3 parts; rewrite `index.html` to inject config + `?v=` cache-busters.
+Run: `python pipelines/build_github_pages.py`. **Requires esbuild** (pinned in `package.json`; install via `npm install` / `npm ci`).
+1. Chunk `games.json` into **minified** `games_part_1..3.json` (each < 25 MB); strip per-game `reviews` (served from D1).
+2. Emit slim, **minified** `search_index.json`.
+3. Apply the textual transforms (storage size, screenshot CDN helper, NAV) to the dist `src/*.jsx`.
+4. **Precompile** every dist `src/*.jsx` → `.js` with esbuild (classic JSX runtime, `--minify-whitespace --minify-syntax`, no bundling).
+5. Rewrite `index.html`: inject config + `?v=` cache-busters, swap React dev→**production**, **drop Babel**, point the (now `defer`) module scripts at the precompiled `.js`, and add `<link rel="preload">` for the three chunks.
+
+> Dev is unaffected: `public/index.html` and `src/*.jsx` keep the Babel + dev-React path for `dev_server.py`.
 
 ### 8.3 Supporting scripts
 - `sync_db_r2.py {download|upload}` — sync `games.json`, `recent_changes.json`, `profiles.json`, `seq_to_orig_map.json`, `reviews_scraped.json` ↔ R2.
@@ -538,7 +542,7 @@ Reviews are split across two stores on purpose (see §2.1):
 - **`sync_and_deploy.bat`** — `sync_db_r2 download` → `scrape_and_migrate_new_games` → `ingest_local_folder_games` → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `wrangler pages deploy`.
 
 ### 9.2 Cloud (`.github/workflows/deploy.yml`)
-On push to `main` (matching paths) or every 6 h: set up Python 3.10 + Node 20 → `sync_db_r2 download` → `merge_approved_submissions` → `scrape_and_migrate_new_games` → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `npx -y wrangler pages deploy`. The **scraper step must receive `CLOUDFLARE_API_TOKEN`** (in addition to the R2 keys) so the in-pipeline D1 review sync (§8.7) can authenticate; without it the scrape still succeeds but new reviews never reach D1.
+On push to `main` (matching paths) or every 6 h: set up Python 3.10 (pip cache) + Node 20 (npm cache) → `pip install -r requirements.txt` → **`npm ci`** (provides esbuild for the build + wrangler for deploy) → `sync_db_r2 download` → `merge_approved_submissions` → `apply_game_ops` → `scrape_and_migrate_new_games` (which invokes `build_github_pages.py`, hence the esbuild dependency) → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `npx wrangler pages deploy`. The **scraper step must receive `CLOUDFLARE_API_TOKEN`** (in addition to the R2 keys) so the in-pipeline D1 review sync (§8.7) can authenticate; without it the scrape still succeeds but new reviews never reach D1. A workflow-level **`concurrency` guard** (`group: fangame-archive-deploy`, `cancel-in-progress: false`) serializes the cron and push runs so they cannot race on the R2 master / collide the version counter (§8.5, §10).
 
 ### 9.3 D1 migrations
 Apply schema changes to the live DB explicitly (not part of the deploy):

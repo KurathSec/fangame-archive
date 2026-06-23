@@ -1,0 +1,15 @@
+{
+  "name": "fangame-archive",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serverless catalog + review platform for IWBTG fangames (Cloudflare Pages + R2 + D1). The deployed static bundle is precompiled by pipelines/build_github_pages.py (esbuild + production React); local dev (dev_server.py) uses in-browser Babel.",
+  "scripts": {
+    "build": "python pipelines/build_github_pages.py",
+    "deploy": "wrangler pages deploy github_pages_dist --project-name fangame-archive",
+    "dev": "python dev_server.py"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "wrangler": "^4"
+  }
+}
