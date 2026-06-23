@@ -99,12 +99,24 @@ def main():
     search_index = []
     for seq_id, game in games.items():
         creator_name = game.get("creator", {}).get("name", "Unknown") if isinstance(game.get("creator"), dict) else "Unknown"
+        # Enriched public fields. A game with no reviews is unrated, so rating/difficulty
+        # are forced to null (mirrors the catalog invariant rating_count == 0 => null, §8.6).
+        rating_count = game.get("rating_count") or 0
+        rating = game.get("avg_rating")
+        difficulty = game.get("avg_difficulty")
+        if not rating_count:
+            rating = None
+            difficulty = None
         search_index.append({
             "id": int(seq_id),
             "title": game.get("title", "Untitled"),
             "creator": creator_name,
             "url": game.get("download_url", ""),
-            "tags": game.get("tags", [])
+            "tags": game.get("tags", []),
+            "rating": rating,
+            "difficulty": difficulty,
+            "rating_count": rating_count,
+            "file_size": game.get("file_size", 0) or 0
         })
         
     index_path = os.path.join(DIST_DIR, "data", "search_index.json")

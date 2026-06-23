@@ -1,5 +1,19 @@
 [
   {
+    "ver": "2026.008",
+    "date": "2026-06-23",
+    "note": "Faster loading, leaner build, and an extended public API",
+    "changes": [
+      ["Added", "New public endpoint GET /api/random returns one or more random games, with ?count= (1-50, default 1) and an optional ?tag= filter; responses are uncached so each call re-samples."],
+      ["Added", "The public /api/search response now includes each game's rating, difficulty, review count, and file size, alongside the existing title, creator, tags, and download URL."],
+      ["Changed", "Production build now precompiles the JSX with esbuild and ships the production React build instead of transpiling in the browser, significantly cutting cold-load work."],
+      ["Changed", "Catalog data chunks and the search index are now minified, and the catalog chunks are preloaded so the app starts fetching them sooner."],
+      ["Changed", "Trimmed the client hydration path by removing redundant per-load work (an unused in-memory review map, mock datasets, and ~20k per-load localStorage probes) with no change to behavior."],
+      ["Changed", "Hardened the deploy pipeline: serialized scheduled and push-triggered runs to prevent data races, pinned the build/deploy toolchain, and bumped CI to Node 22 (required by Wrangler 4)."],
+      ["Fixed", "Local dev server: fixed an UnboundLocalError that broke the local /api/search endpoint."]
+    ]
+  },
+  {
     "ver": "2026.007",
     "date": "2026-06-15",
     "note": "Shareable game links, default sort, and consolidated auth/pipeline fixes",

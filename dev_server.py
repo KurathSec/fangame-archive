@@ -4,7 +4,9 @@ import os
 import sys
 import json
 import shutil
+import random
 import urllib.parse
+import urllib.request
 import posixpath
 from datetime import datetime
 
@@ -32,6 +34,28 @@ def format_size(size_bytes):
         return f"{size_bytes / 1024:.1f} KB"
     else:
         return f"{size_bytes / 1024**2:.1f} MB"
+
+def slim_game(seq_id, game):
+    """Enriched per-game record returned by the /api/search and /api/random dev
+    endpoints (kept in sync with build_github_pages.py's search_index.json)."""
+    creator_name = game.get("creator", {}).get("name", "Unknown") if isinstance(game.get("creator"), dict) else "Unknown"
+    rating_count = game.get("rating_count") or 0
+    rating = game.get("avg_rating")
+    difficulty = game.get("avg_difficulty")
+    if not rating_count:
+        rating = None
+        difficulty = None
+    return {
+        "id": int(seq_id),
+        "title": game.get("title", "Untitled"),
+        "creator": creator_name,
+        "url": game.get("download_url", ""),
+        "tags": game.get("tags", []),
+        "rating": rating,
+        "difficulty": difficulty,
+        "rating_count": rating_count,
+        "file_size": game.get("file_size", 0) or 0,
+    }
 
 def run_audit():
     games = load_games()
@@ -220,14 +244,7 @@ class RefactoredHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 if gid:
                     game = games.get(str(gid))
                     if game:
-                        creator_name = game.get("creator", {}).get("name", "Unknown") if isinstance(game.get("creator"), dict) else "Unknown"
-                        results.append({
-                            "id": int(gid),
-                            "title": game.get("title", "Untitled"),
-                            "creator": creator_name,
-                            "url": game.get("download_url", ""),
-                            "tags": game.get("tags", [])
-                        })
+                        results.append(slim_game(gid, game))
                 elif q:
                     query = q.lower().strip()
                     for seq_id, game in games.items():
@@ -240,13 +257,7 @@ class RefactoredHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         tags_match = any(query in t.lower() for t in tags)
                         
                         if title_match or creator_match or tags_match:
-                            results.append({
-                                "id": int(seq_id),
-                                "title": title,
-                                "creator": creator_name,
-                                "url": game.get("download_url", ""),
-                                "tags": tags
-                            })
+                            results.append(slim_game(seq_id, game))
                             if len(results) >= 100:
                                 break
                                 
@@ -269,13 +280,38 @@ class RefactoredHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Cache-Control', 'public, max-age=86400')
             self.end_headers()
             try:
-                import urllib.request
                 url = "https://unpkg.com/@clerk/clerk-js@5/dist/clerk.browser.js"
                 req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                 with urllib.request.urlopen(req, timeout=5) as response:
                     self.wfile.write(response.read())
             except Exception as e:
                 self.wfile.write(f"console.warn('Local dev server failed to proxy Clerk JS: {e}');".encode('utf-8'))
+        elif self.path.startswith('/api/random'):
+            query_components = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(query_components.query)
+            try:
+                count = int(params.get('count', ['1'])[0])
+            except (ValueError, TypeError):
+                count = 1
+            count = max(1, min(count, 50))
+            tag = (params.get('tag', [''])[0] or '').lower().strip()
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json;charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            try:
+                games = load_games()
+                pool = list(games.items())
+                if tag:
+                    pool = [(sid, g) for (sid, g) in pool if any(tag == str(t).lower() for t in g.get('tags', []))]
+                n = min(count, len(pool))
+                chosen = random.sample(pool, n) if n > 0 else []
+                results = [slim_game(sid, g) for (sid, g) in chosen]
+                self.wfile.write(json.dumps({"success": True, "count": len(results), "results": results}).encode('utf-8'))
+            except Exception as e:
+                self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode('utf-8'))
         else:
             super().do_GET()
 

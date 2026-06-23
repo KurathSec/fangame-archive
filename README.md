@@ -37,7 +37,7 @@ The catalog is split into **minified** chunks under Cloudflare Pages' 25 MB per-
 * **Accounts & reviews** — Clerk-backed login; submit reviews (optional rating/difficulty, custom tags) and suggest new games, all gated by Turnstile and daily quotas, then moderated.
 * **Collections** — per-user favorites synced to D1.
 * **Internationalization** — 8 languages (`en`, `zh-CN`, `zh-TW`, `ja`, `ko`, `ru`, `fr`, `de`) with live switching.
-* **Public search API** — `/api/search?q=` / `?id=` for bots and integrations, edge-cached.
+* **Public API** — `/api/search?q=` / `?id=` (keyword/ID, edge-cached) and `/api/random?count=&tag=` (random games, uncached); both return rating, difficulty, review count, file size, tags, and download URL.
 
 ---
 

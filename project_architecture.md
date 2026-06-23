@@ -160,7 +160,7 @@ A mapping may persist as a **tombstone** after its game is removed from `games.j
 ```
 > **Reviews live in two stores — this is the single most important thing to know about them.** `reviews_scraped.json` is the offline corpus and is consumed **only** to compute `avg_rating`/`avg_difficulty`/`rating_count` into `games.json`. The detail drawer, however, renders review **text from D1** (`/api/comments`, §4). The two are bridged by [`sync_reviews_to_d1.py`](#87-reviews-dual-store-model--d1-sync-sync_reviews_to_d1py) (§8.7). A review's `game_id` here is its **origin id** (Delicious Fruit id, or `WIKI-<n>` for wiki-sourced games), which the bridge maps to the sequential catalog id via `seq_to_orig_map`. Consequence: a review can correctly feed an average yet be **absent from the drawer** if it was never synced into D1 — see §8.7 and the runbook (§10).
 
-**Build artifact `data/search_index.json`** — slim per-game records (`id`, `title`, `creator`, `url`, `tags`) consumed by the `/api/search` endpoint.
+**Build artifact `data/search_index.json`** — per-game records (`id`, `title`, `creator`, `url`, `tags`, plus `rating`, `difficulty`, `rating_count`, `file_size`) consumed by the public `/api/search` and `/api/random` endpoints. `rating`/`difficulty` are `null` for unrated games.
 
 ### 2.2 D1 Schema (`fangame-comments`)
 
@@ -321,6 +321,7 @@ All handlers run on the Workers runtime as Pages Functions. Responses use the `j
 | `/api/favorites` | POST | required | `INSERT OR IGNORE` a favorite (idempotent via the unique constraint). Body `{ gameId }`. |
 | `/api/favorites/:id` | DELETE | required | Removes a favorite by `game_id` for the caller. |
 | `/api/search` | GET | none | Public bot/keyword search; see §4.2. |
+| `/api/random` | GET | none | Public — returns random game(s); `?count=` (1–50, default 1), optional `?tag=`; not cached. See §4.2. |
 | `/api/clerk-js` | GET | none | Inert legacy proxy for clerk-js (no longer the primary load path; see §3.2). |
 
 ### 4.1 Write pipeline (comments & submissions)
@@ -333,12 +334,16 @@ All handlers run on the Workers runtime as Pages Functions. Responses use the `j
 4. **Daily quota (KV)** — keys `quota:comment:{userId}:{YYYYMMDD}` (limit **20/day**) and `quota:submit:{userId}:{YYYYMMDD}` (limit **5/day**), each with a 36 h TTL; over-limit → 429.
 5. **Insert** into D1 with `status='pending'` (and `source='native'` for comments), awaiting moderation.
 
-### 4.2 Search endpoint (`/api/search`)
+### 4.2 Search & random endpoints (`/api/search`, `/api/random`)
 
-A public read API (also usable by bots). It fetches the deployment's own `data/search_index.json`, then:
+Public read APIs (also usable by bots). Both fetch the deployment's own `data/search_index.json` and return the **same enriched per-game record**: `id`, `title`, `creator`, `url`, `tags`, `rating`, `difficulty`, `rating_count`, `file_size` (`rating`/`difficulty` are `null` for unrated games).
+
+**`/api/search`:**
 - `?id=` → exact match by game id.
 - `?q=` → case-insensitive substring match over title/creator/tags, capped at 100 results.
 Successful GETs are stored in the **edge cache** (`caches.default`, `Cache-Control: public, max-age=600`) keyed by URL, so repeat queries are served without re-reading the index.
+
+**`/api/random`:** returns `count` (default 1, max 50) **distinct** random games, optionally restricted to a `?tag=` (case-insensitive). Responses are **not cached** (`Cache-Control: no-store`) so each call re-samples.
 
 ---
 
