@@ -677,6 +677,7 @@
 
 /* review author meta additions */
 .review.own { background: var(--st-pending-bg); margin: 0 -16px; padding: 10px 16px; border-radius: var(--radius); border-bottom: 0; }
+.review.creator { background: rgba(46, 204, 113, 0.1); margin: 0 -16px; padding: 10px 16px; border-radius: var(--radius); border-bottom: 0; }
 .review-avatar {
   width: 18px; height: 18px; border-radius: 50%;
   display: inline-grid; place-items: center;
@@ -692,6 +693,7 @@
 }
 .badge-mini.imported { color: var(--muted-2); }
 .badge-mini.own { background: var(--st-pending-bg); border-color: var(--st-pending-bd); color: var(--st-pending-tx); }
+.badge-mini.creator { background: rgba(46, 204, 113, 0.15); border-color: rgba(46, 204, 113, 0.45); color: #46c47c; }
 
 /* ════════════════════════════════════════════════════════════════
    ADMIN APPLICATION — denser, tool-like; reuses tokens

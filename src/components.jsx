@@ -411,6 +411,33 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
   }, [game?.id, loadComments]);
 
+  // Frontend-only: flag reviews authored by the game's own creator(s).
+  // game.creator may pack several authors (",", "&", "/", "and", or CJK separators).
+  const creatorNames = React.useMemo(() => new Set(
+    String(game?.creator || '')
+      .split(/[,，、]|\s*[/&]\s*|\s+and\s+/i)
+      .map((a) => a.trim().toLowerCase())
+      .filter((a) => a && a !== 'unknown')
+  ), [game?.creator]);
+  const isCreatorReview = React.useCallback(
+    (u) => creatorNames.has(String(u || '').trim().toLowerCase()),
+    [creatorNames]
+  );
+  // Creator reviews float to the top (alphabetical among themselves); others keep order.
+  const sortedComments = React.useMemo(() => (
+    comments
+      .map((c, idx) => ({ c, idx, cr: isCreatorReview(c.user) }))
+      .sort((a, b) => {
+        if (a.cr !== b.cr) return a.cr ? -1 : 1;
+        if (a.cr && b.cr) {
+          const cmp = String(a.c.user || '').localeCompare(String(b.c.user || ''), undefined, { sensitivity: 'base' });
+          if (cmp !== 0) return cmp;
+        }
+        return a.idx - b.idx;
+      })
+      .map((x) => x.c)
+  ), [comments, isCreatorReview]);
+
 
 
   if (game === null) return null;
@@ -692,13 +719,19 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
                 {comments.length === 0 && <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>{window.t('no_reviews_yet_mirrored')}</p>}
 
-                {comments.slice((commentPage - 1) * 5, commentPage * 5).map((r, i) => (
+                {sortedComments.slice((commentPage - 1) * 5, commentPage * 5).map((r, i) => {
 
-                  <div key={i} className={`review${r.status === 'pending' ? ' own' : ''}`}>
+                  const creatorReview = isCreatorReview(r.user);
+
+                  return (
+
+                  <div key={i} className={`review${r.status === 'pending' ? ' own' : ''}${creatorReview ? ' creator' : ''}`}>
 
                     <div className="review-hd">
 
                       <b><a href="#">{r.user}</a></b>
+
+                      {creatorReview && <span className="badge-mini creator">{window.t('creator_badge')}</span>}
 
                       {r.status === 'pending' && <span className="badge-mini own">{window.t('pending_review_badge')}</span>}
 
@@ -724,7 +757,9 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
                   </div>
 
-                ))}
+                  );
+
+                })}
 
                 
 
