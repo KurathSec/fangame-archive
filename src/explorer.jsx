@@ -128,7 +128,6 @@ function Card({ game, active, onClick }) {
             window.setCreatorSearch(game.creator);
           }
         }}>{game.creator}</a></div>
-        {game.engine && <div className="card-engine">{window.ic.chip}<span>{game.engine}</span></div>}
         <div className="card-metrics">
           <span className="metric rating">{window.ic.star}<span className="tnum">{game.rating !== null ? game.rating.toFixed(1) : 'N/A'}</span></span>
           <span className="metric diff">{window.ic.flame}<span className="tnum">{game.difficulty !== null ? game.difficulty : 'N/A'}</span></span>
@@ -159,7 +158,6 @@ function ListRow({ game, active, onClick }) {
             window.setCreatorSearch(game.creator);
           }
         }} className="list-creator-link">{game.creator}</a>
-        {game.engine && <span className="list-engine">{game.engine}</span>}
       </span>
       <span className="list-num list-rating">{game.rating !== null ? game.rating.toFixed(1) : 'N/A'}</span>
       <span className="list-num list-diff">{game.difficulty !== null ? game.difficulty : 'N/A'}</span>
