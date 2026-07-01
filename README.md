@@ -17,7 +17,7 @@ A serverless, client-rendered catalog and review platform for *I Wanna Be The Gu
 | **Frontend** | React 18 — dev: in-browser Babel · prod: esbuild-precompiled | Catalog UI, search/filter, detail drawer, collections |
 | **Hosting / API** | Cloudflare Pages + Pages Functions | Static assets and serverless `/api/*` endpoints |
 | **Object storage** | Cloudflare R2 (`fangame-files`, `fangame-screenshots`) | Game archives, screenshots, master JSON |
-| **Database** | Cloudflare D1 (`fangame-comments`) | Reviews, users, submissions, favorites, audit log |
+| **Database** | Cloudflare D1 (`fangame-comments`) | Reviews, users, submissions, favorites, collections, audit log |
 | **Cache** | Cloudflare KV | Clerk profile cache + per-user daily quotas |
 | **Identity** | Clerk (production instance) | Login, sessions, OAuth (Google/Discord/Microsoft), email code |
 | **Bot defense** | Cloudflare Turnstile | CAPTCHA on all write endpoints |
@@ -35,7 +35,7 @@ The catalog is split into **minified** chunks under Cloudflare Pages' 25 MB per-
 * **Filtered randomizer** — "Roll Random" draws only from the current filtered set.
 * **Detail drawer** — metadata, screenshots, and live reviews fetched on demand, with Markdown + click-to-reveal spoilers.
 * **Accounts & reviews** — Clerk-backed login; submit reviews (optional rating/difficulty, custom tags) and suggest new games, all gated by Turnstile and daily quotas, then moderated.
-* **Collections** — per-user favorites synced to D1.
+* **Collections** — cloud-synced favorites (the "main" bucket) plus named **collections**: build lists and one level of folders, save a game to several at once via a per-game menu, and rename/describe them. Share a collection by instant link (blank/preset name, no description) or submit it to the **moderated Public Collections library**; public collections lock their name/description. Shared pages open fast (`?collection=<token>`) even for signed-out visitors.
 * **Internationalization** — 8 languages (`en`, `zh-CN`, `zh-TW`, `ja`, `ko`, `ru`, `fr`, `de`) with live switching.
 * **Public API** — `/api/search?q=` / `?id=` (keyword/ID, edge-cached) and `/api/random?count=&tag=` (random games, uncached); both return rating, difficulty, review count, file size, tags, and download URL.
 
@@ -56,7 +56,7 @@ fangame-archive/
 │   ├── account.jsx               # Review editor, submission form, "my content"
 │   ├── components.jsx            # Sidebar, cards/rows, detail drawer, lightbox
 │   ├── explorer.jsx              # Search + tri-state tag filter + pagination
-│   ├── collections.jsx           # Favorites grid + FavoritesAPI client
+│   ├── collections.jsx           # Favorites + Collections v2 client, hooks & UI (popover, modal, manager, public library, shared page)
 │   ├── i18n.jsx                  # Dictionaries, window.t(), language selector
 │   ├── data.jsx                  # In-memory data shaping (window.DATA)
 │   ├── tweaks-panel.jsx          # Theme/density/layout tweaks
@@ -69,6 +69,7 @@ fangame-archive/
 │       ├── comments.js           # GET approved+own / POST review (Turnstile + quota)
 │       ├── submissions.js        # POST game submission
 │       ├── favorites.js          # GET/POST favorites  (+ favorites/[id].js DELETE)
+│       ├── collections.js        # Collections v2 CRUD + items/visibility/membership/public/shared (collections/**)
 │       ├── search.js             # Public keyword/ID search (edge-cached)
 │       └── clerk-js.js           # Legacy first-party clerk-js proxy (fallback)
 ├── pipelines/                    # Python ingestion, cleanup, and build scripts
@@ -87,7 +88,7 @@ fangame-archive/
 │   ├── deploy.yml                # CI: sync + scrape + build + deploy (push / 6 h cron)
 │   └── backfill_reviews.yml      # Manual one-shot: load the full review corpus into D1
 ├── database/
-│   ├── schema.sql                # D1 schema (comments, users, submissions, favorites, audit)
+│   ├── schema.sql                # D1 schema (comments, users, submissions, favorites, collections, audit)
 │   └── seq_to_orig_map.json      # Sequential ID ↔ origin ID mapping
 ├── data/                         # Catalog JSON (git-ignored; seed from *.sample.json)
 ├── wrangler.toml                 # Pages project, D1 + KV bindings

@@ -1,5 +1,17 @@
 [
   {
+    "ver": "2026.010",
+    "date": "2026-07-02",
+    "note": "Collections: build lists & folders, save games to several at once, and share them",
+    "changes": [
+      ["Added", "My Collections now supports multiple named lists plus one level of folders (up to 5 sub-lists each). Your existing bookmarks stay as the pinned “Main saves” bucket."],
+      ["Added", "A per-game “add to collection” menu (beside the bookmark) lets you save a game to several lists at once, create a new list on the spot, and see everywhere it’s already saved."],
+      ["Added", "Rename and describe any collection (with length limits). Name and description are optional at creation."],
+      ["Added", "Share a collection two ways: an instant link (for lists with a blank or preset name and no description), or “Open to public” — reviewed by a moderator, then listed in the new Public Collections library and shareable by link. Public collections lock their name/description; you can still add or remove games."],
+      ["Added", "New Public Collections section in the sidebar to browse community-shared game lists, and a read-only shared-collection page (?collection=…) that opens fast even for signed-out visitors."]
+    ]
+  },
+  {
     "ver": "2026.009",
     "date": "2026-07-01",
     "note": "Game engines: every game shows its engine, and you can filter by it",

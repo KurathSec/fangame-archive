@@ -141,6 +141,7 @@ function BrandMark() {
 function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth, identity, onLogout }) {
   const BASE_NAV = [
     { k: 'explorer',    label: window.t('browse_games'),      icon: ic.archive,  count: gameCount },
+    { k: 'publib',      label: window.t('nav.public_collections'), icon: window.ic2.shield, count: null },
     { k: 'donation',    label: window.t('donation_support'), icon: ic.heart,    count: null },
     { k: 'links',       label: window.t('community_links'),   icon: ic.ext,      count: null },
     { k: 'updates',     label: "Update Log",                  icon: ic.log,      count: null },
@@ -632,6 +633,10 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
             {auth !== 'out' && window.FavoriteButton && (
               <window.FavoriteButton gameId={game.id} auth={auth} />
+            )}
+
+            {auth !== 'out' && window.CollectionMenuButton && (
+              <window.CollectionMenuButton gameId={game.id} auth={auth} />
             )}
 
             {isRoll && window.rollRandomGame && (

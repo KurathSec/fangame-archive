@@ -174,7 +174,9 @@ Canonical DDL lives in `database/schema.sql` and is applied with
 | `users` | Clerk-synced account profiles (provisioned just-in-time by the middleware) |
 | `comments` | Native + imported game reviews |
 | `game_submissions` | User-submitted game suggestions pending merge |
-| `user_favorites` | Per-user favorited games (Collections feature) |
+| `user_favorites` | Per-user favorited games — the "main" saves bucket (Collections feature) |
+| `collections` | User-created named lists + one level of folders; visibility (private/unlisted/public) + moderation state for the public library |
+| `collection_items` | Membership join — a game can belong to many collections (many-to-many) |
 | `audit_log` | Moderation/admin action audit trail |
 
 **`users`** — user account profiles synchronized from Clerk.
@@ -226,6 +228,23 @@ Canonical DDL lives in `database/schema.sql` and is applied with
 - `game_id` (`INTEGER NOT NULL`): favorited sequential game ID.
 - `created_at` (`INTEGER NOT NULL`): epoch ms when favorited.
 - `UNIQUE (user_id, game_id)`: makes `INSERT OR IGNORE` idempotent; indexed on `user_id`.
+
+**`collections`** — user-created named collections (Collections v2). `user_favorites` stays the untouched "main" bucket; these sit on top. A node is a **folder** (holds sub-collections, no games) or a **list** (holds games, no children), determined dynamically; nesting depth is capped at 1.
+- `id` (`INTEGER PRIMARY KEY AUTOINCREMENT`): collection ID.
+- `user_id` (`TEXT NOT NULL`): Clerk user ID of the owner (every read/write is owner-scoped in the handler).
+- `parent_id` (`INTEGER`): `NULL` for a top-level collection; otherwise the folder it lives under (one level only).
+- `name` / `description` (`TEXT`): both optional; for an `unlisted` share the name must be blank or a preset and the description must be `NULL`.
+- `visibility` (`TEXT NOT NULL DEFAULT 'private'`): `'private'` | `'unlisted'` (link-shareable, no review) | `'public'` (moderated + listed).
+- `share_token` (`TEXT UNIQUE`): unguessable random token; set when unlisted/public. The share/read path keys off this, never the sequential id.
+- `share_show_owner` (`INTEGER NOT NULL DEFAULT 0`): `1` shows `by <nickname>` on the share page; default anonymous.
+- `moderation_status` (`TEXT`): only meaningful when `public` — `'pending'` | `'approved'` | `'rejected'`.
+- `reviewed_by` / `reviewed_at` / `reject_reason`: moderation audit fields (mirrors `game_submissions`).
+- `sort_order` / `created_at` / `updated_at`: ordering + timestamps (epoch ms).
+- Indexed on `user_id`, `parent_id`, and `(visibility, moderation_status)` for the public-library query.
+
+**`collection_items`** — membership join for list-type collections (a game may be in many lists).
+- `collection_id` / `game_id` (`INTEGER NOT NULL`): `PRIMARY KEY (collection_id, game_id)` makes `INSERT OR IGNORE` idempotent.
+- `sort_order` (`INTEGER`) / `created_at` (`INTEGER NOT NULL`); indexed on `game_id`.
 
 **`audit_log`** — audits administration-panel actions.
 - `id` (`INTEGER PRIMARY KEY AUTOINCREMENT`): log ID.
@@ -320,6 +339,14 @@ All handlers run on the Workers runtime as Pages Functions. Responses use the `j
 | `/api/favorites` | GET | required | Returns the caller's favorited `game_id`s (newest first) from `user_favorites`. |
 | `/api/favorites` | POST | required | `INSERT OR IGNORE` a favorite (idempotent via the unique constraint). Body `{ gameId }`. |
 | `/api/favorites/:id` | DELETE | required | Removes a favorite by `game_id` for the caller. |
+| `/api/collections` | GET/POST | required | List the caller's collections (flat tree w/ `item_count`/`child_count`) · create (enforces ≤20 top-level, ≤5 subs, 1-level nesting, folder/leaf, name≤60/desc≤300). |
+| `/api/collections/:id` | GET/PATCH/DELETE | required | Owner-scoped detail (incl. `game_ids`) · rename/describe/reorder (public collections lock name/desc; editing an unlisted list into custom text revokes its link) · delete + cascade of children & items. |
+| `/api/collections/:id/items` | POST | required | Add a game to a list (`INSERT OR IGNORE`; folder & ≤1000-item guards; re-adding is idempotent). |
+| `/api/collections/:id/items/:gameId` | DELETE | required | Remove a game from a list. |
+| `/api/collections/:id/visibility` | POST | required | Set `private` \| `unlisted` (blank/preset name + no description → instant `share_token`) \| `public` (Turnstile + KV publish quota → `moderation_status='pending'`). |
+| `/api/collections/membership` | GET | required | `?gameId=` → the caller's lists containing the game (+ `main` favorite flag) for the per-game manager. |
+| `/api/collections/public` | GET | none | Paginated public library — `visibility='public' AND moderation_status='approved'`, non-empty, owner not banned. Edge-cacheable. |
+| `/api/collections/shared/:token` | GET | none | Read a shared collection by opaque token — unlisted always, public only when approved; never private/pending/banned-owner. |
 | `/api/search` | GET | none | Public bot/keyword search; see §4.2. |
 | `/api/random` | GET | none | Public — returns random game(s); `?count=` (1–50, default 1), optional `?tag=`; not cached. See §4.2. |
 | `/api/clerk-js` | GET | none | Inert legacy proxy for clerk-js (no longer the primary load path; see §3.2). |
@@ -392,6 +419,7 @@ window.setCreatorSearch = (creatorName) => {
 - `CommentEditor` exposes optional rating/difficulty via independent toggles (`hasRating`/`hasDiff`) — disabled toggles submit `null`. Custom tags validated to ≤10 × ≤20 chars. Bodies render via `CommentBody` (bold/italic/links/newlines) with `||spoiler||` → blurred `Spoiler` component.
 - **Turnstile** widgets mount on-demand when a write form opens, yielding the token submitted to the API.
 - **Favorites client** (`FavoritesAPI` in `collections.jsx`) wraps `GET/POST /api/favorites` and `DELETE /api/favorites/:id`, attaching the Clerk bearer token. It mirrors state to `localStorage` and broadcasts a `favorites:changed` event so every favorite button and the Collections grid stay in sync. When no auth token is present it degrades to a local-only mock.
+- **Collections v2 client** (also `collections.jsx`) adds `CollectionsAPI` + `useCollections`/`useMembership` hooks (broadcasting `collections:changed`), a portaled per-game **"add to collections" popover** (`CollectionMenuButton`, mounted beside the drawer bookmark), a **create/edit + share/publish modal** (`CollectionEditModal` — optional name/description with live char counts, the "custom text ⇒ Open to public" notice, preset dropdown, `window.Turnstile` for publishing, inline copy-link), a **manager** (`CollectionsManager`, folders/lists tree on the My Collections page), a **`PublicLibraryView`**, and a guest-friendly **`SharedCollectionView`** that resolves member games via `/api/search?id=` when the full catalog isn't loaded. Sharing uses a `?collection=<token>` deep link driven by the History API (mirrors `?game=`, §5.7); the sidebar gains a public **Public Collections** entry.
 
 ### 5.5 Global invocation hooks
 Cross-component actions are dispatched through window-level hooks rather than prop drilling:
@@ -427,6 +455,7 @@ On first paint the `view`/`activeGame` initializers read `?game` **before** the 
 - **Turnstile** — every write requires a verified token (§4.1); server siteverify is authoritative.
 - **Daily KV quotas** — 20 comments/day, 5 submissions/day per user, 36 h TTL keys.
 - **Moderation states** — comments/submissions enter as `pending`; only `approved` content is public (the author additionally sees their own pending items). `users.status` (`muted`/`banned`) blocks writes. Admin/mod actions are recorded in `audit_log`.
+- **Public collections review** — making a collection `public` requires Turnstile + a daily publish quota and enters `moderation_status='pending'`; only `approved` collections appear in the public library / resolve as public share links (banned owners are excluded). Free text is the only moderated surface: a blank/preset name with no description can be shared by an `unlisted` link with **no** review, while any custom name/description forces the public (reviewed) path and locks name/description once public. The admin repo's queue (`functions/api/queue.js` + `admin.jsx`) approves/rejects them via the shared D1 (`target_type='collection'` in `audit_log`).
 - **Role gating** — `role='admin'` (from D1 via `/api/me`) unlocks the admin dashboard link; the SPA never trusts client-claimed roles for server actions.
 
 ---
