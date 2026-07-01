@@ -2388,7 +2388,7 @@ div[data-field="lastName"] {
   transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
 .col-modeseg-btn:hover { border-color: var(--border-strong); }
-.col-modeseg-btn.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.col-modeseg-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .col-modehelp {
   font-size: 11.5px; color: var(--muted); line-height: 1.5;
   margin-bottom: 14px; padding-left: 2px;
