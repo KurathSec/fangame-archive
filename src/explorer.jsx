@@ -206,7 +206,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
   const [diff,   setDiff]     = React.useState([0, 100]);
   const [tags,   setTags]     = React.useState(new Map());
   const [showAllTags, setShowAllTags] = React.useState(false);
-  const [engines, setEngines] = React.useState(new Set());
+  const [engines, setEngines] = React.useState(new Map());
 
   const [flags,  setFlags]    = React.useState({ local: false, shots: false, missing: false });
   const [sort,   setSort]     = React.useState('id');
@@ -273,11 +273,17 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
   }, []);
 
   const toggleEngine = (name) => {
-    setEngines((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
-      return next;
-    });
+    const next = new Map(engines);
+    if (!next.has(name)) {
+      next.set(name, 'or');
+    } else if (next.get(name) === 'or') {
+      next.set(name, 'and');
+    } else if (next.get(name) === 'and') {
+      next.set(name, 'not');
+    } else {
+      next.delete(name);
+    }
+    setEngines(next);
   };
 
   const sortedFilteredTags = React.useMemo(() => {
@@ -334,7 +340,18 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
       }
       
       if (engines.size) {
-        if (!engines.has(g.engine || ENGINE_UNKNOWN)) return false;
+        const orEng = [];
+        const andEng = [];
+        const notEng = [];
+        engines.forEach((mode, name) => {
+          if (mode === 'or') orEng.push(name);
+          else if (mode === 'and') andEng.push(name);
+          else if (mode === 'not') notEng.push(name);
+        });
+        const ge = g.engine || ENGINE_UNKNOWN;
+        if (orEng.length && !orEng.includes(ge)) return false;
+        if (andEng.length && !andEng.every((e) => e === ge)) return false;
+        if (notEng.length && notEng.includes(ge)) return false;
       }
 
       if (flags.local     && !g.flags.local) return false;
@@ -533,27 +550,6 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
           </div>
           <div className="fp-section">
             <h4>
-              <span>{window.t('engines_count', { count: engines.size })}</span>
-              <span className="reset" onClick={() => setEngines(new Set())}>{window.t('reset')}</span>
-            </h4>
-            <div className="tag-cloud engine-cloud">
-              {engineList.map((e) => {
-                const on = engines.has(e.name);
-                const label = e.name === ENGINE_UNKNOWN ? window.t('engine_unknown') : e.name;
-                return (
-                  <span
-                    key={e.name}
-                    className={'tag engine-tag' + (on ? ' tag-or on' : '')}
-                    onClick={() => toggleEngine(e.name)}
-                  >
-                    {label}<span className="ct">{e.count.toLocaleString()}</span>
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-          <div className="fp-section">
-            <h4>
               <span>{window.t('tags_count', { count: tags.size })}</span>
               {showAllTags && (
                 <span className="shrink-btn" onClick={() => setShowAllTags(false)} style={{ cursor: 'pointer', color: 'var(--accent)', textTransform: 'none', fontWeight: 400, fontSize: '11px' }}>
@@ -618,6 +614,37 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
               )}
             </div>
 
+          </div>
+          <div className="fp-section">
+            <h4>
+              <span>{window.t('engines_count', { count: engines.size })}</span>
+              <span className="reset" onClick={() => setEngines(new Map())}>{window.t('reset')}</span>
+            </h4>
+            <div style={{ fontSize: '10.5px', color: 'var(--muted)', marginTop: '4px', marginBottom: '8px', paddingLeft: '2px' }}>
+              {window.t('tag_instruction')}
+            </div>
+            <div className="tag-cloud engine-cloud">
+              {engineList.map((e) => {
+                const mode = engines.get(e.name);
+                let cls = 'tag engine-tag';
+                let prefix = '';
+                if (mode === 'or') {
+                  cls += ' tag-or on';
+                } else if (mode === 'and') {
+                  cls += ' tag-and on';
+                  prefix = '+ ';
+                } else if (mode === 'not') {
+                  cls += ' tag-not on';
+                  prefix = '- ';
+                }
+                const label = e.name === ENGINE_UNKNOWN ? window.t('engine_unknown') : e.name;
+                return (
+                  <span key={e.name} className={cls} onClick={() => toggleEngine(e.name)}>
+                    {prefix}{label}<span className="ct">{e.count.toLocaleString()}</span>
+                  </span>
+                );
+              })}
+            </div>
           </div>
           <div className="fp-section">
             <h4>{window.t('archive_flags')}</h4>
