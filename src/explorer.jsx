@@ -1,5 +1,8 @@
 // Explorer view — search + filters + cards grid / list.
 
+// Sentinel bucket for games with no detected engine (engine === null).
+const ENGINE_UNKNOWN = '__unknown__';
+
 function DualRange({ min, max, step, value, onChange, format }) {
   // Two-handle slider rendered manually so we can show the colored fill range.
   const trackRef = React.useRef(null);
@@ -125,6 +128,7 @@ function Card({ game, active, onClick }) {
             window.setCreatorSearch(game.creator);
           }
         }}>{game.creator}</a></div>
+        {game.engine && <div className="card-engine">{window.ic.chip}<span>{game.engine}</span></div>}
         <div className="card-metrics">
           <span className="metric rating">{window.ic.star}<span className="tnum">{game.rating !== null ? game.rating.toFixed(1) : 'N/A'}</span></span>
           <span className="metric diff">{window.ic.flame}<span className="tnum">{game.difficulty !== null ? game.difficulty : 'N/A'}</span></span>
@@ -155,6 +159,7 @@ function ListRow({ game, active, onClick }) {
             window.setCreatorSearch(game.creator);
           }
         }} className="list-creator-link">{game.creator}</a>
+        {game.engine && <span className="list-engine">{game.engine}</span>}
       </span>
       <span className="list-num list-rating">{game.rating !== null ? game.rating.toFixed(1) : 'N/A'}</span>
       <span className="list-num list-diff">{game.difficulty !== null ? game.difficulty : 'N/A'}</span>
@@ -203,6 +208,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
   const [diff,   setDiff]     = React.useState([0, 100]);
   const [tags,   setTags]     = React.useState(new Map());
   const [showAllTags, setShowAllTags] = React.useState(false);
+  const [engines, setEngines] = React.useState(new Set());
 
   const [flags,  setFlags]    = React.useState({ local: false, shots: false, missing: false });
   const [sort,   setSort]     = React.useState('id');
@@ -250,6 +256,31 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
   };
 
   const toggleFlag = (k) => setFlags((f) => ({ ...f, [k]: !f[k] }));
+
+  // Engine buckets (single value per game). null engine => Unknown sentinel.
+  const engineList = React.useMemo(() => {
+    const counts = new Map();
+    window.DATA.GAMES.forEach((g) => {
+      const key = g.engine || ENGINE_UNKNOWN;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => {
+        // Keep the Unknown bucket last; otherwise most-common first.
+        if (a[0] === ENGINE_UNKNOWN) return 1;
+        if (b[0] === ENGINE_UNKNOWN) return -1;
+        return b[1] - a[1];
+      })
+      .map(([name, count]) => ({ name, count }));
+  }, []);
+
+  const toggleEngine = (name) => {
+    setEngines((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  };
 
   const sortedFilteredTags = React.useMemo(() => {
     const q = tagSearch.trim().toLowerCase();
@@ -304,6 +335,10 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
         if (notTags.length && g.tags.some((t) => notTags.includes(t))) return false;
       }
       
+      if (engines.size) {
+        if (!engines.has(g.engine || ENGINE_UNKNOWN)) return false;
+      }
+
       if (flags.local     && !g.flags.local) return false;
       if (flags.shots     && !g.flags.shots) return false;
       if (flags.missing   && !g.flags.missing) return false;
@@ -343,11 +378,11 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
       }
       return desc ? -comparison : comparison;
     });
-  }, [searchTitle, searchCreator, rating, diff, tags, flags, sort, desc]);
+  }, [searchTitle, searchCreator, rating, diff, tags, engines, flags, sort, desc]);
 
   React.useEffect(() => {
     setPage(1);
-  }, [searchTitle, searchCreator, rating, diff, tags, flags, sort, desc]);
+  }, [searchTitle, searchCreator, rating, diff, tags, engines, flags, sort, desc]);
 
 
   React.useEffect(() => {
@@ -497,6 +532,27 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
           <div className="fp-section">
             <h4>{window.t('difficulty')} <span className="reset" onClick={() => setDiff([0, 100])}>{window.t('reset')}</span></h4>
             <DualRange min={0} max={100} step={1} value={diff} onChange={setDiff} format={(v) => String(v)} />
+          </div>
+          <div className="fp-section">
+            <h4>
+              <span>{window.t('engines_count', { count: engines.size })}</span>
+              <span className="reset" onClick={() => setEngines(new Set())}>{window.t('reset')}</span>
+            </h4>
+            <div className="tag-cloud engine-cloud">
+              {engineList.map((e) => {
+                const on = engines.has(e.name);
+                const label = e.name === ENGINE_UNKNOWN ? window.t('engine_unknown') : e.name;
+                return (
+                  <span
+                    key={e.name}
+                    className={'tag engine-tag' + (on ? ' tag-or on' : '')}
+                    onClick={() => toggleEngine(e.name)}
+                  >
+                    {label}<span className="ct">{e.count.toLocaleString()}</span>
+                  </span>
+                );
+              })}
+            </div>
           </div>
           <div className="fp-section">
             <h4>

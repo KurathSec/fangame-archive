@@ -113,6 +113,7 @@ const ic = {
   bookmark: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"><path d="M4 2.8h8v10.4l-4-2.9-4 2.9z"/></svg>,
   bookmarkFill: <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.8h8v10.4l-4-2.9-4 2.9z"/></svg>,
   starOutline: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="m8 2.3 1.8 3.7 4.1.6-3 2.9.7 4.1-3.6-1.9-3.6 1.9.7-4.1-3-2.9 4.1-.6z"/></svg>,
+  chip:    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="4.5" y="4.5" width="7" height="7" rx="1"/><path d="M6.5 1.5v2M9.5 1.5v2M6.5 12.5v2M9.5 12.5v2M1.5 6.5h2M1.5 9.5h2M12.5 6.5h2M12.5 9.5h2"/></svg>,
 };
 
 
@@ -520,6 +521,14 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
               }}>{game.creator}</a>
               {' · '}<span className="mono">{game.df_id}</span>
             </div>
+
+            {game.engine && (
+              <div className="drawer-meta drawer-engine">
+                {ic.chip}
+                <span className="drawer-engine-label">{window.t('engine')}</span>
+                <span className="drawer-engine-val">{game.engine}</span>
+              </div>
+            )}
 
             <div className="drawer-meta" style={{ marginTop: 2, fontSize: 11, opacity: 0.9 }}>
               <span className="mono" style={{ display: 'block', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{game.url}</span>
@@ -1287,7 +1296,7 @@ function ContactView() {
 
                 <span className="prop-key">{window.t('special_thanks')}</span>
 
-                <span className="prop-val">Chance, Dappermink, null, Algosith</span>
+                <span className="prop-val">Chance, Dappermink, null, Algosith, Acaleph, tete</span>
 
               </div>
 

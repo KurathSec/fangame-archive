@@ -669,6 +669,26 @@ a { color: inherit; text-decoration: none; }
 .drawer-meta a { color: var(--text-soft); }
 .drawer-meta a:hover { color: var(--accent-text); text-decoration: underline; }
 .drawer-meta b { color: var(--text); font-weight: 500; }
+
+/* Engine badge — shown below the game author in card / list / drawer */
+.card-engine {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 3px;
+  font-size: 10.5px; color: var(--text-soft);
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-engine svg { width: 11px; height: 11px; flex-shrink: 0; opacity: 0.7; }
+.list-engine {
+  display: block;
+  font-size: 10px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.drawer-engine { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.drawer-engine svg { width: 13px; height: 13px; flex-shrink: 0; opacity: 0.75; }
+.drawer-engine-label { color: var(--muted); }
+.drawer-engine-label::after { content: ':'; }
+.drawer-engine-val { color: var(--text-soft); font-weight: 500; }
+.engine-cloud .engine-tag { text-transform: none; }
 .drawer-close {
   margin-left: auto;
   width: 24px; height: 24px;

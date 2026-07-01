@@ -802,6 +802,7 @@ function RootApp() {
             title: rawGame.title || 'Untitled Game',
             creator: rawGame.creator ? (typeof rawGame.creator === 'object' ? (rawGame.creator.name || 'Unknown') : rawGame.creator) : 'Unknown',
             creator_url: rawGame.creator ? (typeof rawGame.creator === 'object' ? (rawGame.creator.url || '#') : '#') : '#',
+            engine: rawGame.engine || null,
             rating: finalRating,
             difficulty: finalDifficulty,
             reviews: reviewsCount,

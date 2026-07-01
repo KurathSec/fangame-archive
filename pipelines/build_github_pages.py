@@ -113,6 +113,7 @@ def main():
             "creator": creator_name,
             "url": game.get("download_url", ""),
             "tags": game.get("tags", []),
+            "engine": game.get("engine"),
             "rating": rating,
             "difficulty": difficulty,
             "rating_count": rating_count,

@@ -1,5 +1,15 @@
 [
   {
+    "ver": "2026.009",
+    "date": "2026-07-01",
+    "note": "Game engines: every game shows its engine, and you can filter by it",
+    "changes": [
+      ["Added", "Every game now displays its game engine — GameMaker 8, GameMaker: Studio, GameMaker: Studio 2, Multimedia Fusion 2, Godot, Unity, Construct, GDevelop, and more — shown below the author on cards, list rows, and the detail drawer."],
+      ["Added", "New Engines filter in the catalog sidebar: narrow the library by one or more engines (with an Unknown bucket), each showing its game count."],
+      ["Added", "Detected and backfilled the engine for 16,500+ games from binary recognition data; the public /api/search response now includes each game's engine."]
+    ]
+  },
+  {
     "ver": "2026.008",
     "date": "2026-06-23",
     "note": "Faster loading, leaner build, and an extended public API",
