@@ -569,7 +569,15 @@ function CollectionMenuButton({ gameId, auth }) {
 // ── Create / edit + share modal ──────────────────────────────────────────────
 function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
   const editing = !!collection;
+  const deriveMode = (c) => {
+    if (!c) return 'none';
+    const n = c.name || '', d = c.description || '';
+    if (d) return 'custom';
+    if (!n) return 'none';
+    return COL_PRESETS.includes(n) ? 'preset' : 'custom';
+  };
   const [col, setCol] = React.useState(collection || null);
+  const [mode, setMode] = React.useState(() => deriveMode(collection));
   const [name, setName] = React.useState(collection ? (collection.name || '') : '');
   const [desc, setDesc] = React.useState(collection ? (collection.description || '') : '');
   const [busy, setBusy] = React.useState(false);
@@ -580,6 +588,16 @@ function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
   const locked = vis === 'public'; // name/desc locked while public
   const custom = !isShareableUnlisted(name.trim() || null, desc.trim() || null);
   const shareUrl = col && col.share_token ? (location.origin + '/?collection=' + col.share_token) : '';
+
+  // None = no name/description; Preset = pick a preset name (no description);
+  // Custom = free-text name + description. None/Preset stay link-shareable;
+  // Custom must go through "Open to public" (reviewed).
+  const changeMode = (m) => {
+    setMode(m);
+    if (m === 'none') { setName(''); setDesc(''); }
+    else if (m === 'preset') { setDesc(''); if (!COL_PRESETS.includes(name)) setName(''); }
+    // 'custom': keep whatever is typed
+  };
 
   React.useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -653,29 +671,57 @@ function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
           <button className="col-modal-x" onClick={onClose}>{window.ic.x}</button>
         </div>
 
-        <label className="col-field">
-          <span className="col-field-label">{t('collection_name', 'Name')} <em>{t('optional', 'optional')}</em></span>
-          {locked ? <div className="col-locked">{name || t('collection_untitled', 'Untitled list')}</div> : (
-            <React.Fragment>
-              <input value={name} maxLength={COL_LIMITS.NAME} onChange={(e) => setName(e.target.value)} placeholder={t('collection_name_ph', 'Collection name')} list="col-presets" />
-              <datalist id="col-presets">{COL_PRESETS.map((p) => <option key={p} value={p} />)}</datalist>
-              <span className="col-count mono">{name.length}/{COL_LIMITS.NAME}</span>
-            </React.Fragment>
-          )}
-        </label>
+        {locked ? (
+          <React.Fragment>
+            <label className="col-field">
+              <span className="col-field-label">{t('collection_name', 'Name')}</span>
+              <div className="col-locked">{name || t('collection_untitled', 'Untitled list')}</div>
+            </label>
+            <label className="col-field">
+              <span className="col-field-label">{t('collection_desc', 'Description')}</span>
+              <div className="col-locked">{desc || '—'}</div>
+            </label>
+          </React.Fragment>
+        ) : (
+          <React.Fragment>
+            <span className="col-field-label">{t('collection_naming', 'Naming')}</span>
+            <div className="col-modeseg" role="tablist">
+              {[['none', t('mode_none', 'None')], ['preset', t('mode_preset', 'Preset')], ['custom', t('mode_custom', 'Custom')]].map(([m, label]) => (
+                <button key={m} type="button" className={'col-modeseg-btn' + (mode === m ? ' on' : '')} onClick={() => changeMode(m)}>{label}</button>
+              ))}
+            </div>
 
-        <label className="col-field">
-          <span className="col-field-label">{t('collection_desc', 'Description')} <em>{t('optional', 'optional')}</em></span>
-          {locked ? <div className="col-locked">{desc || '—'}</div> : (
-            <React.Fragment>
-              <textarea value={desc} maxLength={COL_LIMITS.DESC} rows={3} onChange={(e) => setDesc(e.target.value)} placeholder={t('collection_desc_ph', 'Describe this collection…')} />
-              <span className="col-count mono">{desc.length}/{COL_LIMITS.DESC}</span>
-            </React.Fragment>
-          )}
-        </label>
+            <div className="col-modehelp">
+              {mode === 'none' && t('mode_none_help', 'No name or description — shareable instantly by link, no review.')}
+              {mode === 'preset' && t('mode_preset_help', 'Pick a ready-made name; no description — shareable instantly by link, no review.')}
+              {mode === 'custom' && t('mode_custom_help', 'Write your own name and description. Sharing it requires “Open to public”, which is reviewed first.')}
+            </div>
 
-        {!locked && custom && (
-          <div className="col-notice">{window.ic.bulb} {t('collection_custom_notice', 'Custom names and descriptions can only be shared through “Open to public”, which is reviewed first. A blank or preset name with no description can be shared by link instantly.')}</div>
+            {mode === 'preset' && (
+              <label className="col-field">
+                <span className="col-field-label">{t('collection_name', 'Name')}</span>
+                <select value={COL_PRESETS.includes(name) ? name : ''} onChange={(e) => setName(e.target.value)}>
+                  <option value="">{t('choose_preset', 'Choose a preset…')}</option>
+                  {COL_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </label>
+            )}
+
+            {mode === 'custom' && (
+              <React.Fragment>
+                <label className="col-field">
+                  <span className="col-field-label">{t('collection_name', 'Name')} <em>{t('optional', 'optional')}</em></span>
+                  <input value={name} maxLength={COL_LIMITS.NAME} onChange={(e) => setName(e.target.value)} placeholder={t('collection_name_ph', 'Collection name')} />
+                  <span className="col-count mono">{name.length}/{COL_LIMITS.NAME}</span>
+                </label>
+                <label className="col-field">
+                  <span className="col-field-label">{t('collection_desc', 'Description')} <em>{t('optional', 'optional')}</em></span>
+                  <textarea value={desc} maxLength={COL_LIMITS.DESC} rows={3} onChange={(e) => setDesc(e.target.value)} placeholder={t('collection_desc_ph', 'Describe this collection…')} />
+                  <span className="col-count mono">{desc.length}/{COL_LIMITS.DESC}</span>
+                </label>
+              </React.Fragment>
+            )}
+          </React.Fragment>
         )}
 
         {!locked && (
