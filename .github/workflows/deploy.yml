@@ -62,6 +62,16 @@ jobs:
         # wrangler (used by the deploy step) come from the pinned devDependencies.
         run: npm ci
 
+      - name: Install Engine Recognition Tools
+        # Used by pipelines/engine_recognition.py (invoked inside the scraper step):
+        # 7zz extracts game archives (7zip-rar adds the RAR codec; if it is ever
+        # unavailable, RAR games simply record a failed attempt) and upx unpacks
+        # UPX-compressed game executables before signature detection.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y 7zip upx-ucl
+          sudo apt-get install -y 7zip-rar || echo "::warning::7zip-rar unavailable; RAR archives will not be recognized"
+
       - name: Download Databases from R2
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

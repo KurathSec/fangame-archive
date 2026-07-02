@@ -112,11 +112,12 @@ Bulk catalog data lives as JSON in R2 (mirrored locally under `data/`/`database/
     "screenshots": [{ "id": 28023, "image_path": "ratings/screenshots/24176_00006d77.png", "by": "Anonymous" }],
     "reviews": [ /* … */ ],
     "rating_count": 3,
-    "file_size": 5952231        // bytes
+    "file_size": 5952231,       // bytes
+    "engine": "GameMaker: Studio 2"   // optional; absent = unknown
   }
 }
 ```
-*Schema properties:* `avg_rating` — float average rating or `null` if unrated; `avg_difficulty` — float average difficulty (0–100) or `null`; `rating_count` — number of comments/reviews; `file_size` — size of the zip archive in bytes.
+*Schema properties:* `avg_rating` — float average rating or `null` if unrated; `avg_difficulty` — float average difficulty (0–100) or `null`; `rating_count` — number of comments/reviews; `file_size` — size of the zip archive in bytes; `engine` — clean English engine name (e.g. `GameMaker 8`, `GameMaker: Studio`, `GameMaker: Studio 2`, `Multimedia Fusion 2`, `Unity`), set by the one-time v2026.009 backfill and kept current by the CI engine-recognition pipeline (§8.8); missing/`null` renders as *Unknown*.
 
 **`data/recent_changes.json`** — monotonic `version` + `timeline` of deltas, enabling incremental client sync. Each timeline entry carries a `timestamp`, an `updated` map (id → new game object), and a `deleted` array:
 ```json
@@ -499,10 +500,11 @@ Run: `python pipelines/scrape_and_migrate_new_games.py` (via `sync_and_deploy.ba
    * **D1 sync of the new reviews** — the freshly-merged (`newly_added`) reviews are immediately pushed into D1 via `sync_reviews_to_d1(...)` (§8.7) so they appear in the drawer. **Only the newly-merged reviews are pushed here**; the pre-existing backlog in `reviews_scraped.json` is *not* re-sent every run — that is what the one-shot backfill workflow is for (§8.7, §9.4). A run that merges nothing logs `Merged 0 new reviews from feed`, which is normal.
 3. **Recompute metrics — Step 4A** (`for seq_id, g in games.items()`): for each non-WIKI game, gather its reviews by Delicious Fruit id and compute `avg_rating`, `avg_difficulty`, `rating_count`. All rating/difficulty parsing goes through **`review_nums()`**, which skips `None`/`'na'`/`''` and any non-numeric value via `try/except` (live-scraped junk can't crash the run).
 4. **Tag aggregation** — review tags ∪ matched I Wanna Wiki page tags, preserving an existing `archive` tag.
-5. **Live-catalog reconcile — Step 4B** (`if scraped_games:`): compare the live `full.php?q=ALL` list against local. New releases get a fresh sequential id, details from `game_details.php`, and the zip mirrored to R2. Each new game's reviews are scraped and queued; they are pushed into D1 after Step 6 (below) writes `seq_to_orig_map.json` to disk — the bridge resolves ids from that file and the new mapping does not exist on disk until then. **Deleted (de-duplicated) games are skipped here** — see the tombstone invariant in §8.6 — guarded by `str(seq_id) in games`.
+5. **Live-catalog reconcile — Step 4B** (`if scraped_games:`): compare the live `full.php?q=ALL` list against local. New releases get a fresh sequential id, details from `game_details.php`, and the zip mirrored to R2. **While the downloaded file is still on disk, its engine is recognized inline** (§8.8) and stored as the new game's `engine`. Each new game's reviews are scraped and queued; they are pushed into D1 after Step 6 (below) writes `seq_to_orig_map.json` to disk — the bridge resolves ids from that file and the new mapping does not exist on disk until then. **Deleted (de-duplicated) games are skipped here** — see the tombstone invariant in §8.6 — guarded by `str(seq_id) in games`.
 6. **Normalize unrated** — immediately before the delta, any game with `rating_count == 0` has `avg_rating`/`avg_difficulty` forced to `null` (§8.6). Because this edits `games.json` (not just the build output), the correction is carried in the version delta and reaches cached/incremental clients, not only fresh full-loads.
-7. **Version delta** — if anything changed, bump `recent_changes.json` `version` and append a timeline entry (`updated`/`deleted`); prune timeline history to keep the file < 10 MB.
-8. **Compile & sync** — persist `games.json`/`seq_to_orig_map.json`, push brand-new games' reviews into D1 (§8.7), then invoke `update_storage_stats.py` and `build_github_pages.py`.
+7. **Engine backlog sweep** — a bounded batch of R2-hosted games still missing `engine` (approved submissions merged earlier in the CI run, earlier inline failures, admin-replaced links) is downloaded and recognized (§8.8). Runs *before* the delta so engine values propagate incrementally, like the unrated normalization.
+8. **Version delta** — if anything changed, bump `recent_changes.json` `version` and append a timeline entry (`updated`/`deleted`); prune timeline history to keep the file < 10 MB.
+9. **Compile & sync** — persist `games.json`/`seq_to_orig_map.json`, push brand-new games' reviews into D1 (§8.7), then invoke `update_storage_stats.py` and `build_github_pages.py`.
 
 ### 8.2 `build_github_pages.py` — static compiler
 Run: `python pipelines/build_github_pages.py`. **Requires esbuild** (pinned in `package.json`; install via `npm install` / `npm ci`).
@@ -515,7 +517,7 @@ Run: `python pipelines/build_github_pages.py`. **Requires esbuild** (pinned in `
 > Dev is unaffected: `public/index.html` and `src/*.jsx` keep the Babel + dev-React path for `dev_server.py`.
 
 ### 8.3 Supporting scripts
-- `sync_db_r2.py {download|upload}` — sync `games.json`, `recent_changes.json`, `profiles.json`, `seq_to_orig_map.json`, `reviews_scraped.json` ↔ R2.
+- `sync_db_r2.py {download|upload}` — sync `games.json`, `recent_changes.json`, `profiles.json`, `seq_to_orig_map.json`, `reviews_scraped.json`, `engine_recognition_state.json` ↔ R2.
 - `sync_screenshots_to_r2.py` — upload missing screenshots from `ratings/screenshots/`.
 - `update_storage_stats.py` — sum `file_size` of R2-hosted games; update sidebar/donation storage figure.
 - `merge_approved_submissions.py` — fetch `approved` (un-merged) submissions from D1, copy package → `fangame-files` (`Game/{id}{ext}`) and screenshots → `fangame-screenshots` (`ratings/screenshots/{id}_shot_{n}{ext}`), build the catalog entry, bump version, and mark the submission `merged` with its `assigned_game_id`.
@@ -545,7 +547,7 @@ The pipeline and APIs depend on a few invariants that the cleanup tools delibera
 * **`comments` dedup index** — an optional `UNIQUE (game_id, user, content)` index makes imports idempotent; the comments `POST` uses `INSERT OR IGNORE` so it coexists with the index without 500s.
 * **`clear_link` ⇒ `download_url=null`** — every pipeline accessor of `download_url` must be null-safe (`(g.get("download_url") or "")`); the storage-stat summers already skip falsy URLs, so cleared games drop out of the storage total automatically.
 * **`rating_count == 0` ⇒ unrated (null)** — a game with no reviews must carry `avg_rating = avg_difficulty = null` (renders as *N/A*), never `0.0`. Enforced in **two** places: the scrape's final normalization (Step 6, so the correction propagates via the version delta) and `build_github_pages.py` (chunking backstop, so any stray `0.0` is also nulled in the served chunks). The build's nullify alone is *not* enough — it never bumps the version, so cached/incremental clients keep the stale value.
-* **Review → D1 mapping & ordering** — `sync_reviews_to_d1` resolves a review's origin `game_id` → `seq_id` from the **on-disk** `seq_to_orig_map.json`. New games' reviews must therefore be synced **after** the seq map is persisted (Step 6/8), or they are skipped as *unmapped*. The `comments` rows are written `source='imported'`, `status='approved'`, `user_id=NULL`; the GET join is a `LEFT JOIN users`, so null-`user_id` imports still return.
+* **Review → D1 mapping & ordering** — `sync_reviews_to_d1` resolves a review's origin `game_id` → `seq_id` from the **on-disk** `seq_to_orig_map.json`. New games' reviews must therefore be synced **after** the seq map is persisted (Step 6/9), or they are skipped as *unmapped*. The `comments` rows are written `source='imported'`, `status='approved'`, `user_id=NULL`; the GET join is a `LEFT JOIN users`, so null-`user_id` imports still return.
 
 ### 8.7 Reviews dual-store model & D1 sync (`sync_reviews_to_d1.py`)
 
@@ -567,6 +569,21 @@ Reviews are split across two stores on purpose (see §2.1):
 - **Incremental (every run):** the master sync pushes only that run's *newly-merged* feed reviews and brand-new games' reviews (§8.1). It does **not** re-send the existing backlog.
 - **Full backfill (manual):** `sync_reviews_to_d1.py apply` over the whole corpus — the only thing that loads historical reviews into a fresh/empty D1. Exposed as the `Backfill Reviews to D1` workflow (§9.4). Idempotent, so it is safe to re-run.
 
+### 8.8 Engine recognition (`engine_recognition.py`)
+Detects each game's engine from its distributed archive/exe and writes the clean English name into `games.json["<id>"]["engine"]` (§2.1). A Linux/CI port of the operator's local Windows recognition tool; the one-time v2026.009 backfill (`backfill_engine.py`, which now imports its `ENGINE_MAP` from this module) covered ids ≤ 21068 — this pipeline keeps everything after that current automatically.
+
+**How it detects:** extract the single source file with 7-Zip (handles nested archives ≤ 2 deep, zips with leading junk, installer/cabinet exes, the "sinchi" Rust loader that embeds the real exe in its PE overlay), unpack UPX if needed, then match runtime signatures: `DelphiApplication` → GameMaker 8, `window_device` → GMS (split GMS1/GMS2 by the `data.win` GEN8 major version — adjacent file or embedded `FORM`), plus MMF2 / Unity / GDevelop / RPG Maker MV / Scratch / Construct / Godot / Flash detectors and `.gmk`/`.gm81`/`.apk` fallbacks. Byte searches are pure-Python streaming (no ripgrep needed).
+
+**Two hooks in the master sync (§8.1):**
+* *Inline* (steps 5): a newly ingested game is recognized while its downloaded file is still in `temp/` — zero extra bandwidth.
+* *Backlog sweep* (step 7): R2-hosted games still missing `engine` are downloaded from R2 and recognized, newest id first, bounded per run by env vars `ENGINE_SWEEP_MAX_GAMES` (default 20), `ENGINE_SWEEP_MAX_SECONDS` (900) and `ENGINE_SWEEP_MAX_FILE_MB` (1024). Because both hooks run before the version delta (step 8), engine values reach cached clients incrementally — no manual version bump needed.
+
+**Attempt state** — `data/engine_recognition_state.json` (R2: `Database/engine_recognition_state.json`, synced by `sync_db_r2.py`) records one entry per attempted id (`success` / `failed` / `deferred`). Only `failed` is final (the game is never re-downloaded); `deferred` — transient download errors and machine-caused failures (`missing_7z`/`missing_upx`) — is retried on later runs, and a `success` entry whose game still lacks `engine` in the catalog is also re-attempted (self-heals a partial R2 upload; the state file deliberately uploads *before* `games.json` for the same reason). If the state file is missing, the scraper **auto-seeds** it from the catalog — but only after a `head_object` confirms the R2 copy truly doesn't exist (a transient download failure must not end in a fresh seed overwriting the real attempt history): games with `engine` → `success`, games without at id ≤ 21068 → `failed` (`local_scan_failed` — the local Windows scan already tried them with full tooling). To force a re-attempt of a hard failure, delete the game's entry from the state file.
+
+**Toolchain (CI)** — the deploy workflow installs `7zip` (`7zz`), `7zip-rar` (RAR codec; without it RAR games record a failed attempt) and `upx-ucl` before the scraper step. Locally the module resolves `7zz`/`7z`/`7za` and `upx` from `PATH`; Fedora's `7zip` package strips the RAR codec, so RAR games are only recognizable in CI.
+
+**CLI (manual):** `python pipelines/engine_recognition.py --file <game.zip>` (one-off recognition), `--seed-state` (rebuild the state from `games.json`), `--sweep --max N` (manual backlog sweep; needs R2 credentials; afterwards the edited `games.json` must go through the normal rebase/upload flow — §8.5 caution applies).
+
 ---
 
 ## 9. Build & Deployment
@@ -576,7 +593,7 @@ Reviews are split across two stores on purpose (see §2.1):
 - **`sync_and_deploy.bat`** — `sync_db_r2 download` → `scrape_and_migrate_new_games` → `ingest_local_folder_games` → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `wrangler pages deploy`.
 
 ### 9.2 Cloud (`.github/workflows/deploy.yml`)
-On push to `main` (matching paths) or every 6 h: set up Python 3.10 (pip cache) + Node 20 (npm cache) → `pip install -r requirements.txt` → **`npm ci`** (provides esbuild for the build + wrangler for deploy) → `sync_db_r2 download` → `merge_approved_submissions` → `apply_game_ops` → `scrape_and_migrate_new_games` (which invokes `build_github_pages.py`, hence the esbuild dependency) → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `npx wrangler pages deploy`. The **scraper step must receive `CLOUDFLARE_API_TOKEN`** (in addition to the R2 keys) so the in-pipeline D1 review sync (§8.7) can authenticate; without it the scrape still succeeds but new reviews never reach D1. A workflow-level **`concurrency` guard** (`group: fangame-archive-deploy`, `cancel-in-progress: false`) serializes the cron and push runs so they cannot race on the R2 master / collide the version counter (§8.5, §10).
+On push to `main` (matching paths) or every 6 h: set up Python 3.10 (pip cache) + Node 20 (npm cache) → `pip install -r requirements.txt` → **`npm ci`** (provides esbuild for the build + wrangler for deploy) → apt-install the engine-recognition tools (`7zip`, `7zip-rar`, `upx-ucl`; §8.8) → `sync_db_r2 download` → `merge_approved_submissions` → `apply_game_ops` → `scrape_and_migrate_new_games` (which runs the engine hooks §8.8 and invokes `build_github_pages.py`, hence the esbuild dependency) → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `npx wrangler pages deploy`. The **scraper step must receive `CLOUDFLARE_API_TOKEN`** (in addition to the R2 keys) so the in-pipeline D1 review sync (§8.7) can authenticate; without it the scrape still succeeds but new reviews never reach D1. A workflow-level **`concurrency` guard** (`group: fangame-archive-deploy`, `cancel-in-progress: false`) serializes the cron and push runs so they cannot race on the R2 master / collide the version counter (§8.5, §10).
 
 ### 9.3 D1 migrations
 Apply schema changes to the live DB explicitly (not part of the deploy):

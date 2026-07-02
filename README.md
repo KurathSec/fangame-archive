@@ -33,7 +33,7 @@ The catalog is split into **minified** chunks under Cloudflare Pages' 25 MB per-
 * **Three-state tag filter** — *grey* (ignore), *blue* (include — must match all), *red* (exclude — hide any match).
 * **Precise range filters** — rating/difficulty sliders paired with numeric inputs for exact (decimal) bounds.
 * **Filtered randomizer** — "Roll Random" draws only from the current filtered set.
-* **Detail drawer** — metadata, screenshots, and live reviews fetched on demand, with Markdown + click-to-reveal spoilers.
+* **Detail drawer** — metadata (author, game engine, size), screenshots, and live reviews fetched on demand, with Markdown + click-to-reveal spoilers. Engines are auto-detected from the game files by the CI pipeline (GameMaker 8 / Studio / Studio 2, MMF2, Unity, and more) and are also filterable.
 * **Accounts & reviews** — Clerk-backed login; submit reviews (optional rating/difficulty, custom tags) and suggest new games, all gated by Turnstile and daily quotas, then moderated.
 * **Collections** — cloud-synced favorites (the "main" bucket) plus named **collections**: build lists and one level of folders, save a game to several at once via a per-game menu, and rename/describe them. Share a collection by instant link (blank/preset name, no description) or submit it to the **moderated Public Collections library**; public collections lock their name/description. Shared pages open fast (`?collection=<token>`) even for signed-out visitors.
 * **Internationalization** — 8 languages (`en`, `zh-CN`, `zh-TW`, `ja`, `ko`, `ru`, `fr`, `de`) with live switching.
@@ -77,6 +77,8 @@ fangame-archive/
 │   ├── build_github_pages.py            # Chunk+minify DB, esbuild-precompile JSX, compile dist
 │   ├── merge_approved_submissions.py    # Merge approved user submissions into catalog/R2
 │   ├── ingest_local_folder_games.py     # Bulk-ingest local game zips to R2
+│   ├── engine_recognition.py            # Detect game engines in CI (inline + backlog sweep)
+│   ├── backfill_engine.py               # One-time engine backfill from the local scan CSV
 │   ├── sync_db_r2.py                    # download | upload master JSON ↔ R2
 │   ├── sync_screenshots_to_r2.py        # Upload missing screenshots to R2
 │   ├── update_storage_stats.py          # Recompute total storage figure

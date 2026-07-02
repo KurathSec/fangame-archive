@@ -12,6 +12,11 @@ except ImportError:
 
 BUCKET_NAME = "fangame-files"
 DB_FILES = {
+    # The engine state must upload BEFORE games.json: if its PUT fails while
+    # games.json succeeds, the stale state merely causes a redundant (idempotent)
+    # re-recognition later; the reverse order could persist "success" entries for
+    # engine labels that never reached the R2 games.json, losing them forever.
+    "data/engine_recognition_state.json": "Database/engine_recognition_state.json",
     "data/games.json": "Database/games.json",
     "data/recent_changes.json": "Database/recent_changes.json",
     "data/profiles.json": "Database/profiles.json",

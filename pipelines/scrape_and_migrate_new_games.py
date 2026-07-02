@@ -779,6 +779,46 @@ def main():
         
     log(f"Loaded {len(games)} existing local games.")
     log(f"Loaded {len(seq_map)} sequential-to-original game ID mappings.")
+
+    # Engine recognition (the v2026.009 `engine` field): new games are
+    # recognized inline while their downloaded file is still local, and a
+    # bounded backlog sweep runs later before the timeline delta. Attempts
+    # persist in data/engine_recognition_state.json (synced to R2 by
+    # sync_db_r2.py) so a settled game is never re-downloaded. Everything
+    # engine-related is defensive: a failure must never break the sync.
+    engine_recog = None
+    engine_state = {}
+    try:
+        import engine_recognition as engine_recog
+        engine_state = engine_recog.load_state()
+        if not engine_state:
+            # An empty/missing local state is either the genuine first run OR a
+            # transient failure of the R2 download step. Seed only when R2
+            # confirms the object truly does not exist; otherwise disable engine
+            # work for this run so the final upload can never replace the real
+            # attempt history with a fresh seed.
+            if CLOUDFLARE_ACCOUNT_ID and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
+                probe_client = boto3.client(
+                    's3',
+                    endpoint_url=f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com",
+                    aws_access_key_id=AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                    config=Config(signature_version='s3v4')
+                )
+                if engine_recog.r2_state_exists(probe_client) is not False:
+                    raise RuntimeError(
+                        "local engine state is empty but the R2 copy exists or is "
+                        "unverifiable (transient download failure?); skipping engine "
+                        "recognition this run to protect the attempt history")
+            engine_state, seeded_ok, seeded_failed = engine_recog.build_seed_state(games)
+            log(f"Engine recognition state was empty; seeded from catalog "
+                f"({seeded_ok} recognized, {seeded_failed} known-failed locally).")
+        log(f"Engine recognition ready: {len(engine_state)} attempt records; "
+            f"7z {'found' if engine_recog.SEVEN_ZIP else 'MISSING'}, "
+            f"upx {'found' if engine_recog.UPX else 'MISSING'}.")
+    except Exception as e:
+        engine_recog = None
+        log(f"[WARNING] Engine recognition unavailable: {e}")
     
     # 2C. Scrape latest reviews and merge them
     log("Scraping latest 120 reviews from Delicious Fruit reviews feed...")
@@ -1329,7 +1369,8 @@ def main():
             
             download_url = ""
             file_size = 0
-            
+            detected_engine = None
+
             # Step 5D: If supported netdisk, download and upload to R2
             if wiki_url:
                 game_temp_dir = os.path.join(TEMP_BASE_DIR, new_seq_id_str)
@@ -1370,14 +1411,25 @@ def main():
                         log(f"  [UPLOAD SUCCESS] R2 Direct Link: {download_url}")
                     except Exception as upload_err:
                         log(f"  [R2 UPLOAD FAIL] ID {new_seq_id}: {upload_err}")
-                        
+
+                    # Recognize the engine while the file is still on disk (the
+                    # backlog sweep would otherwise re-download it from R2).
+                    if engine_recog is not None:
+                        try:
+                            detected_engine, eng_result = engine_recog.recognize_for_catalog(
+                                local_path, game_temp_dir, new_seq_id, log=log)
+                            engine_recog.record_attempt(engine_state, new_seq_id, eng_result, "ci-inline")
+                            log(f"  [ENGINE] ID {new_seq_id}: {detected_engine or 'unrecognized (' + str(eng_result.get('error') or 'unknown') + ')'}")
+                        except Exception as eng_err:
+                            log(f"  [ENGINE] Recognition error for ID {new_seq_id}: {eng_err}")
+
                     # Clean up local temporary file immediately
                     try:
                         os.remove(local_path)
                         os.rmdir(game_temp_dir)
                     except Exception:
                         pass
-            
+
             # Step 5E: Construct new game object
             new_game_obj = {
                 "id": new_seq_id,
@@ -1396,6 +1448,9 @@ def main():
                 "file_size": file_size
             }
             
+            if detected_engine:
+                new_game_obj["engine"] = detected_engine
+
             # Save into memory
             with db_lock:
                 games[new_seq_id_str] = new_game_obj
@@ -1420,10 +1475,11 @@ def main():
             # Assign next sequential ID
             new_seq_id = max(int(k) for k in games.keys()) + 1
             new_seq_id_str = str(new_seq_id)
-            
+
             download_url = ""
             file_size = 0
-            
+            detected_engine = None
+
             # If supported netdisk, download and upload to R2
             if wiki_url:
                 game_temp_dir = os.path.join(TEMP_BASE_DIR, new_seq_id_str)
@@ -1467,7 +1523,18 @@ def main():
                     except Exception as upload_err:
                         log(f"  [R2 UPLOAD FAIL] ID {new_seq_id}: {upload_err}")
                         download_url = wiki_url # Fallback to original
-                        
+
+                    # Recognize the engine while the file is still on disk (the
+                    # backlog sweep would otherwise re-download it from R2).
+                    if engine_recog is not None:
+                        try:
+                            detected_engine, eng_result = engine_recog.recognize_for_catalog(
+                                local_path, game_temp_dir, new_seq_id, log=log)
+                            engine_recog.record_attempt(engine_state, new_seq_id, eng_result, "ci-inline")
+                            log(f"  [ENGINE] ID {new_seq_id}: {detected_engine or 'unrecognized (' + str(eng_result.get('error') or 'unknown') + ')'}")
+                        except Exception as eng_err:
+                            log(f"  [ENGINE] Recognition error for ID {new_seq_id}: {eng_err}")
+
                     # Clean up local temporary file immediately
                     try:
                         os.remove(local_path)
@@ -1493,6 +1560,9 @@ def main():
                 "file_size": file_size
             }
             
+            if detected_engine:
+                new_game_obj["engine"] = detected_engine
+
             # Save into memory
             with db_lock:
                 games[new_seq_id_str] = new_game_obj
@@ -1521,6 +1591,39 @@ def main():
                     norm_count += 1
     if norm_count:
         log(f"Normalized {norm_count} unrated game(s) (rating_count=0) to null rating/difficulty.")
+
+    # Engine recognition backlog sweep: recognize a bounded batch of R2-hosted
+    # games that still lack `engine` (approved submissions merged earlier in the
+    # CI run, earlier inline failures, admin-replaced links). Runs BEFORE the
+    # timeline delta below so the new engine values ride the normal incremental
+    # version bump out to cached clients.
+    if engine_recog is not None:
+        try:
+            if CLOUDFLARE_ACCOUNT_ID and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
+                sweep_client = boto3.client(
+                    's3',
+                    endpoint_url=f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com",
+                    aws_access_key_id=AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                    config=Config(signature_version='s3v4')
+                )
+                log("\nRunning engine recognition backlog sweep...")
+                engine_recog.sweep_backlog(
+                    games, engine_state, sweep_client, TEMP_BASE_DIR,
+                    max_games=int(os.environ.get("ENGINE_SWEEP_MAX_GAMES", "20")),
+                    max_seconds=int(os.environ.get("ENGINE_SWEEP_MAX_SECONDS", "900")),
+                    max_file_mb=int(os.environ.get("ENGINE_SWEEP_MAX_FILE_MB", "1024")),
+                    log=log,
+                )
+            else:
+                log("Engine backlog sweep skipped: R2 credentials not configured.")
+        except Exception as e:
+            log(f"  [WARNING] Engine backlog sweep failed: {e}")
+        finally:
+            try:
+                engine_recog.save_state(engine_state)
+            except Exception as e:
+                log(f"  [WARNING] Failed to save engine recognition state: {e}")
 
     # Generate timeline delta changes
     log("\nGenerating database timeline delta changes...")

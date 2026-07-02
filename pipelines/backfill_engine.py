@@ -32,43 +32,18 @@ import shutil
 import sys
 from collections import Counter
 
-# Raw detector signature (recognition.csv `main_version`) -> clean engine name.
-# GameMaker is split by generation (most useful distinction for this community);
-# the long tail each keeps its own name. Values are English proper nouns.
-ENGINE_MAP = {
-    "Delphi":              "GameMaker 8",       # classic GM 8.0/8.1 (Delphi-compiled)
-    "GameMakerEarly":      "GameMaker 8",       # GM6/7-era, negligible count
-    "project":             "GameMaker 8",       # .gmk/.gm81 source projects (8.x era)
-    "GMS1":                "GameMaker: Studio",
-    "GMS2":                "GameMaker: Studio 2",
-    "MMF2":                "Multimedia Fusion 2",
-    "ConstructClassic":    "Construct",
-    "Construct/NW.js":     "Construct",
-    "Godot":               "Godot",
-    "Unity":               "Unity",
-    "Flash":               "Flash",
-    "GDevelop/Electron":   "GDevelop",
-    "Scratch/Electron":    "Scratch",
-    "RPG Maker MV/NW.js":  "RPG Maker MV",
-    "Android":             "Android",
-    "ciw":                 "CIW",
-}
+# The signature -> engine-name map now lives in engine_recognition.py (the CI
+# recognition module); this one-time backfill reuses it so the two never drift.
+try:
+    from engine_recognition import ENGINE_MAP, map_engine
+except ImportError:
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from engine_recognition import ENGINE_MAP, map_engine
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_CSV = os.path.expanduser("~/Downloads/fangame_archive_recognition.csv")
 DEFAULT_GAMES = os.path.join(REPO_ROOT, "data", "games.json")
 RECENT_CHANGES = os.path.join(REPO_ROOT, "data", "recent_changes.json")
-
-
-def map_engine(main_version):
-    """Map a raw detector signature to a clean engine name.
-
-    Unknown/empty signatures fall back to the raw string so nothing is silently
-    dropped; blanks yield None (treated as unknown by the UI)."""
-    mv = (main_version or "").strip()
-    if not mv:
-        return None
-    return ENGINE_MAP.get(mv, mv)
 
 
 def load_recognition(csv_path):
