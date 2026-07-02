@@ -1,14 +1,56 @@
 [
   {
+    "ver": "2026.011",
+    "date": "2026-07-02",
+    "note": "Collections: folders can go public, author attribution & copy links for public collections",
+    "changes": [
+      [
+        "Added",
+        "Folders (collections with sub-collections) can now be submitted to the public library. The review covers the whole tree; sub-lists with custom names/descriptions created or renamed after it goes public are held until they pass review."
+      ],
+      [
+        "Added",
+        "A “Show my username on the shared page” toggle — on by default for new shares — credits you on shared collections and in the public library. You can switch it any time, even while public."
+      ],
+      [
+        "Added",
+        "Approved public collections now show a copy-link button in the edit dialog, so you can share their direct link anywhere."
+      ],
+      [
+        "Added",
+        "Shared folders render each sub-collection as its own section, and the manager shows pending/rejected review badges."
+      ],
+      [
+        "Fixed",
+        "The edit button icon is now an actual gear instead of a sun-looking glyph."
+      ]
+    ]
+  },
+  {
     "ver": "2026.010",
     "date": "2026-07-02",
     "note": "Collections: build lists & folders, save games to several at once, and share them",
     "changes": [
-      ["Added", "My Collections now supports multiple named lists plus one level of folders (up to 5 sub-lists each). Your existing bookmarks stay as the pinned “Main saves” bucket."],
-      ["Added", "A per-game “add to collection” menu (beside the bookmark) lets you save a game to several lists at once, create a new list on the spot, and see everywhere it’s already saved."],
-      ["Added", "Rename and describe any collection (with length limits). Name and description are optional at creation."],
-      ["Added", "Share a collection two ways: an instant link (for lists with a blank or preset name and no description), or “Open to public” — reviewed by a moderator, then listed in the new Public Collections library and shareable by link. Public collections lock their name/description; you can still add or remove games."],
-      ["Added", "New Public Collections section in the sidebar to browse community-shared game lists, and a read-only shared-collection page (?collection=…) that opens fast even for signed-out visitors."]
+      [
+        "Added",
+        "My Collections now supports multiple named lists plus one level of folders (up to 5 sub-lists each). Your existing bookmarks stay as the pinned “Main saves” bucket."
+      ],
+      [
+        "Added",
+        "A per-game “add to collection” menu (beside the bookmark) lets you save a game to several lists at once, create a new list on the spot, and see everywhere it’s already saved."
+      ],
+      [
+        "Added",
+        "Rename and describe any collection (with length limits). Name and description are optional at creation."
+      ],
+      [
+        "Added",
+        "Share a collection two ways: an instant link (for lists with a blank or preset name and no description), or “Open to public” — reviewed by a moderator, then listed in the new Public Collections library and shareable by link. Public collections lock their name/description; you can still add or remove games."
+      ],
+      [
+        "Added",
+        "New Public Collections section in the sidebar to browse community-shared game lists, and a read-only shared-collection page (?collection=…) that opens fast even for signed-out visitors."
+      ]
     ]
   },
   {
@@ -16,9 +58,18 @@
     "date": "2026-07-01",
     "note": "Game engines: every game shows its engine, and you can filter by it",
     "changes": [
-      ["Added", "Every game now displays its game engine — GameMaker 8, GameMaker: Studio, GameMaker: Studio 2, Multimedia Fusion 2, Godot, Unity, Construct, GDevelop, and more — shown below the author on cards, list rows, and the detail drawer."],
-      ["Added", "New Engines filter in the catalog sidebar: narrow the library by one or more engines (with an Unknown bucket), each showing its game count."],
-      ["Added", "Detected and backfilled the engine for 16,500+ games from binary recognition data; the public /api/search response now includes each game's engine."]
+      [
+        "Added",
+        "Every game now displays its game engine — GameMaker 8, GameMaker: Studio, GameMaker: Studio 2, Multimedia Fusion 2, Godot, Unity, Construct, GDevelop, and more — shown below the author on cards, list rows, and the detail drawer."
+      ],
+      [
+        "Added",
+        "New Engines filter in the catalog sidebar: narrow the library by one or more engines (with an Unknown bucket), each showing its game count."
+      ],
+      [
+        "Added",
+        "Detected and backfilled the engine for 16,500+ games from binary recognition data; the public /api/search response now includes each game's engine."
+      ]
     ]
   },
   {
@@ -26,13 +77,34 @@
     "date": "2026-06-23",
     "note": "Faster loading, leaner build, and an extended public API",
     "changes": [
-      ["Added", "New public endpoint GET /api/random returns one or more random games, with ?count= (1-50, default 1) and an optional ?tag= filter; responses are uncached so each call re-samples."],
-      ["Added", "The public /api/search response now includes each game's rating, difficulty, review count, and file size, alongside the existing title, creator, tags, and download URL."],
-      ["Changed", "Production build now precompiles the JSX with esbuild and ships the production React build instead of transpiling in the browser, significantly cutting cold-load work."],
-      ["Changed", "Catalog data chunks and the search index are now minified, and the catalog chunks are preloaded so the app starts fetching them sooner."],
-      ["Changed", "Trimmed the client hydration path by removing redundant per-load work (an unused in-memory review map, mock datasets, and ~20k per-load localStorage probes) with no change to behavior."],
-      ["Changed", "Hardened the deploy pipeline: serialized scheduled and push-triggered runs to prevent data races, pinned the build/deploy toolchain, and bumped CI to Node 22 (required by Wrangler 4)."],
-      ["Fixed", "Local dev server: fixed an UnboundLocalError that broke the local /api/search endpoint."]
+      [
+        "Added",
+        "New public endpoint GET /api/random returns one or more random games, with ?count= (1-50, default 1) and an optional ?tag= filter; responses are uncached so each call re-samples."
+      ],
+      [
+        "Added",
+        "The public /api/search response now includes each game's rating, difficulty, review count, and file size, alongside the existing title, creator, tags, and download URL."
+      ],
+      [
+        "Changed",
+        "Production build now precompiles the JSX with esbuild and ships the production React build instead of transpiling in the browser, significantly cutting cold-load work."
+      ],
+      [
+        "Changed",
+        "Catalog data chunks and the search index are now minified, and the catalog chunks are preloaded so the app starts fetching them sooner."
+      ],
+      [
+        "Changed",
+        "Trimmed the client hydration path by removing redundant per-load work (an unused in-memory review map, mock datasets, and ~20k per-load localStorage probes) with no change to behavior."
+      ],
+      [
+        "Changed",
+        "Hardened the deploy pipeline: serialized scheduled and push-triggered runs to prevent data races, pinned the build/deploy toolchain, and bumped CI to Node 22 (required by Wrangler 4)."
+      ],
+      [
+        "Fixed",
+        "Local dev server: fixed an UnboundLocalError that broke the local /api/search endpoint."
+      ]
     ]
   },
   {
@@ -40,17 +112,50 @@
     "date": "2026-06-15",
     "note": "Shareable game links, default sort, and consolidated auth/pipeline fixes",
     "changes": [
-      ["Added", "Shareable per-game deep links: opening a game updates the address bar (?game=<id>) via the History API with no reload, and visiting that link opens straight into the game's detail drawer."],
-      ["Added", "Copy-share-link button beside each game title in the detail drawer, with clipboard fallback and a toast confirmation, localized across all 8 languages."],
-      ["Changed", "Default catalog sort is now newest-first by game ID (descending)."],
-      ["Fixed", "Restored the Clerk sign-in UI by pinning clerk-js to v5 and loading it from the Frontend API domain so code-split chunks resolve correctly."],
-      ["Fixed", "Memoized Clerk.load() to prevent a UI-wiring race that could no-op the login button."],
-      ["Changed", "Render the logged-in state immediately from the Clerk session without waiting on /api/me."],
-      ["Fixed", "Added the user_favorites table to the D1 schema so the Collections feature no longer errors."],
-      ["Added", "Duplicate-resolution tool to remove or unlink duplicate games across the catalog and R2, with a dry-run safety model and version-delta bookkeeping."],
-      ["Fixed", "De-duplicated the scraped-reviews corpus and hardened the metrics recalc against null download URLs, malformed fields, and deleted (tombstoned) games."],
-      ["Added", "Scraped reviews (including rating-only entries) now sync into D1 so they appear in the game detail drawer."],
-      ["Fixed", "Capture full multi-line review text, retry D1 sync on transient network failures, and avoid duplicate/truncated reviews on re-scrape."]
+      [
+        "Added",
+        "Shareable per-game deep links: opening a game updates the address bar (?game=<id>) via the History API with no reload, and visiting that link opens straight into the game's detail drawer."
+      ],
+      [
+        "Added",
+        "Copy-share-link button beside each game title in the detail drawer, with clipboard fallback and a toast confirmation, localized across all 8 languages."
+      ],
+      [
+        "Changed",
+        "Default catalog sort is now newest-first by game ID (descending)."
+      ],
+      [
+        "Fixed",
+        "Restored the Clerk sign-in UI by pinning clerk-js to v5 and loading it from the Frontend API domain so code-split chunks resolve correctly."
+      ],
+      [
+        "Fixed",
+        "Memoized Clerk.load() to prevent a UI-wiring race that could no-op the login button."
+      ],
+      [
+        "Changed",
+        "Render the logged-in state immediately from the Clerk session without waiting on /api/me."
+      ],
+      [
+        "Fixed",
+        "Added the user_favorites table to the D1 schema so the Collections feature no longer errors."
+      ],
+      [
+        "Added",
+        "Duplicate-resolution tool to remove or unlink duplicate games across the catalog and R2, with a dry-run safety model and version-delta bookkeeping."
+      ],
+      [
+        "Fixed",
+        "De-duplicated the scraped-reviews corpus and hardened the metrics recalc against null download URLs, malformed fields, and deleted (tombstoned) games."
+      ],
+      [
+        "Added",
+        "Scraped reviews (including rating-only entries) now sync into D1 so they appear in the game detail drawer."
+      ],
+      [
+        "Fixed",
+        "Capture full multi-line review text, retry D1 sync on transient network failures, and avoid duplicate/truncated reviews on re-scrape."
+      ]
     ]
   },
   {
@@ -58,10 +163,22 @@
     "date": "2026-06-10",
     "note": "Production authentication keys migration and collections stabilization",
     "changes": [
-      ["Changed", "Migrated authentication and serverless API integration to production Clerk keys (pk_live/sk_live)."],
-      ["Fixed", "Resolved infinite recursion error in catalog by scoping localized translation variables within IIFEs."],
-      ["Fixed", "Synchronized favorites API state changes locally to immediately update bookmark states without page reload."],
-      ["Fixed", "Updated build distribution script to correctly package and cache-bust the new collections component."]
+      [
+        "Changed",
+        "Migrated authentication and serverless API integration to production Clerk keys (pk_live/sk_live)."
+      ],
+      [
+        "Fixed",
+        "Resolved infinite recursion error in catalog by scoping localized translation variables within IIFEs."
+      ],
+      [
+        "Fixed",
+        "Synchronized favorites API state changes locally to immediately update bookmark states without page reload."
+      ],
+      [
+        "Fixed",
+        "Updated build distribution script to correctly package and cache-bust the new collections component."
+      ]
     ]
   },
   {
@@ -69,12 +186,30 @@
     "date": "2026-06-10",
     "note": "Cloud-synced favorites bookmarks and collection management",
     "changes": [
-      ["Added", "D1 SQL database table user_favorites and unique indexes to store user bookmarks in the cloud."],
-      ["Added", "Serverless API endpoints GET /api/favorites, POST /api/favorites, and DELETE /api/favorites/:id with Clerk validation."],
-      ["Added", "Visual collections card grid view with lazy loading, skeleton states, and empty placeholders."],
-      ["Added", "Interactive bookmark/favorite toggle button in details drawer and on collection grid cards with pop scale animations."],
-      ["Changed", "Upgraded CollectionsView to leverage Favorites API with Clerk session token headers for authorization."],
-      ["Added", "Fully localized 21 new favorites/collections labels across all 8 supported languages."]
+      [
+        "Added",
+        "D1 SQL database table user_favorites and unique indexes to store user bookmarks in the cloud."
+      ],
+      [
+        "Added",
+        "Serverless API endpoints GET /api/favorites, POST /api/favorites, and DELETE /api/favorites/:id with Clerk validation."
+      ],
+      [
+        "Added",
+        "Visual collections card grid view with lazy loading, skeleton states, and empty placeholders."
+      ],
+      [
+        "Added",
+        "Interactive bookmark/favorite toggle button in details drawer and on collection grid cards with pop scale animations."
+      ],
+      [
+        "Changed",
+        "Upgraded CollectionsView to leverage Favorites API with Clerk session token headers for authorization."
+      ],
+      [
+        "Added",
+        "Fully localized 21 new favorites/collections labels across all 8 supported languages."
+      ]
     ]
   },
   {
@@ -82,19 +217,58 @@
     "date": "2026-06-10",
     "note": "Review options, precision filtering, and profile nickname-only support",
     "changes": [
-      ["Added", "Clerk Authentication and Cloudflare Turnstile CAPTCHA integration."],
-      ["Added", "Native comments/reviews section with moderator approval workflow."],
-      ["Added", "Support for dynamic co-creator inputs and custom tags in game submissions."],
-      ["Added", "Enforced strict limits on custom tags (maximum 10 tags per entry, 20 characters per tag)."],
-      ["Added", "Optional rating and difficulty independent toggle switches in review editor."],
-      ["Added", "Numeric input boxes for precise range filtering of ratings and difficulty."],
-      ["Added", "Automated R2 mirroring for approved submissions (packages & screenshots) in GitHub Actions deploy pipeline."],
-      ["Changed", "Reconfigured user profile settings to map to a single Nickname field and hide Last Name."],
-      ["Changed", "Decoupled Clerk authentication loading and parallelized database downloads to optimize cold load speeds."],
-      ["Fixed", "Resolved auth redirect flow state loss using sessionStorage to restore UI drawer viewport state."],
-      ["Removed", "Operator filter and column in the Admin Portal audit logs table."],
-      ["Added", "Full multi-language support (i18n) for 8 languages (en, zh-CN, zh-TW, ja, ko, ru, fr, de) with automatic detection based on browser language and manual toggle dropdown in top bar."],
-      ["Removed", "Obsolete and unused administrative files: health.jsx and crawler.jsx."]
+      [
+        "Added",
+        "Clerk Authentication and Cloudflare Turnstile CAPTCHA integration."
+      ],
+      [
+        "Added",
+        "Native comments/reviews section with moderator approval workflow."
+      ],
+      [
+        "Added",
+        "Support for dynamic co-creator inputs and custom tags in game submissions."
+      ],
+      [
+        "Added",
+        "Enforced strict limits on custom tags (maximum 10 tags per entry, 20 characters per tag)."
+      ],
+      [
+        "Added",
+        "Optional rating and difficulty independent toggle switches in review editor."
+      ],
+      [
+        "Added",
+        "Numeric input boxes for precise range filtering of ratings and difficulty."
+      ],
+      [
+        "Added",
+        "Automated R2 mirroring for approved submissions (packages & screenshots) in GitHub Actions deploy pipeline."
+      ],
+      [
+        "Changed",
+        "Reconfigured user profile settings to map to a single Nickname field and hide Last Name."
+      ],
+      [
+        "Changed",
+        "Decoupled Clerk authentication loading and parallelized database downloads to optimize cold load speeds."
+      ],
+      [
+        "Fixed",
+        "Resolved auth redirect flow state loss using sessionStorage to restore UI drawer viewport state."
+      ],
+      [
+        "Removed",
+        "Operator filter and column in the Admin Portal audit logs table."
+      ],
+      [
+        "Added",
+        "Full multi-language support (i18n) for 8 languages (en, zh-CN, zh-TW, ja, ko, ru, fr, de) with automatic detection based on browser language and manual toggle dropdown in top bar."
+      ],
+      [
+        "Removed",
+        "Obsolete and unused administrative files: health.jsx and crawler.jsx."
+      ]
     ]
   },
   {
@@ -102,11 +276,26 @@
     "date": "2026-06-08",
     "note": "Refactor unrated metrics and layout improvements",
     "changes": [
-      ["Refactored", "Represent unrated ratings and difficulties as null in memory to differentiate from true zero scores."],
-      ["Fixed", "Pre-nullify unrated metrics during database chunking to resolve unrated games displaying 0.0 on the catalog."],
-      ["Added", "Custom sort and filter logic in the catalog to push unrated games to the bottom and filter them accurately."],
-      ["Added", "Prefix review ratings with 'rating' label inside the game details panel comments section."],
-      ["Fixed", "Exclude unrated difficulty values from playlist average difficulty calculations."]
+      [
+        "Refactored",
+        "Represent unrated ratings and difficulties as null in memory to differentiate from true zero scores."
+      ],
+      [
+        "Fixed",
+        "Pre-nullify unrated metrics during database chunking to resolve unrated games displaying 0.0 on the catalog."
+      ],
+      [
+        "Added",
+        "Custom sort and filter logic in the catalog to push unrated games to the bottom and filter them accurately."
+      ],
+      [
+        "Added",
+        "Prefix review ratings with 'rating' label inside the game details panel comments section."
+      ],
+      [
+        "Fixed",
+        "Exclude unrated difficulty values from playlist average difficulty calculations."
+      ]
     ]
   },
   {
@@ -114,8 +303,14 @@
     "date": "2026-06-06",
     "note": "Update Log timeline & versioning",
     "changes": [
-      ["Added", "New Update Log section with timeline visualization."],
-      ["Added", "Separate application versioning scheme (Year.xxx) to track content releases."]
+      [
+        "Added",
+        "New Update Log section with timeline visualization."
+      ],
+      [
+        "Added",
+        "Separate application versioning scheme (Year.xxx) to track content releases."
+      ]
     ]
   },
   {
@@ -123,7 +318,10 @@
     "date": "2026-05-25",
     "note": "Public launch",
     "changes": [
-      ["Added", "Initial public release of the standalone Fangame Archive catalog."]
+      [
+        "Added",
+        "Initial public release of the standalone Fangame Archive catalog."
+      ]
     ]
   }
 ]

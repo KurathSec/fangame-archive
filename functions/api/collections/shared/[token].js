@@ -1,7 +1,10 @@
 // Pages Function API: read a shared collection by its opaque token. No auth.
 // Serves unlisted collections always, and public collections only once approved.
+// A shared FOLDER returns its sub-collections instead of games; a child renders
+// only when its text needs no review (preset/blank) or has been approved.
 // GET /api/collections/shared/:token
 import { jsonResponse, errorResponse } from "../../_lib/http.js";
+import { isShareableUnlisted } from "../../_lib/collections.js";
 
 export async function onRequestGet(context) {
   const { env, params } = context;
@@ -26,9 +29,33 @@ export async function onRequestGet(context) {
     );
     if (!shareable) return errorResponse("Shared collection not found.", 404);
 
-    const { results } = await env.DB.prepare(
-      `SELECT game_id FROM collection_items WHERE collection_id = ? ORDER BY sort_order IS NULL, sort_order, created_at DESC`
+    const { results: kids } = await env.DB.prepare(
+      `SELECT id, name, description, moderation_status FROM collections WHERE parent_id = ? ORDER BY sort_order IS NULL, sort_order, id`
     ).bind(col.id).all();
+
+    let children = null;
+    let gameIds = [];
+    if (kids.length > 0) {
+      children = [];
+      for (const kid of kids) {
+        // Custom-text children render only once approved (see visibility.js).
+        const visible = isShareableUnlisted(kid.name, kid.description) || kid.moderation_status === "approved";
+        if (!visible) continue;
+        const { results } = await env.DB.prepare(
+          `SELECT game_id FROM collection_items WHERE collection_id = ? ORDER BY sort_order IS NULL, sort_order, created_at DESC`
+        ).bind(kid.id).all();
+        children.push({
+          name: kid.name || null,
+          description: kid.description || null,
+          game_ids: results.map(r => r.game_id),
+        });
+      }
+    } else {
+      const { results } = await env.DB.prepare(
+        `SELECT game_id FROM collection_items WHERE collection_id = ? ORDER BY sort_order IS NULL, sort_order, created_at DESC`
+      ).bind(col.id).all();
+      gameIds = results.map(r => r.game_id);
+    }
 
     return jsonResponse({
       success: true,
@@ -37,7 +64,8 @@ export async function onRequestGet(context) {
         description: col.description || null,
         owner_name: col.owner_name || null,
         visibility: col.visibility,
-        game_ids: results.map(r => r.game_id),
+        game_ids: gameIds,
+        children,
       },
     }, 200, { "Cache-Control": "public, max-age=120" });
   } catch (err) {

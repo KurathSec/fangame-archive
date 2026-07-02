@@ -1,6 +1,6 @@
 // Pages Function API: list the caller's collections + create a new one.
 import { jsonResponse, errorResponse } from "./_lib/http.js";
-import { LIMITS, cleanText } from "./_lib/collections.js";
+import { LIMITS, cleanText, isShareableUnlisted } from "./_lib/collections.js";
 
 const NO_STORE = {
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
@@ -50,12 +50,13 @@ export async function onRequestPost(context) {
     if (!descRes.ok) return errorResponse(descRes.error, 400);
 
     let parentId = null;
+    let parentIsPublic = false;
     if (body.parentId !== undefined && body.parentId !== null) {
       parentId = parseInt(body.parentId, 10);
       if (isNaN(parentId)) return errorResponse("Invalid parentId.", 400);
 
       const parent = await env.DB.prepare(
-        `SELECT id, parent_id, visibility FROM collections WHERE id = ? AND user_id = ?`
+        `SELECT id, parent_id, visibility, moderation_status FROM collections WHERE id = ? AND user_id = ?`
       ).bind(parentId, user.id).first();
       if (!parent) return errorResponse("Parent collection not found.", 404);
       if (parent.parent_id !== null) return errorResponse("Collections can only nest one level deep.", 400);
@@ -71,9 +72,14 @@ export async function onRequestPost(context) {
       ).bind(parentId).first();
       if (subs && subs.n >= LIMITS.SUBS) return errorResponse(`A collection can have at most ${LIMITS.SUBS} sub-collections.`, 400);
 
-      // The parent becomes a folder now; folders can't be shared, so revoke any
-      // existing share so we never leave a dangling link/public listing on it.
-      if (parent.visibility && parent.visibility !== "private") {
+      // The parent becomes a folder now. Folders can be public (reviewed) but
+      // never unlisted, so an unlisted parent loses its instant link here; a
+      // public parent stays public — the new child is gated below instead.
+      // A REJECTED public parent gates nothing: its share page is dead and a
+      // pending child under it would be invisible to every admin queue view
+      // (re-publishing the folder re-marks custom children pending anyway).
+      parentIsPublic = parent.visibility === "public" && parent.moderation_status !== "rejected";
+      if (parent.visibility === "unlisted") {
         await env.DB.prepare(
           `UPDATE collections SET visibility='private', share_token=NULL, moderation_status=NULL, updated_at=? WHERE id=? AND user_id=?`
         ).bind(Date.now(), parentId, user.id).run();
@@ -85,14 +91,20 @@ export async function onRequestPost(context) {
       if (top && top.n >= LIMITS.TOP_LEVEL) return errorResponse(`You can create at most ${LIMITS.TOP_LEVEL} top-level collections.`, 400);
     }
 
+    // Under a public folder, custom free text can't go straight to the shared
+    // page: the child is created immediately for the owner but stays pending
+    // (hidden publicly) until an admin approves it. Preset/blank children need
+    // no review.
+    const pendingReview = parentIsPublic && !isShareableUnlisted(nameRes.value, descRes.value);
+
     const now = Date.now();
     const res = await env.DB.prepare(`
-      INSERT INTO collections (user_id, parent_id, name, description, visibility, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'private', ?, ?)
-    `).bind(user.id, parentId, nameRes.value, descRes.value, now, now).run();
+      INSERT INTO collections (user_id, parent_id, name, description, visibility, moderation_status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'private', ?, ?, ?)
+    `).bind(user.id, parentId, nameRes.value, descRes.value, pendingReview ? "pending" : null, now, now).run();
 
     const id = res.meta && res.meta.last_row_id;
-    return jsonResponse({ success: true, id });
+    return jsonResponse({ success: true, id, pendingReview });
   } catch (err) {
     return errorResponse(err.message, 500);
   }

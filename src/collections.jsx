@@ -377,7 +377,7 @@ const CollectionsAPI = {
   async membership(gameId) { const h = await this.getHeaders(); return this._req('/api/collections/membership?gameId=' + gameId, { headers: h }); },
   async addItem(id, gameId) { const h = await this.getHeaders(true); const d = await this._req('/api/collections/' + id + '/items', { method: 'POST', headers: h, body: JSON.stringify({ gameId }) }); broadcastCollections(); return d; },
   async removeItem(id, gameId) { const h = await this.getHeaders(); const d = await this._req('/api/collections/' + id + '/items/' + gameId, { method: 'DELETE', headers: h }); broadcastCollections(); return d; },
-  async setVisibility(id, mode, turnstileToken) { const h = await this.getHeaders(true); const d = await this._req('/api/collections/' + id + '/visibility', { method: 'POST', headers: h, body: JSON.stringify({ mode, turnstileToken }) }); broadcastCollections(); return d; },
+  async setVisibility(id, mode, turnstileToken, showOwner) { const h = await this.getHeaders(true); const d = await this._req('/api/collections/' + id + '/visibility', { method: 'POST', headers: h, body: JSON.stringify({ mode, turnstileToken, showOwner }) }); broadcastCollections(); return d; },
   async publicList(page) { return this._req('/api/collections/public?page=' + (page || 1)); },
   async shared(token) { return this._req('/api/collections/shared/' + encodeURIComponent(token)); },
 };
@@ -567,7 +567,7 @@ function CollectionMenuButton({ gameId, auth }) {
 }
 
 // ── Create / edit + share modal ──────────────────────────────────────────────
-function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
+function CollectionEditModal({ collection, parentId, parentPublic, onClose, onSaved }) {
   const editing = !!collection;
   const deriveMode = (c) => {
     if (!c) return 'none';
@@ -583,11 +583,18 @@ function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
   const [busy, setBusy] = React.useState(false);
   const [verified, setVerified] = React.useState(null);
   const [copied, setCopied] = React.useState(false);
+  // Attribution: reflect the stored flag for anything that has been shared;
+  // default ON for a not-yet-shared collection (applied on share/publish).
+  const [showOwner, setShowOwner] = React.useState(() =>
+    collection ? (collection.share_token ? !!collection.share_show_owner : true) : true);
   React.useEffect(() => { setCol(collection || null); }, [collection]);
   const vis = col ? col.visibility : 'private';
   const locked = vis === 'public'; // name/desc locked while public
+  const isFolder = !!(col && (col.child_count || 0) > 0);
   const custom = !isShareableUnlisted(name.trim() || null, desc.trim() || null);
   const shareUrl = col && col.share_token ? (location.origin + '/?collection=' + col.share_token) : '';
+  // The share link is live for unlisted, and for public once approved.
+  const linkLive = vis === 'unlisted' || (vis === 'public' && col && col.moderation_status === 'approved');
 
   // None = no name/description; Preset = pick a preset name (no description);
   // Custom = free-text name + description. None/Preset stay link-shareable;
@@ -609,9 +616,15 @@ function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
     if (busy) return;
     setBusy(true);
     try {
-      if (editing) await CollectionsAPI.update(col.id, { name: name.trim() || null, description: desc.trim() || null });
-      else await CollectionsAPI.create({ name: name.trim() || null, description: desc.trim() || null, parentId: parentId || null });
-      if (window.pushToast) window.pushToast(editing ? t('collection_saved', 'Collection saved') : t('collection_created', 'Collection created'), '', 'success');
+      let res;
+      if (editing) res = await CollectionsAPI.update(col.id, { name: name.trim() || null, description: desc.trim() || null });
+      else res = await CollectionsAPI.create({ name: name.trim() || null, description: desc.trim() || null, parentId: parentId || null });
+      if (window.pushToast) {
+        // A custom-text child of a public folder is held for review before it
+        // shows on the public page — tell the owner that happened.
+        if (res && res.pendingReview) window.pushToast(t('collection_created_pending', 'Saved — the custom name/description will show publicly after review'), '', 'success');
+        else window.pushToast(editing ? t('collection_saved', 'Collection saved') : t('collection_created', 'Collection created'), '', 'success');
+      }
       if (onSaved) onSaved();
       onClose();
     } catch (err) {
@@ -636,7 +649,7 @@ function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
     setBusy(true);
     try {
       if (mode !== 'private') await persistIfDirty();
-      const res = await CollectionsAPI.setVisibility(col.id, mode, verified);
+      const res = await CollectionsAPI.setVisibility(col.id, mode, verified, mode === 'private' ? undefined : showOwner);
       if (window.pushToast) {
         window.pushToast(
           mode === 'public' ? t('collection_submitted', 'Submitted for review') : mode === 'unlisted' ? t('collection_link_on', 'Share link enabled') : t('collection_made_private', 'Set to private'),
@@ -652,6 +665,22 @@ function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
     } catch (err) {
       if (window.pushToast) window.pushToast(t('collection_share_failed', "Couldn't change sharing"), err.message || '', 'error');
     } finally { setBusy(false); }
+  };
+
+  // Live toggle: for an already-shared collection persist immediately; for a
+  // private one the choice rides along with the next share/publish call.
+  const toggleShowOwner = async (e) => {
+    const v = e.target.checked;
+    setShowOwner(v);
+    if (!col || vis === 'private') return;
+    try {
+      await CollectionsAPI.update(col.id, { showOwner: v });
+      setCol((c) => (c ? { ...c, share_show_owner: v ? 1 : 0 } : c));
+      if (onSaved) onSaved();
+    } catch (err) {
+      setShowOwner(!v);
+      if (window.pushToast) window.pushToast(t('collection_save_failed', "Couldn't save the collection"), err.message || '', 'error');
+    }
   };
 
   const copyLink = () => {
@@ -695,6 +724,9 @@ function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
               {mode === 'none' && t('mode_none_help', 'No name or description — shareable instantly by link, no review.')}
               {mode === 'preset' && t('mode_preset_help', 'Pick a ready-made name; no description — shareable instantly by link, no review.')}
               {mode === 'custom' && t('mode_custom_help', 'Write your own name and description. Sharing it requires “Open to public”, which is reviewed first.')}
+              {mode === 'custom' && !editing && parentPublic && (
+                <div className="col-modehelp-warn">{t('mode_custom_public_parent', 'The parent collection is public — a custom name/description will only appear there after review.')}</div>
+              )}
             </div>
 
             {mode === 'preset' && (
@@ -731,7 +763,7 @@ function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
           </div>
         )}
 
-        {editing && col && (col.child_count || 0) === 0 && (
+        {editing && col && (
           <div className="col-share">
             <div className="col-share-title">{t('sharing', 'Sharing')}</div>
 
@@ -739,16 +771,11 @@ function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
               {window.ic2.lock}<span><b>{t('vis_private', 'Private')}</b><em>{t('vis_private_sub', 'Only you can see this.')}</em></span>
             </button>
 
-            <button className={'col-vis' + (vis === 'unlisted' ? ' on' : '')} disabled={busy || custom}
-                    onClick={() => applyVis('unlisted')} title={custom ? t('vis_unlisted_blocked', 'Remove the custom name/description to share by link') : ''}>
-              {window.ic.link}<span><b>{t('vis_unlisted', 'Share by link')}</b><em>{custom ? t('vis_unlisted_blocked', 'Remove the custom name/description to share by link') : t('vis_unlisted_sub', 'Anyone with the link can view. Not listed anywhere.')}</em></span>
-            </button>
-
-            {vis === 'unlisted' && shareUrl && (
-              <div className="col-link-row">
-                <input readOnly value={shareUrl} onFocus={(e) => e.target.select()} />
-                <button onClick={copyLink}>{copied ? window.ic.check : window.ic.link}<span>{copied ? t('copied', 'Copied') : t('copy_link', 'Copy')}</span></button>
-              </div>
+            {!isFolder && (
+              <button className={'col-vis' + (vis === 'unlisted' ? ' on' : '')} disabled={busy || custom}
+                      onClick={() => applyVis('unlisted')} title={custom ? t('vis_unlisted_blocked', 'Remove the custom name/description to share by link') : ''}>
+                {window.ic.link}<span><b>{t('vis_unlisted', 'Share by link')}</b><em>{custom ? t('vis_unlisted_blocked', 'Remove the custom name/description to share by link') : t('vis_unlisted_sub', 'Anyone with the link can view. Not listed anywhere.')}</em></span>
+              </button>
             )}
 
             <div className={'col-vis static' + (vis === 'public' ? ' on' : '')}>
@@ -757,9 +784,22 @@ function CollectionEditModal({ collection, parentId, onClose, onSaved }) {
                   col.moderation_status === 'approved' ? t('vis_public_approved', 'Live in the public library.') :
                   col.moderation_status === 'rejected' ? (t('vis_public_rejected', 'Rejected: ') + (col.reject_reason || '')) :
                   t('vis_public_pending', 'Pending review.')
-                ) : t('vis_public_sub', 'Listed in the public library after review.')}</em>
+                ) : isFolder ? t('vis_public_folder_sub', 'Lists the folder and its sub-collections in the public library after review.')
+                  : t('vis_public_sub', 'Listed in the public library after review.')}</em>
               </span>
             </div>
+
+            {linkLive && shareUrl && (
+              <div className="col-link-row">
+                <input readOnly value={shareUrl} onFocus={(e) => e.target.select()} />
+                <button onClick={copyLink}>{copied ? window.ic.check : window.ic.link}<span>{copied ? t('copied', 'Copied') : t('copy_link', 'Copy')}</span></button>
+              </div>
+            )}
+
+            <label className="col-showowner">
+              <input type="checkbox" checked={showOwner} onChange={toggleShowOwner} disabled={busy} />
+              <span>{t('show_owner_label', 'Show my username on the shared page')}</span>
+            </label>
 
             {vis !== 'public' && (
               <div className="col-publish">
@@ -806,19 +846,30 @@ async function resolveGamesByIds(ids) {
 
 // ── Shared read-only collection page (?collection=<token>) ───────────────────
 function SharedCollectionView({ token, onOpenGame, onView }) {
-  const [state, setState] = React.useState({ loading: true, error: false, col: null, games: [] });
+  const [state, setState] = React.useState({ loading: true, error: false, col: null, games: [], sections: null });
   React.useEffect(() => {
     let alive = true;
-    setState({ loading: true, error: false, col: null, games: [] });
+    setState({ loading: true, error: false, col: null, games: [], sections: null });
     if (!window.DATA) window.DATA = { GAMES: [], SCREENSHOTS: {} };
     if (!window.DATA.SCREENSHOTS) window.DATA.SCREENSHOTS = {};
     CollectionsAPI.shared(token).then(async (d) => {
       if (!alive) return;
       const col = d.collection;
+      if (col.children) {
+        // Shared folder: one section per visible sub-collection.
+        const sections = [];
+        for (const ch of col.children) {
+          const games = await resolveGamesByIds(ch.game_ids || []);
+          (ch.game_ids || []).forEach((id) => { if (!window.DATA.SCREENSHOTS[id]) window.DATA.SCREENSHOTS[id] = []; });
+          sections.push({ name: ch.name, description: ch.description, count: (ch.game_ids || []).length, games });
+        }
+        if (alive) setState({ loading: false, error: false, col, games: [], sections });
+        return;
+      }
       const games = await resolveGamesByIds(col.game_ids || []);
       (col.game_ids || []).forEach((id) => { if (!window.DATA.SCREENSHOTS[id]) window.DATA.SCREENSHOTS[id] = []; });
-      if (alive) setState({ loading: false, error: false, col, games });
-    }).catch(() => { if (alive) setState({ loading: false, error: true, col: null, games: [] }); });
+      if (alive) setState({ loading: false, error: false, col, games, sections: null });
+    }).catch(() => { if (alive) setState({ loading: false, error: true, col: null, games: [], sections: null }); });
     return () => { alive = false; };
   }, [token]);
 
@@ -832,16 +883,31 @@ function SharedCollectionView({ token, onOpenGame, onView }) {
   let body;
   if (state.loading) body = <div className="fav-grid">{Array.from({ length: 6 }).map((_, i) => <FavSkeletonCard key={i} />)}</div>;
   else if (state.error) body = <window.ErrorState title={t('shared_gone_title', 'Collection unavailable')} sub={t('shared_gone_sub', 'This shared collection no longer exists or is private.')} onRetry={() => onView && onView('explorer')} />;
-  else body = (
-    <React.Fragment>
-      <div className="coll-head">
-        <h1 className="coll-title">{state.col.name || t('shared_collection', 'Shared collection')}</h1>
-        {state.col.description && <p className="coll-sub">{state.col.description}</p>}
-        <p className="coll-sub mono">{(state.col.game_ids ? state.col.game_ids.length : state.games.length)} {t('games_suffix', 'games')}{state.col.owner_name ? ' · ' + t('by_author', 'by') + ' ' + state.col.owner_name : ''}</p>
-      </div>
-      <div className="fav-grid">{state.games.map((g) => <FavCard key={g.id} game={g} auth={'out'} onOpen={onOpenGame} />)}</div>
-    </React.Fragment>
-  );
+  else {
+    const totalGames = state.sections
+      ? state.sections.reduce((n, s) => n + s.count, 0)
+      : (state.col.game_ids ? state.col.game_ids.length : state.games.length);
+    body = (
+      <React.Fragment>
+        <div className="coll-head">
+          <h1 className="coll-title">{state.col.name || t('shared_collection', 'Shared collection')}</h1>
+          {state.col.description && <p className="coll-sub">{state.col.description}</p>}
+          <p className="coll-sub mono">{totalGames} {t('games_suffix', 'games')}{state.col.owner_name ? ' · ' + t('by_author', 'by') + ' ' + state.col.owner_name : ''}</p>
+        </div>
+        {state.sections ? state.sections.map((sec, i) => (
+          <div key={i} className="colsec">
+            <div className="colsec-head">
+              <h2 className="colsec-title">{window.ic.bookmark}{sec.name || t('collection_untitled', 'Untitled list')}<span className="colsec-ct mono">{sec.count}</span></h2>
+              {sec.description && <p className="coll-sub">{sec.description}</p>}
+            </div>
+            <div className="fav-grid">{sec.games.map((g) => <FavCard key={g.id} game={g} auth={'out'} onOpen={onOpenGame} />)}</div>
+          </div>
+        )) : (
+          <div className="fav-grid">{state.games.map((g) => <FavCard key={g.id} game={g} auth={'out'} onOpen={onOpenGame} />)}</div>
+        )}
+      </React.Fragment>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
@@ -882,7 +948,7 @@ function PublicLibraryView({ auth, onView }) {
       <div className="publib-grid">
         {state.items.map((c) => (
           <button key={c.id} className="publib-card" onClick={() => open(c)}>
-            <div className="publib-card-name">{c.name || t('collection_untitled', 'Untitled list')}</div>
+            <div className="publib-card-name">{(c.child_count || 0) > 0 && window.ic.folder}{c.name || t('collection_untitled', 'Untitled list')}</div>
             {c.description && <div className="publib-card-desc">{c.description}</div>}
             <div className="publib-card-foot mono">{c.item_count || 0} {t('games_suffix', 'games')}{c.owner_name ? ' · ' + t('by_author', 'by') + ' ' + c.owner_name : ''}</div>
           </button>
@@ -956,7 +1022,7 @@ function CollectionsManager({ auth, onOpenGame }) {
         {detail.loading ? <div className="fav-grid">{Array.from({ length: 4 }).map((_, i) => <FavSkeletonCard key={i} />)}</div>
           : detail.games.length ? <div className="fav-grid">{detail.games.map((g) => <FavCard key={g.id} game={g} auth={auth} onOpen={onOpenGame} />)}</div>
           : <div className="fav-empty"><h3>{t('list_empty', 'This list is empty')}</h3><p>{t('list_empty_sub', 'Add games from any game’s “add to collection” menu.')}</p></div>}
-        {modal && <CollectionEditModal collection={modal.collection} parentId={modal.parentId} onClose={() => setModal(null)} onSaved={reload} />}
+        {modal && <CollectionEditModal collection={modal.collection} parentId={modal.parentId} parentPublic={modal.parentPublic} onClose={() => setModal(null)} onSaved={reload} />}
       </div>
     );
   }
@@ -980,11 +1046,13 @@ function CollectionsManager({ auth, onOpenGame }) {
                     <span className="cmgr-name">{collectionLabel(node)}</span>
                     {!node.child_count && <span className="cmgr-ct mono">{node.item_count || 0}</span>}
                     {node.visibility === 'public' && <span className="cmgr-badge pub">{t('vis_public_badge', 'Public')}</span>}
+                    {node.visibility === 'public' && node.moderation_status === 'pending' && <span className="cmgr-badge pend">{t('badge_pending', 'Pending review')}</span>}
+                    {node.visibility === 'public' && node.moderation_status === 'rejected' && <span className="cmgr-badge rej">{t('badge_rejected', 'Rejected')}</span>}
                     {node.visibility === 'unlisted' && <span className="cmgr-badge link">{window.ic.link}</span>}
                   </button>
                   <button className="cmgr-mini" onClick={() => setModal({ collection: node })} title={t('edit', 'Edit')}>{window.ic2.gear}</button>
                   {(node.child_count || 0) < COL_LIMITS.SUBS && (node.item_count || 0) === 0 && node.parent_id == null && (
-                    <button className="cmgr-mini" onClick={() => setModal({ parentId: node.id })} title={t('add_subcollection', 'Add sub-collection')}>{window.ic.plus}</button>
+                    <button className="cmgr-mini" onClick={() => setModal({ parentId: node.id, parentPublic: node.visibility === 'public' })} title={t('add_subcollection', 'Add sub-collection')}>{window.ic.plus}</button>
                   )}
                   <button className="cmgr-mini danger" onClick={() => del(node)} title={t('delete', 'Delete')}>{window.ic.x}</button>
                 </div>
@@ -995,6 +1063,8 @@ function CollectionsManager({ auth, onOpenGame }) {
                         <button className="cmgr-row-main" onClick={() => setSelected(ch.id)}>
                           {window.ic.bookmark}<span className="cmgr-name">{collectionLabel(ch)}</span><span className="cmgr-ct mono">{ch.item_count || 0}</span>
                           {ch.visibility === 'public' && <span className="cmgr-badge pub">{t('vis_public_badge', 'Public')}</span>}
+                          {ch.moderation_status === 'pending' && <span className="cmgr-badge pend">{t('badge_pending', 'Pending review')}</span>}
+                          {ch.moderation_status === 'rejected' && <span className="cmgr-badge rej">{t('badge_rejected', 'Rejected')}</span>}
                           {ch.visibility === 'unlisted' && <span className="cmgr-badge link">{window.ic.link}</span>}
                         </button>
                         <button className="cmgr-mini" onClick={() => setModal({ collection: ch })} title={t('edit', 'Edit')}>{window.ic2.gear}</button>
@@ -1007,7 +1077,7 @@ function CollectionsManager({ auth, onOpenGame }) {
             ))}
           </div>
         )}
-      {modal && <CollectionEditModal collection={modal.collection} parentId={modal.parentId} onClose={() => setModal(null)} onSaved={reload} />}
+      {modal && <CollectionEditModal collection={modal.collection} parentId={modal.parentId} parentPublic={modal.parentPublic} onClose={() => setModal(null)} onSaved={reload} />}
     </div>
   );
 }
