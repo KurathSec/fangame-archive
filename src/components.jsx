@@ -102,7 +102,7 @@ const ic = {
 
   bulb:    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M5.5 11.5h5M6.5 13h3M8 2.5a4.5 4.5 0 0 1 4.5 4.5c0 1.6-.8 3-2.1 3.8-.4.3-.4.8-.4 1.2H6c0-.4 0-.9-.4-1.2A4.5 4.5 0 0 1 8 2.5z"/></svg>,
 
-  link:    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M4.75 7.5a3.25 3.25 0 0 1 5.54-2.3l1.2 1.2a3.25 3.25 0 0 1-4.6 4.6l-.6-.6M11.25 8.5a3.25 3.25 0 0 1-5.54 2.3l-1.2-1.2a3.25 3.25 0 0 1 4.6-4.6l.6.6"/></svg>,
+  link:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
 
   warning: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M8 2l6 11H2L8 2zM8 5.5v4M8 11.5h.01"/></svg>,
 
