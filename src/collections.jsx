@@ -23,6 +23,16 @@ function favShotUrl(path) {
   return path;
 }
 
+// Clipboard write with the execCommand fallback for non-secure contexts and
+// clipboard-permission rejections.
+function copyTextToClipboard(text) {
+  const fallback = () => {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {} document.body.removeChild(ta);
+  };
+  try { navigator.clipboard.writeText(text).catch(fallback); } catch (e) { fallback(); }
+}
+
 // ── Favorites REST client ───────────────────────────────────────────────────
 const FAV_STORE_KEY = 'archive_favorites';
 const FAV_NET_DELAY = 380; // simulated latency for the mock transport
@@ -685,10 +695,7 @@ function CollectionEditModal({ collection, parentId, parentPublic, onClose, onSa
 
   const copyLink = () => {
     if (!shareUrl) return;
-    try { navigator.clipboard.writeText(shareUrl); } catch (e) {
-      const ta = document.createElement('textarea'); ta.value = shareUrl; document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); } catch (e2) {} document.body.removeChild(ta);
-    }
+    copyTextToClipboard(shareUrl);
     setCopied(true); setTimeout(() => setCopied(false), 1600);
   };
 
@@ -847,6 +854,11 @@ async function resolveGamesByIds(ids) {
 // ── Shared read-only collection page (?collection=<token>) ───────────────────
 function SharedCollectionView({ token, onOpenGame, onView }) {
   const [state, setState] = React.useState({ loading: true, error: false, col: null, games: [], sections: null });
+  const [copied, setCopied] = React.useState(false);
+  const copyShareLink = () => {
+    copyTextToClipboard(location.origin + '/?collection=' + token);
+    setCopied(true); setTimeout(() => setCopied(false), 1600);
+  };
   React.useEffect(() => {
     let alive = true;
     setState({ loading: true, error: false, col: null, games: [], sections: null });
@@ -893,6 +905,10 @@ function SharedCollectionView({ token, onOpenGame, onView }) {
           <h1 className="coll-title">{state.col.name || t('shared_collection', 'Shared collection')}</h1>
           {state.col.description && <p className="coll-sub">{state.col.description}</p>}
           <p className="coll-sub mono">{totalGames} {t('games_suffix', 'games')}{state.col.owner_name ? ' · ' + t('by_author', 'by') + ' ' + state.col.owner_name : ''}</p>
+          <button className="coll-copylink" onClick={copyShareLink}>
+            {copied ? window.ic.check : window.ic.link}
+            <span>{copied ? t('copied', 'Copied') : t('copy_share_link', 'Copy link')}</span>
+          </button>
         </div>
         {state.sections ? state.sections.map((sec, i) => (
           <div key={i} className="colsec">

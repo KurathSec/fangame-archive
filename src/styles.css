@@ -2061,6 +2061,20 @@ div[data-field="lastName"] {
 }
 [data-theme="dark"] .coll-count { color: var(--gold); }
 .coll-sub { margin: 0; font-size: 13px; color: var(--muted); max-width: 560px; line-height: 1.55; }
+.coll-copylink {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 10px;
+  height: 30px; padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit; font-size: 12px; font-weight: 500;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease;
+}
+.coll-copylink:hover { background: var(--panel-2); border-color: var(--muted-2); }
+.coll-copylink svg { width: 13px; height: 13px; }
 
 /* ── Card grid ── */
 .fav-grid {

@@ -1,5 +1,28 @@
 [
   {
+    "ver": "2026.012",
+    "date": "2026-07-03",
+    "note": "Submit games by uploading the files directly, plus a copy-link button on shared collections",
+    "changes": [
+      [
+        "Added",
+        "The submit-game form now takes direct file uploads: switch the download field to “Upload file” and attach the game archive itself (ZIP/RAR/7z/TAR/GZ/EXE, up to 500 MB) with a live progress bar — no file host needed."
+      ],
+      [
+        "Added",
+        "Screenshots can be uploaded too (PNG/JPEG/GIF/WebP, up to 8 MB each) straight from the screenshot rows, instead of pasting image links."
+      ],
+      [
+        "Added",
+        "Uploaded files are staged securely until review: approved submissions move them into the archive automatically, rejected ones are cleaned up."
+      ],
+      [
+        "Added",
+        "Opened shared and public collection pages now have a “Copy link” button, so anyone can share any public collection directly."
+      ]
+    ]
+  },
+  {
     "ver": "2026.011",
     "date": "2026-07-02",
     "note": "Collections: folders can go public, author attribution & copy links for public collections",

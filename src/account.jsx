@@ -61,6 +61,22 @@ function consumeQuota(key, max) {
   try { localStorage.setItem('archive_quota_' + key, JSON.stringify(next)); } catch (e) {}
 }
 
+// Clerk bearer headers for the API calls below.
+async function apiAuthHeaders() {
+  const headers = {};
+  if (typeof Clerk !== 'undefined' && Clerk.session) {
+    const token = await Clerk.session.getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+// ── Direct-upload constants (mirror functions/api/_lib/uploads.js) ──────────
+const UP_GAME_EXTS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.exe'];
+const UP_GAME_MAX = 500 * 1024 * 1024;
+const UP_SHOT_MAX = 8 * 1024 * 1024;
+const fmtMB = (b) => (b / (1024 * 1024) >= 100 ? Math.round(b / (1024 * 1024)) : (b / (1024 * 1024)).toFixed(1)) + ' MB';
+
 const TopBar = ({ crumb }) => (
   <div className="topbar">
     <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Toggle menu">
@@ -95,6 +111,131 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
   const [err, setErr] = React.useState('');
   const [done, setDone] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
+
+  // Direct upload of the game file: 'url' keeps the classic link input;
+  // 'upload' stages the file in R2 via a presigned PUT minted by our API.
+  const [fileMode, setFileMode] = React.useState('url');
+  const [up, setUp] = React.useState({ st: 'idle', pct: 0, name: '', size: 0, key: '', url: '', msg: '' });
+  const [shotBusy, setShotBusy] = React.useState(-1);
+  const fileInputRef = React.useRef(null);
+  const shotInputRef = React.useRef(null);
+  const shotSlotRef = React.useRef(0);
+  const xhrRef = React.useRef(null);
+  // Generation counter: bumping it strands every older upload chain — at its
+  // next checkpoint the chain sees it's stale, frees its own staged object and
+  // stops touching state. This is what makes the X button effective during the
+  // mint and verify phases (when no XHR exists to abort).
+  const upGenRef = React.useRef(0);
+
+  const cancelStagedKey = async (key) => {
+    if (!key) return;
+    try {
+      await fetch('/api/submissions/upload-cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await apiAuthHeaders()) },
+        body: JSON.stringify({ key })
+      });
+    } catch (e) {}
+  };
+
+  const startUpload = async (file) => {
+    if (!file) return;
+    const extMatch = /\.[A-Za-z0-9]{1,6}$/.exec(file.name || '');
+    const ext = extMatch ? extMatch[0].toLowerCase() : '';
+    if (!UP_GAME_EXTS.includes(ext)) {
+      window.pushToast(window.t('upload_bad_type'), UP_GAME_EXTS.join(' · '), 'warn');
+      return;
+    }
+    if (file.size > UP_GAME_MAX) {
+      window.pushToast(window.t('upload_too_large'), fmtMB(file.size), 'warn');
+      return;
+    }
+    const gen = ++upGenRef.current;
+    const stale = () => upGenRef.current !== gen;
+    if (xhrRef.current) { try { xhrRef.current.abort(); } catch (e) {} xhrRef.current = null; }
+    const prevKey = up.key;
+    if (prevKey) cancelStagedKey(prevKey); // replacing — free the old staged object
+    setUp({ st: 'busy', pct: 0, name: file.name, size: file.size, key: '', url: '', msg: '' });
+    let key = '';
+    let myXhr = null;
+    try {
+      const res = await fetch('/api/submissions/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await apiAuthHeaders()) },
+        body: JSON.stringify({ filename: file.name, size: file.size })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+      key = data.key;
+      if (stale()) { cancelStagedKey(key); return; }
+      setUp((u) => ({ ...u, key }));
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        myXhr = xhr;
+        xhr.open('PUT', data.url);
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && !stale()) setUp((u) => (u.st === 'busy' ? { ...u, pct: Math.round((e.loaded / e.total) * 100) } : u));
+        };
+        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error(`Upload failed (HTTP ${xhr.status})`));
+        xhr.onerror = () => reject(new Error('Network error during upload'));
+        xhr.onabort = () => reject(new Error('__aborted__'));
+        xhrRef.current = xhr;
+        xhr.send(file);
+      });
+      if (xhrRef.current === myXhr) xhrRef.current = null;
+      if (stale()) { cancelStagedKey(key); return; }
+      const fin = await fetch('/api/submissions/upload-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await apiAuthHeaders()) },
+        body: JSON.stringify({ key })
+      });
+      const finData = await fin.json().catch(() => ({}));
+      if (!fin.ok || !finData.success) throw new Error(finData.error || `HTTP ${fin.status}`);
+      if (stale()) { cancelStagedKey(key); return; }
+      setUp({ st: 'done', pct: 100, name: file.name, size: finData.size, key, url: finData.url, msg: '' });
+    } catch (e) {
+      if (myXhr && xhrRef.current === myXhr) xhrRef.current = null;
+      if (stale()) { if (key) cancelStagedKey(key); return; } // a newer chain/remove owns the state now
+      if (key) cancelStagedKey(key);
+      if (e.message === '__aborted__') {
+        setUp({ st: 'idle', pct: 0, name: '', size: 0, key: '', url: '', msg: '' });
+      } else {
+        setUp({ st: 'err', pct: 0, name: file.name, size: file.size, key: '', url: '', msg: e.message || '' });
+      }
+    }
+  };
+
+  const removeUpload = () => {
+    upGenRef.current++; // strand any in-flight chain (it frees its own key)
+    if (xhrRef.current) { try { xhrRef.current.abort(); } catch (e) {} xhrRef.current = null; }
+    const key = up.key;
+    setUp({ st: 'idle', pct: 0, name: '', size: 0, key: '', url: '', msg: '' });
+    if (key) cancelStagedKey(key);
+  };
+
+  const uploadShot = async (i, file) => {
+    if (!file) return;
+    if (file.size > UP_SHOT_MAX) {
+      window.pushToast(window.t('upload_shot_too_large'), fmtMB(file.size), 'warn');
+      return;
+    }
+    setShotBusy(i);
+    try {
+      const res = await fetch('/api/submissions/upload-screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': file.type || 'application/octet-stream', ...(await apiAuthHeaders()) },
+        body: file
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+      setShot(i, data.url);
+    } catch (e) {
+      window.pushToast(window.t('upload_failed'), e.message || '', 'error');
+    } finally {
+      setShotBusy(-1);
+    }
+  };
 
   React.useEffect(() => {
     if (identity?.nick) {
@@ -147,7 +288,10 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
     setErr('');
     if (!nameValid) { setErr(window.t('game_name_required')); return; }
     if (!authorValid) { setErr(window.t('at_least_one_creator')); return; }
-    if (!form.url.trim() || !urlValid) { setErr(window.t('url_required_error')); return; }
+    if (fileMode === 'upload') {
+      if (up.st !== 'done' || !up.url) { setErr(window.t('upload_required_error')); return; }
+    } else if (!form.url.trim() || !urlValid) { setErr(window.t('url_required_error')); return; }
+    if (shotBusy !== -1) { setErr(window.t('upload_shot_busy')); return; }
     if (!verified) { setErr(window.t('complete_verification_error')); return; }
     if (quota.left <= 0) { setErr(window.t('daily_limit_reached_desc')); window.pushToast(window.t('limit_reached_toast'), window.t('used_all_submissions_desc'), 'warn'); return; }
 
@@ -169,7 +313,7 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
         body: JSON.stringify({
           title: form.name.trim(),
           author_name: authors.filter(Boolean).map(a => a.trim()).join(', '),
-          external_url: form.url.trim(),
+          external_url: fileMode === 'upload' ? up.url : form.url.trim(),
           tags: tags,
           description: form.desc.trim() || null,
           screenshots: shots.filter(Boolean).map(s => s.trim()),
@@ -183,6 +327,14 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
       }
 
       consumeQuota('submit', 5);
+      // Neutralize the upload machinery: strand any in-flight chain, and free
+      // a staged file only when it was NOT part of this submission (URL mode).
+      // In upload mode the staged object now belongs to the pending row — the
+      // merge/reject lifecycle owns it from here.
+      upGenRef.current++;
+      if (xhrRef.current) { try { xhrRef.current.abort(); } catch (e2) {} xhrRef.current = null; }
+      if (fileMode === 'url' && up.key) cancelStagedKey(up.key);
+      setUp({ st: 'idle', pct: 0, name: '', size: 0, key: '', url: '', msg: '' });
       window.pushToast(window.t('submission_received_toast'), window.t('pending_review_toast_desc', { name: form.name.trim() }), 'success');
       setDone(true);
     } catch (e) {
@@ -214,7 +366,7 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
                 <h3>{window.t('pending_review_title')}</h3>
                 <p>{window.t('pending_review_desc', { name: form.name.trim() })}</p>
                 <div className="sb-actions">
-                  <button className="doc-btn" onClick={() => { setForm({ name: '', url: '', desc: '' }); setAuthors([identity?.nick || '']); setTags([]); setShots(['']); setVerified(false); setTouched(false); setDone(false); }}>
+                  <button className="doc-btn" onClick={() => { setForm({ name: '', url: '', desc: '' }); setAuthors([identity?.nick || '']); setTags([]); setShots(['']); setVerified(false); setTouched(false); setDone(false); setFileMode('url'); setUp({ st: 'idle', pct: 0, name: '', size: 0, key: '', url: '', msg: '' }); }}>
                     {window.ic.plus} {window.t('submit_another')}
                   </button>
                 </div>
@@ -249,11 +401,55 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
  
                 <div className="field">
                   <label className="field-label">{window.t('download_url')} <span className="req">*</span></label>
-                  <input className={'field-input mono' + (touched && !urlValid ? ' invalid' : '')} value={form.url}
-                         placeholder="https://host.example.com/game.zip" onChange={(e) => set('url', e.target.value)} />
-                  {touched && !urlValid
-                    ? <span className="field-err">{window.ic.warning} {window.t('url_format_error')}</span>
-                    : <span className="field-help">{window.t('url_input_help')}</span>}
+                  <div className="upl-seg" role="tablist">
+                    <button type="button" className={'upl-seg-btn' + (fileMode === 'url' ? ' on' : '')} onClick={() => setFileMode('url')}>{window.ic.link} {window.t('upload_mode_url')}</button>
+                    <button type="button" className={'upl-seg-btn' + (fileMode === 'upload' ? ' on' : '')} onClick={() => setFileMode('upload')}>{window.ic2.upload} {window.t('upload_mode_file')}</button>
+                  </div>
+                  {fileMode === 'url' ? (
+                    <React.Fragment>
+                      <input className={'field-input mono' + (touched && !urlValid ? ' invalid' : '')} value={form.url}
+                             placeholder="https://host.example.com/game.zip" onChange={(e) => set('url', e.target.value)} />
+                      {touched && !urlValid
+                        ? <span className="field-err">{window.ic.warning} {window.t('url_format_error')}</span>
+                        : <span className="field-help">{window.t('url_input_help')}</span>}
+                    </React.Fragment>
+                  ) : (
+                    <React.Fragment>
+                      <input ref={fileInputRef} type="file" accept={UP_GAME_EXTS.join(',')} style={{ display: 'none' }}
+                             onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; startUpload(f); }} />
+                      {(up.st === 'idle' || up.st === 'err') && (
+                        <button type="button" className="upl-drop" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
+                          {window.ic2.upload}
+                          <span>{up.st === 'err' ? window.t('upload_retry') : window.t('upload_pick')}</span>
+                          <em>{window.t('upload_pick_sub')}</em>
+                        </button>
+                      )}
+                      {up.st === 'err' && <span className="field-err">{window.ic.warning} {window.t('upload_failed')}{up.msg ? ': ' + up.msg : ''}</span>}
+                      {up.st === 'busy' && (
+                        <div className="upl-file">
+                          <div className="upl-file-head">
+                            <span className="upl-name mono">{up.name}</span>
+                            <span className="upl-size mono">{fmtMB(up.size)}</span>
+                            <button className="icon-x-btn" type="button" title={window.t('remove_btn')} onClick={removeUpload}>{window.ic.x}</button>
+                          </div>
+                          <div className="upl-bar"><div className="upl-bar-fill" style={{ width: up.pct + '%' }} /></div>
+                          <span className="field-help mono">{up.pct < 100 ? `${window.t('upload_uploading')} ${up.pct}%` : window.t('upload_verifying')}</span>
+                        </div>
+                      )}
+                      {up.st === 'done' && (
+                        <div className="upl-file done">
+                          <div className="upl-file-head">
+                            {window.ic.check}
+                            <span className="upl-name mono">{up.name}</span>
+                            <span className="upl-size mono">{fmtMB(up.size)}</span>
+                            <button className="icon-x-btn" type="button" title={window.t('upload_remove')} onClick={removeUpload}>{window.ic.x}</button>
+                          </div>
+                          <span className="field-help">{window.t('upload_done_help')}</span>
+                        </div>
+                      )}
+                      {touched && up.st !== 'done' && up.st !== 'busy' && <span className="field-err">{window.ic.warning} {window.t('upload_required_error')}</span>}
+                    </React.Fragment>
+                  )}
                 </div>
  
                 <div className="field">
@@ -286,12 +482,19 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
 
                 <div className="field">
                   <label className="field-label">{window.t('screenshot_links_label')} <span className="opt">{window.t('desc_label_help')}</span></label>
+                  <input ref={shotInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" style={{ display: 'none' }}
+                         onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; uploadShot(shotSlotRef.current, f); }} />
                   {shots.map((s, i) => (
                     <div className="shot-link-row" key={i}>
                       <input className="field-input mono" value={s} placeholder="https://i.example.com/shot.png"
                              onChange={(e) => setShot(i, e.target.value)} />
+                      <button className="icon-x-btn" type="button" title={window.t('upload_shot_title')} disabled={shotBusy !== -1}
+                              onClick={() => { shotSlotRef.current = i; if (shotInputRef.current) shotInputRef.current.click(); }}>
+                        {shotBusy === i ? <window.Spinner /> : window.ic2.upload}
+                      </button>
                       {shots.length > 1 && (
-                        <button className="icon-x-btn" type="button" title={window.t('remove_btn')} onClick={() => setShots((ss) => ss.filter((_, j) => j !== i))}>{window.ic.x}</button>
+                        <button className="icon-x-btn" type="button" title={window.t('remove_btn')} disabled={shotBusy !== -1}
+                                onClick={() => setShots((ss) => ss.filter((_, j) => j !== i))}>{window.ic.x}</button>
                       )}
                     </div>
                   ))}
@@ -309,7 +512,7 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
               {err && <div className="form-err-banner" style={{ marginBottom: 16 }}>{window.ic.warning} {err}</div>}
 
               <div className="form-foot">
-                <button className="btn-submit" onClick={submit} disabled={quota.left <= 0 || submitting}>
+                <button className="btn-submit" onClick={submit} disabled={quota.left <= 0 || submitting || shotBusy !== -1}>
                   {submitting ? <window.Spinner light={true} /> : window.ic2.upload} <span>{window.t('submit_game_btn')}</span>
                 </button>
                 <span className={'quota' + (quota.left <= 1 ? ' low' : '')}>

@@ -9,3 +9,12 @@ database_id = "120de4a7-397c-4556-9bb5-04c6580618e2"
 [[kv_namespaces]]
 binding = "ARCHIVE_KV"
 id = "44e59e58a19a4efdbd45abb253e418d6"
+
+# Game-files bucket (also bound in the admin app). The submit-form upload
+# endpoints stage user files under SubmissionUploads/<userId>/<uuid>.<ext>
+# here; large files reach it via presigned PUT (needs the R2_ACCOUNT_ID /
+# R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY secrets), screenshots stream through
+# the binding directly.
+[[r2_buckets]]
+binding = "ARCHIVE_FILES"
+bucket_name = "fangame-files"

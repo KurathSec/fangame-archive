@@ -313,6 +313,44 @@
 .chip-add:hover { border-color: var(--muted-2); color: var(--text-soft); }
 .chip-add svg { width: 10px; height: 10px; }
 
+/* direct upload (submit form) */
+.upl-seg { display: inline-flex; gap: 0; border: 1px solid var(--border-strong); border-radius: var(--radius); overflow: hidden; margin-bottom: 8px; }
+.upl-seg-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px;
+  border: 0; background: transparent; color: var(--muted);
+  font: inherit; font-size: 12px; font-weight: 500; cursor: pointer;
+}
+.upl-seg-btn + .upl-seg-btn { border-left: 1px solid var(--border-strong); }
+.upl-seg-btn.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.upl-seg-btn svg { width: 13px; height: 13px; }
+.upl-drop {
+  width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 18px 12px;
+  border: 1px dashed var(--border-strong); border-radius: var(--radius);
+  background: var(--panel-2); color: var(--text-soft);
+  font: inherit; cursor: pointer;
+  transition: border-color .12s, background .12s;
+}
+.upl-drop:hover { border-color: var(--accent); background: var(--panel); }
+.upl-drop svg { width: 18px; height: 18px; color: var(--muted); }
+.upl-drop span { font-size: 12.5px; font-weight: 600; }
+.upl-drop em { font-size: 11px; font-style: normal; color: var(--muted-2); font-family: 'Geist Mono', ui-monospace, monospace; }
+.upl-file {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  background: var(--panel-2);
+}
+.upl-file.done { border-color: var(--st-approve-bd, var(--border-strong)); }
+.upl-file-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.upl-file-head > svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--accent); }
+.upl-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.upl-size { flex-shrink: 0; font-size: 11px; color: var(--muted); }
+.upl-bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.upl-bar-fill { height: 100%; border-radius: 999px; background: var(--accent); transition: width .2s ease; }
+
 /* screenshot link rows */
 .shot-link-row { display: flex; gap: 8px; align-items: center; }
 .shot-link-row .field-input { flex: 1; }
@@ -323,6 +361,7 @@
   cursor: pointer; display: grid; place-items: center;
 }
 .icon-x-btn:hover { background: var(--st-reject-bg); border-color: var(--st-reject-bd); color: var(--st-reject-tx); }
+.icon-x-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .icon-x-btn svg { width: 12px; height: 12px; }
 
 /* Turnstile mock */
