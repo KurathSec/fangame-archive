@@ -227,7 +227,10 @@ def fetch_game_details(df_id):
         except Exception as e:
             if attempt == 2:
                 log(f"  [Detail Scrape FAIL] Failed to crawl DF ID {df_id}: {e}")
-                return "Unknown", "#", [], []
+                # None (not "Unknown") so callers can tell a fetch FAILURE from
+                # a page that genuinely lists no creator — the cross-source
+                # claim guard must not fail open on a transient DF error.
+                return None, "#", [], []
             time.sleep(2)
 
 # ── 🔍 WIKI API INTEGRATION ──────────────────────────────────────────────────
@@ -1054,6 +1057,10 @@ def main():
     update_count = 0
     new_game_count = 0
     new_games_to_process = []
+    # Games that already exist from a non-DF source (Wiki ingest / community
+    # submission) and were re-mapped to their DF id this run instead of being
+    # ingested a second time; their DF reviews are pulled in Step 5.
+    claimed_cross_source = []
     
     # 4A. Recalculate stats for all existing local games using reviews database
     log("Recalculating ratings, difficulties, and tags for all existing local games...")
@@ -1254,7 +1261,77 @@ def main():
                     if changed:
                         update_count += 1
                         log(f"  [LIVE UPDATE] #{update_count} | Seq ID {seq_id} | DF ID {df_id} | '{title}' | Diff: {curr_diff}->{scraped_diff} | Rate: {curr_rating}->{scraped_rating} | Count: {curr_count}->{scraped_count}")
+            elif seq_id:
+                # Mapped in seq_map but deliberately removed from the catalog —
+                # a de-dup/deletion tombstone. Never re-add it, no matter how
+                # long it stays listed on Delicious Fruit.
+                continue
             else:
+                # Cross-source duplicate guard. The same game may already be in
+                # the catalog from a non-DF source — the Wiki ingest or an
+                # approved community submission that landed before DF listed it
+                # (DF outage, or plain listing lag). The DF id alone can't see
+                # that, and blindly ingesting produced live duplicates
+                # (21085/21087, 21093/21094, 21100/21101). If an existing
+                # Wiki/submission entry has the same normalized title, claim it
+                # for this DF id instead of adding a second entry.
+                claim_seq = None
+                claim_orig = ""
+                for m in title_to_seq_ids.get(normalize_str(title), []):
+                    m_str = str(m)
+                    mapping = seq_map.get(m_str)
+                    orig = str(mapping[0]) if isinstance(mapping, list) and mapping else ""
+                    if m_str in games and (orig.startswith("WIKI-") or orig.startswith("SUBMISSION-")):
+                        claim_seq = m_str
+                        claim_orig = orig
+                        break
+
+                if claim_seq:
+                    # Same title from another source: confirm via the creator
+                    # before merging — different games can legitimately share a
+                    # title. Only a definite conflict blocks the claim.
+                    df_creator, df_creator_url, _df_tags, df_shots = fetch_game_details(df_id)
+                    if df_creator is None:
+                        # Details page unreachable — the creator can't be
+                        # verified, so neither claim nor ingest this run.
+                        # Failing open here would merge two different games on
+                        # a transient DF error; the next cycle retries.
+                        log(f"  [CLAIM DEFERRED] DF ID {df_id} '{title}' matches seq {claim_seq} ({claim_orig}) by title, but the DF details page is unreachable — deferring to the next run.")
+                        continue
+                    local_creator = (games[claim_seq].get("creator") or {}).get("name", "")
+                    c_df = normalize_str(df_creator)
+                    c_local = normalize_str(local_creator)
+                    if c_df and c_local and "unknown" not in (c_df, c_local) and c_df != c_local:
+                        log(f"  [CLAIM SKIPPED] DF ID {df_id} '{title}' matches seq {claim_seq} ({claim_orig}) by title, but creators differ ('{df_creator}' vs '{local_creator}') — treating as a distinct game.")
+                        claim_seq = None
+
+                if claim_seq:
+                    g = games[claim_seq]
+                    seq_map[claim_seq] = [df_id, "new_game", "tags_synced"]
+                    orig_to_seq_map[str(df_id)] = claim_seq
+                    if scraped_diff is not None:
+                        g["avg_difficulty"] = scraped_diff
+                    if scraped_rating is not None:
+                        g["avg_rating"] = scraped_rating
+                    if scraped_count:
+                        g["rating_count"] = scraped_count
+                    # Backfill what the non-DF ingest couldn't know, from the
+                    # details page already fetched for the creator check. The
+                    # screenshot dicts are already in catalog shape; the
+                    # screenshot sync mirrors them like any DF ingest's.
+                    creator_obj = g.get("creator") or {}
+                    if df_creator != "Unknown" and normalize_str(creator_obj.get("name", "")) in ("", "unknown"):
+                        creator_obj["name"] = df_creator
+                    if df_creator_url and df_creator_url != "#" and creator_obj.get("url") in ("", "#", None):
+                        creator_obj["url"] = df_creator_url
+                    g["creator"] = creator_obj
+                    if df_shots and not g.get("screenshots"):
+                        g["screenshots"] = df_shots
+                    claimed_cross_source.append({"df_id": df_id, "title": title, "seq_id": claim_seq})
+                    update_count += 1
+                    log(f"  [CROSS-SOURCE CLAIM] Seq ID {claim_seq} ('{title}', was {claim_orig}) is the same game as DF ID {df_id} — remapped instead of duplicating.")
+                    continue
+
                 # Brand new game detected!
                 new_game_count += 1
                 new_games_to_process.append(sg)
@@ -1270,12 +1347,52 @@ def main():
     # seq map to disk — sync_reviews_to_d1 resolves game_id->seq_id from that file, and
     # these games' mappings don't exist on disk until then.
     new_game_reviews_for_d1 = []
+
+    # Cross-source claimed games were ingested from the Wiki/a submission, so
+    # their DF reviews were never scraped. Pull them now exactly like a
+    # new-game ingest would; Step 4A folds them into the stats next run.
+    if claimed_cross_source:
+        for cg in claimed_cross_source:
+            try:
+                claim_reviews = scrape_all_game_reviews(cg["df_id"], cg["title"])
+            except Exception as e:
+                log(f"  [WARNING] Review scrape for claimed DF ID {cg['df_id']} failed: {e}")
+                claim_reviews = []
+            if not claim_reviews:
+                continue
+            log(f"  Found {len(claim_reviews)} DF review(s) for claimed game '{cg['title']}' (seq {cg['seq_id']}). Merging...")
+            new_game_reviews_for_d1.extend(claim_reviews)
+            for r in claim_reviews:
+                key = review_key(r)
+                if key not in existing_keys:
+                    scraped_reviews.append(r)
+                    existing_keys.add(key)
+        try:
+            tmp_path = REVIEWS_JSON + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(scraped_reviews, f, indent=2, ensure_ascii=False)
+            os.replace(tmp_path, REVIEWS_JSON)
+        except Exception as e:
+            log(f"  [WARNING] Failed to save reviews after cross-source claims: {e}")
+
     existing_normalized_titles = set(title_to_seq_ids.keys())
     for sg in new_games_to_process:
         existing_normalized_titles.add(normalize_str(sg["title"]))
         
+    # WIKI ids already present in seq_map — including tombstones of deleted
+    # games (deletion removes the games.json entry but keeps the mapping).
+    # The title check below can't see a deleted game, so without this an
+    # admin-deleted wiki-listed game would be re-ingested on the next run —
+    # the wiki-side twin of the DF tombstone guard in the scan above.
+    mapped_wiki_ids = set()
+    for val in seq_map.values():
+        if isinstance(val, list) and val and str(val[0]).startswith("WIKI-"):
+            mapped_wiki_ids.add(str(val[0]))
+
     enqueued_wiki_titles = set()
     for wg in wiki_games:
+        if f"WIKI-{wg.get('id')}" in mapped_wiki_ids:
+            continue
         w_title = wg.get("name", "")
         w_title_norm = normalize_str(w_title)
         if not w_title_norm:
@@ -1309,6 +1426,8 @@ def main():
             
             # Step 5A: Scrape details (creator, tags, screenshots) from game_details.php
             creator_name, creator_url, df_tags, screenshots = fetch_game_details(df_id)
+            if creator_name is None:
+                creator_name = "Unknown"  # fetch failed; same fallback as before
             log(f"  Creator: {creator_name} | Initial Tags: {df_tags} | Screenshots found: {len(screenshots)}")
             
             # Step 5A-2: Scrape all reviews for this new game and merge them
