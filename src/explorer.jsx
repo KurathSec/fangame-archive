@@ -2,6 +2,7 @@
 
 // Sentinel bucket for games with no detected engine (engine === null).
 const ENGINE_UNKNOWN = '__unknown__';
+const YEAR_UNKNOWN = '__unknown__';
 
 function DualRange({ min, max, step, value, onChange, format }) {
   // Two-handle slider rendered manually so we can show the colored fill range.
@@ -207,6 +208,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
   const [tags,   setTags]     = React.useState(new Map());
   const [showAllTags, setShowAllTags] = React.useState(false);
   const [engines, setEngines] = React.useState(new Map());
+  const [years, setYears] = React.useState(new Map());
 
   const [flags,  setFlags]    = React.useState({ local: false, shots: false, missing: false });
   const [sort,   setSort]     = React.useState('id');
@@ -286,6 +288,37 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
     setEngines(next);
   };
 
+  // Release-year buckets (single value per game). Missing date => Unknown.
+  const yearList = React.useMemo(() => {
+    const counts = new Map();
+    window.DATA.GAMES.forEach((g) => {
+      const key = g.release_date ? g.release_date.slice(0, 4) : YEAR_UNKNOWN;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => {
+        // Keep the Unknown bucket last; otherwise newest year first.
+        if (a[0] === YEAR_UNKNOWN) return 1;
+        if (b[0] === YEAR_UNKNOWN) return -1;
+        return b[0].localeCompare(a[0]);
+      })
+      .map(([name, count]) => ({ name, count }));
+  }, []);
+
+  const toggleYear = (name) => {
+    const next = new Map(years);
+    if (!next.has(name)) {
+      next.set(name, 'or');
+    } else if (next.get(name) === 'or') {
+      next.set(name, 'and');
+    } else if (next.get(name) === 'and') {
+      next.set(name, 'not');
+    } else {
+      next.delete(name);
+    }
+    setYears(next);
+  };
+
   const sortedFilteredTags = React.useMemo(() => {
     const q = tagSearch.trim().toLowerCase();
     const sortedAllTags = [...window.DATA.TAGS].sort((a, b) => b.count - a.count);
@@ -354,6 +387,21 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
         if (notEng.length && notEng.includes(ge)) return false;
       }
 
+      if (years.size) {
+        const orY = [];
+        const andY = [];
+        const notY = [];
+        years.forEach((mode, name) => {
+          if (mode === 'or') orY.push(name);
+          else if (mode === 'and') andY.push(name);
+          else if (mode === 'not') notY.push(name);
+        });
+        const gy = g.release_date ? g.release_date.slice(0, 4) : YEAR_UNKNOWN;
+        if (orY.length && !orY.includes(gy)) return false;
+        if (andY.length && !andY.every((y) => y === gy)) return false;
+        if (notY.length && notY.includes(gy)) return false;
+      }
+
       if (flags.local     && !g.flags.local) return false;
       if (flags.shots     && !g.flags.shots) return false;
       if (flags.missing   && !g.flags.missing) return false;
@@ -389,15 +437,28 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
         }
         case 'size':   comparison = (a.file_size || 0) - (b.file_size || 0); break;
         case 'rev':    comparison = (a.reviews || 0) - (b.reviews || 0); break;
+        case 'date': {
+          // Dateless games always sort to the bottom, like unrated in 'rating'.
+          if (!a.release_date && !b.release_date) {
+            comparison = 0;
+          } else if (!a.release_date) {
+            comparison = desc ? -1 : 1;
+          } else if (!b.release_date) {
+            comparison = desc ? 1 : -1;
+          } else {
+            comparison = a.release_date.localeCompare(b.release_date);
+          }
+          break;
+        }
         default:       comparison = 0;
       }
       return desc ? -comparison : comparison;
     });
-  }, [searchTitle, searchCreator, rating, diff, tags, engines, flags, sort, desc]);
+  }, [searchTitle, searchCreator, rating, diff, tags, engines, years, flags, sort, desc]);
 
   React.useEffect(() => {
     setPage(1);
-  }, [searchTitle, searchCreator, rating, diff, tags, engines, flags, sort, desc]);
+  }, [searchTitle, searchCreator, rating, diff, tags, engines, years, flags, sort, desc]);
 
 
   React.useEffect(() => {
@@ -480,6 +541,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
             <option value="diff">{window.t('sort_difficulty')}</option>
             <option value="size">{window.t('sort_size')}</option>
             <option value="rev">{window.t('sort_reviews')}</option>
+            <option value="date">{window.t('sort_date')}</option>
           </select>
           <button 
             className="iconbtn sort-dir-btn" 
@@ -641,6 +703,37 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
                 return (
                   <span key={e.name} className={cls} onClick={() => toggleEngine(e.name)}>
                     {prefix}{label}<span className="ct">{e.count.toLocaleString()}</span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <div className="fp-section">
+            <h4>
+              <span>{window.t('years_count', { count: years.size })}</span>
+              <span className="reset" onClick={() => setYears(new Map())}>{window.t('reset')}</span>
+            </h4>
+            <div style={{ fontSize: '10.5px', color: 'var(--muted)', marginTop: '4px', marginBottom: '8px', paddingLeft: '2px' }}>
+              {window.t('tag_instruction')}
+            </div>
+            <div className="tag-cloud engine-cloud">
+              {yearList.map((y) => {
+                const mode = years.get(y.name);
+                let cls = 'tag engine-tag';
+                let prefix = '';
+                if (mode === 'or') {
+                  cls += ' tag-or on';
+                } else if (mode === 'and') {
+                  cls += ' tag-and on';
+                  prefix = '+ ';
+                } else if (mode === 'not') {
+                  cls += ' tag-not on';
+                  prefix = '- ';
+                }
+                const label = y.name === YEAR_UNKNOWN ? window.t('year_unknown') : y.name;
+                return (
+                  <span key={y.name} className={cls} onClick={() => toggleYear(y.name)}>
+                    {prefix}{label}<span className="ct">{y.count.toLocaleString()}</span>
                   </span>
                 );
               })}

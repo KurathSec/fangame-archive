@@ -1,5 +1,28 @@
 [
   {
+    "ver": "2026.013",
+    "date": "2026-07-22",
+    "note": "Release dates: ~15k games dated from Delicious Fruit, with sorting and a year filter",
+    "changes": [
+      [
+        "Added",
+        "Games now carry a release date, recovered from Delicious Fruit's release-date search for every DF-listed game (about 15,000 titles); wiki-sourced games use their wiki entry's creation date. Games neither source knows stay undated."
+      ],
+      [
+        "Added",
+        "Sort the catalog by release date (newest first), and filter by release year in the sidebar with the same three-state include/require/exclude chips as the engine filter."
+      ],
+      [
+        "Added",
+        "The game detail panel shows the release date, and the public search API returns it for every dated game."
+      ],
+      [
+        "Added",
+        "Newly synced games get their release date automatically within a CI cycle."
+      ]
+    ]
+  },
+  {
     "ver": "2026.012",
     "date": "2026-07-03",
     "note": "Submit games by uploading the files directly, plus a copy-link button on shared collections",

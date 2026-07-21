@@ -833,6 +833,7 @@ function RootApp() {
             creator: rawGame.creator ? (typeof rawGame.creator === 'object' ? (rawGame.creator.name || 'Unknown') : rawGame.creator) : 'Unknown',
             creator_url: rawGame.creator ? (typeof rawGame.creator === 'object' ? (rawGame.creator.url || '#') : '#') : '#',
             engine: rawGame.engine || null,
+            release_date: rawGame.release_date || null,
             rating: finalRating,
             difficulty: finalDifficulty,
             reviews: reviewsCount,

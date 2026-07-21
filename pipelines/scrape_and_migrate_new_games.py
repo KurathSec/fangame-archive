@@ -11,6 +11,7 @@ import json
 import re
 import urllib.request
 import urllib.parse
+import datetime
 import shutil
 import time
 import subprocess
@@ -163,6 +164,41 @@ def scrape_full_list():
         })
         
     return scraped_games
+
+def fetch_df_ids_in_window(first_day, last_day):
+    """df_ids of games DF lists as released on the days first_day..last_day
+    (datetime.date objects, INCLUSIVE), via the advanced search's "Released
+    between" filter — the only place DF exposes release dates.
+
+    DF evaluates the filter as `released IN (from 00:00, to 00:00]` with games
+    stored at midnight (calibrated by harvest_release_dates.py's probes), so
+    the inclusive day range [first, last] is issued as from=first-1, to=last.
+
+    Returns a set, or None after all retries. Callers MUST treat None as
+    "unknown", never as an empty window: a transient failure must not date
+    anything or mark anything as dateless-forever.
+    """
+    date_from = (first_day - datetime.timedelta(days=1)).isoformat()
+    date_to = last_day.isoformat()
+    url = ("https://delicious-fruit.com/ratings/full.php?advanced=1"
+           f"&from={date_from}&to={date_to}&title=&author=&s=&tags=")
+    last_err = None
+    for backoff in (3, 8, 20):
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=30)
+            res.raise_for_status()
+            res.encoding = 'utf-8'
+            body = res.text
+            # Present on every genuine DF page, including zero-result ones; a
+            # 200 without it is an error/interstitial page, not an empty window.
+            if "Delicious-Fruit" not in body:
+                raise ValueError("no DF page marker in response")
+            return set(re.findall(r"game_details\.php\?id=(\d+)", body))
+        except Exception as e:
+            last_err = e
+            time.sleep(backoff)
+    log(f"  [WARNING] Release-date window {date_from}..{date_to} failed: {last_err}")
+    return None
 
 def fetch_game_details(df_id):
     url = f"https://delicious-fruit.com/ratings/game_details.php?id={df_id}"
@@ -1682,6 +1718,14 @@ def main():
             if detected_engine:
                 new_game_obj["engine"] = detected_engine
 
+            # Wiki entries created after the 2019-11-14 bulk import carry an
+            # organic created_at ~= the game's release/announcement date (we
+            # ingest within ~6h of entry creation). Older stamps are just the
+            # import moment — never a release date.
+            wiki_created = str(wg.get("created_at") or "")[:10]
+            if re.fullmatch(r"\d{4}-\d{2}-\d{2}", wiki_created) and wiki_created > "2019-11-21":
+                new_game_obj["release_date"] = wiki_created
+
             # Save into memory
             with db_lock:
                 games[new_seq_id_str] = new_game_obj
@@ -1694,6 +1738,59 @@ def main():
             try: shutil.rmtree(TEMP_BASE_DIR)
             except Exception: pass
             
+    # ── Release-date sweep ────────────────────────────────────────────────────
+    # New DF games (including cross-source claims) carry no release date at
+    # ingest — DF only exposes dates through the advanced search's "Released
+    # between" filter. One membership query over the last 90 days finds which
+    # dateless DF-mapped games are recent; a bounded bisection then pins each
+    # to its exact day. Runs BEFORE the delta generation so dates ride the
+    # normal incremental update. fetch_df_ids_in_window returns None on
+    # failure (never "empty"), so a bad query just leaves games dateless for
+    # the next run's retry.
+    try:
+        rd_targets = {}
+        for rd_seq, rd_val in seq_map.items():
+            if rd_seq not in games or games[rd_seq].get("release_date"):
+                continue
+            rd_orig = str(rd_val[0]) if isinstance(rd_val, list) and rd_val else ""
+            if rd_orig.isdigit():
+                rd_targets[rd_orig] = rd_seq
+        if rd_targets:
+            rd_today = datetime.date.today()
+            rd_window = fetch_df_ids_in_window(rd_today - datetime.timedelta(days=90), rd_today)
+            if rd_window is None:
+                log("  [WARNING] Release-date sweep skipped: membership query failed (retry next run).")
+            else:
+                rd_pending = {d: s for d, s in rd_targets.items() if d in rd_window}
+                if rd_pending:
+                    log(f"Release-date sweep: dating {len(rd_pending)} of {len(rd_targets)} "
+                        f"dateless DF-mapped game(s) released in the last 90 days...")
+                    rd_budget = 40
+                    rd_stack = [(rd_today - datetime.timedelta(days=90), rd_today, set(rd_pending))]
+                    while rd_stack:
+                        rd_lo, rd_hi, rd_ids = rd_stack.pop()
+                        if not rd_ids:
+                            continue
+                        if rd_lo == rd_hi:
+                            for rd_df in rd_ids:
+                                games[rd_pending[rd_df]]["release_date"] = rd_lo.isoformat()
+                                log(f"  [RELEASE DATE] Seq {rd_pending[rd_df]} (DF {rd_df}) -> {rd_lo.isoformat()}")
+                            continue
+                        if rd_budget <= 0:
+                            log(f"  Release-date sweep budget exhausted; {len(rd_ids)} game(s) retry next run.")
+                            continue
+                        rd_mid = rd_lo + (rd_hi - rd_lo) // 2
+                        rd_left = fetch_df_ids_in_window(rd_lo, rd_mid)
+                        rd_budget -= 1
+                        if rd_left is None:
+                            log(f"  [WARNING] Bisection window {rd_lo}..{rd_mid} failed; "
+                                f"{len(rd_ids)} game(s) retry next run.")
+                            continue
+                        rd_stack.append((rd_lo, rd_mid, rd_ids & rd_left))
+                        rd_stack.append((rd_mid + datetime.timedelta(days=1), rd_hi, rd_ids - rd_left))
+    except Exception as e:
+        log(f"  [WARNING] Release-date sweep failed: {e}")
+
     # Final normalization: a game with no ratings (rating_count == 0) is unrated, so
     # its avg_rating/avg_difficulty must be null (N/A), never 0.0. Runs after Steps 4A/4B
     # so rating_count is final (e.g. Delicious Fruit games keep their aggregate rating).
