@@ -2,7 +2,6 @@
 
 // Sentinel bucket for games with no detected engine (engine === null).
 const ENGINE_UNKNOWN = '__unknown__';
-const YEAR_UNKNOWN = '__unknown__';
 
 function DualRange({ min, max, step, value, onChange, format }) {
   // Two-handle slider rendered manually so we can show the colored fill range.
@@ -208,7 +207,12 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
   const [tags,   setTags]     = React.useState(new Map());
   const [showAllTags, setShowAllTags] = React.useState(false);
   const [engines, setEngines] = React.useState(new Map());
-  const [years, setYears] = React.useState(new Map());
+  // Release-date range filters: [{from, to, mode: 'in'|'out'}]. A game must
+  // fall inside at least one 'in' range (when any exist) and inside no 'out'
+  // range. from/to may be null for an open end.
+  const [dateRanges, setDateRanges] = React.useState([]);
+  const [drFrom, setDrFrom] = React.useState('');
+  const [drTo, setDrTo] = React.useState('');
 
   const [flags,  setFlags]    = React.useState({ local: false, shots: false, missing: false });
   const [sort,   setSort]     = React.useState('id');
@@ -288,35 +292,29 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
     setEngines(next);
   };
 
-  // Release-year buckets (single value per game). Missing date => Unknown.
-  const yearList = React.useMemo(() => {
-    const counts = new Map();
-    window.DATA.GAMES.forEach((g) => {
-      const key = g.release_date ? g.release_date.slice(0, 4) : YEAR_UNKNOWN;
-      counts.set(key, (counts.get(key) || 0) + 1);
-    });
-    return [...counts.entries()]
-      .sort((a, b) => {
-        // Keep the Unknown bucket last; otherwise newest year first.
-        if (a[0] === YEAR_UNKNOWN) return 1;
-        if (b[0] === YEAR_UNKNOWN) return -1;
-        return b[0].localeCompare(a[0]);
-      })
-      .map(([name, count]) => ({ name, count }));
-  }, []);
+  const addDateRange = () => {
+    let from = drFrom || null;
+    let to = drTo || null;
+    if (!from && !to) return;
+    if (from && to && from > to) { const t = from; from = to; to = t; }
+    // Identical range already present -> ignore.
+    if (dateRanges.some((r) => r.from === from && r.to === to)) return;
+    setDateRanges([...dateRanges, { from, to, mode: 'in' }]);
+    setDrFrom('');
+    setDrTo('');
+  };
 
-  const toggleYear = (name) => {
-    const next = new Map(years);
-    if (!next.has(name)) {
-      next.set(name, 'or');
-    } else if (next.get(name) === 'or') {
-      next.set(name, 'and');
-    } else if (next.get(name) === 'and') {
-      next.set(name, 'not');
-    } else {
-      next.delete(name);
-    }
-    setYears(next);
+  // Click cycles a range chip: include -> exclude -> removed.
+  const toggleDateRange = (idx) => {
+    setDateRanges((rs) => rs
+      .map((r, i) => i !== idx ? r : (r.mode === 'in' ? { ...r, mode: 'out' } : null))
+      .filter(Boolean));
+  };
+
+  const dateRangeLabel = (r) => {
+    if (r.from && r.to) return `${r.from} ~ ${r.to}`;
+    if (r.from) return `≥ ${r.from}`;
+    return `≤ ${r.to}`;
   };
 
   const sortedFilteredTags = React.useMemo(() => {
@@ -387,19 +385,14 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
         if (notEng.length && notEng.includes(ge)) return false;
       }
 
-      if (years.size) {
-        const orY = [];
-        const andY = [];
-        const notY = [];
-        years.forEach((mode, name) => {
-          if (mode === 'or') orY.push(name);
-          else if (mode === 'and') andY.push(name);
-          else if (mode === 'not') notY.push(name);
-        });
-        const gy = g.release_date ? g.release_date.slice(0, 4) : YEAR_UNKNOWN;
-        if (orY.length && !orY.includes(gy)) return false;
-        if (andY.length && !andY.every((y) => y === gy)) return false;
-        if (notY.length && notY.includes(gy)) return false;
+      if (dateRanges.length) {
+        // Inside a range: needs a date and to satisfy both (open) bounds.
+        const inRange = (r) => g.release_date &&
+          (!r.from || g.release_date >= r.from) &&
+          (!r.to || g.release_date <= r.to);
+        const incRanges = dateRanges.filter((r) => r.mode === 'in');
+        if (incRanges.length && !incRanges.some(inRange)) return false;
+        if (dateRanges.some((r) => r.mode === 'out' && inRange(r))) return false;
       }
 
       if (flags.local     && !g.flags.local) return false;
@@ -454,11 +447,11 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
       }
       return desc ? -comparison : comparison;
     });
-  }, [searchTitle, searchCreator, rating, diff, tags, engines, years, flags, sort, desc]);
+  }, [searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, flags, sort, desc]);
 
   React.useEffect(() => {
     setPage(1);
-  }, [searchTitle, searchCreator, rating, diff, tags, engines, years, flags, sort, desc]);
+  }, [searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, flags, sort, desc]);
 
 
   React.useEffect(() => {
@@ -710,34 +703,33 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
           </div>
           <div className="fp-section">
             <h4>
-              <span>{window.t('years_count', { count: years.size })}</span>
-              <span className="reset" onClick={() => setYears(new Map())}>{window.t('reset')}</span>
+              <span>{window.t('date_filter_label', { count: dateRanges.length })}</span>
+              <span className="reset" onClick={() => setDateRanges([])}>{window.t('reset')}</span>
             </h4>
+            <div className="date-range-form">
+              <input type="date" className="date-input" value={drFrom}
+                     onChange={(e) => setDrFrom(e.target.value)} />
+              <span className="date-range-sep">~</span>
+              <input type="date" className="date-input" value={drTo}
+                     onChange={(e) => setDrTo(e.target.value)} />
+              <button type="button" className="date-range-add" disabled={!drFrom && !drTo}
+                      onClick={addDateRange}>{window.t('date_filter_add')}</button>
+            </div>
             <div style={{ fontSize: '10.5px', color: 'var(--muted)', marginTop: '4px', marginBottom: '8px', paddingLeft: '2px' }}>
-              {window.t('tag_instruction')}
+              {window.t('date_filter_help')}
             </div>
-            <div className="tag-cloud engine-cloud">
-              {yearList.map((y) => {
-                const mode = years.get(y.name);
-                let cls = 'tag engine-tag';
-                let prefix = '';
-                if (mode === 'or') {
-                  cls += ' tag-or on';
-                } else if (mode === 'and') {
-                  cls += ' tag-and on';
-                  prefix = '+ ';
-                } else if (mode === 'not') {
-                  cls += ' tag-not on';
-                  prefix = '- ';
-                }
-                const label = y.name === YEAR_UNKNOWN ? window.t('year_unknown') : y.name;
-                return (
-                  <span key={y.name} className={cls} onClick={() => toggleYear(y.name)}>
-                    {prefix}{label}<span className="ct">{y.count.toLocaleString()}</span>
-                  </span>
-                );
-              })}
-            </div>
+            {dateRanges.length > 0 && (
+              <div className="tag-cloud engine-cloud">
+                {dateRanges.map((r, i) => {
+                  const cls = 'tag engine-tag ' + (r.mode === 'in' ? 'tag-or on' : 'tag-not on');
+                  return (
+                    <span key={`${r.from}~${r.to}`} className={cls} onClick={() => toggleDateRange(i)}>
+                      {r.mode === 'out' ? '- ' : ''}{dateRangeLabel(r)}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <div className="fp-section">
             <h4>{window.t('archive_flags')}</h4>

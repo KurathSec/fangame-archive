@@ -10,7 +10,7 @@
       ],
       [
         "Added",
-        "Sort the catalog by release date (newest first), and filter by release year in the sidebar with the same three-state include/require/exclude chips as the engine filter."
+        "Sort the catalog by release date (newest first), and filter by release period in the sidebar: add any number of date ranges (open-ended allowed) and set each to include or exclude — e.g. show two separate eras at once, or hide everything from a specific stretch."
       ],
       [
         "Added",
