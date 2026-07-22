@@ -122,6 +122,15 @@ def main():
 
     already = sum(1 for g in games.values() if g.get("release_date"))
 
+    # Pass 0: reviewed per-seq dates baked into the artifact (one-time wiki
+    # title-match results, human-checked before commit — see `seq_source`).
+    # Keyed by catalog id directly, so it needs no mapping.
+    p0 = 0
+    for seq_id, d in (artifact.get("seq") or {}).items():
+        if seq_id in games and not games[seq_id].get("release_date") and valid_date(d):
+            games[seq_id]["release_date"] = d
+            p0 += 1
+
     # Pass 1: DF-mapped games from the artifact.
     p1 = 0
     for seq_id, val in seq_map.items():
@@ -182,9 +191,10 @@ def main():
                 p3 += 1
                 print(f"  [P3] seq {seq_id} '{g.get('title')}' by '{creator}' <- wiki {d}")
 
-    assigned = p1 + p2 + p3
+    assigned = p0 + p1 + p2 + p3
     print(f"\ncatalog games        : {len(games)}")
     print(f"already dated        : {already}")
+    print(f"pass 0 (reviewed seq): {p0}")
     print(f"pass 1 (DF artifact) : {p1}")
     print(f"pass 2 (wiki mapped) : {p2}")
     print(f"pass 3 (title match) : {p3}{'' if args.title_match else '  (disabled)'}")
