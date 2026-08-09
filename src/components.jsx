@@ -20,10 +20,11 @@ function getShotUrl(path) {
 
 }
 
-// Where a game was catalogued from -> its page on that site. The catalog stores
-// only `source: {type, id}` (see pipelines/backfill_source_links.py) so ~15k
-// redundant URL strings stay out of games.json; the link is rebuilt here. The
-// /api/* responses ship a ready-made `url`, which is preferred when present.
+// Every upstream site that documents a game -> its page there. The catalog
+// stores only `source: [{type, id}, …]` (ingest origin first — see
+// pipelines/source_links.py) so ~28k redundant URL strings stay out of
+// games.json; the link is rebuilt here. The /api/* responses ship a ready-made
+// `url`, which is preferred when present.
 const SOURCE_SITES = {
   df:   { label: 'Delicious Fruit', url: (id) => 'https://delicious-fruit.com/ratings/game_details.php?id=' + encodeURIComponent(id) },
   wiki: { label: 'IWanna Wiki',     url: (id) => 'https://iwannawiki.com/games/' + encodeURIComponent(id) }
@@ -1244,7 +1245,7 @@ const API_FILTERS = [
   ['difficulty_min, difficulty_max', '0–100, same unrated rule.'],
   ['reviews_min, reviews_max', 'Number of reviews behind the rating.'],
   ['size_min_mb, size_max_mb', 'Download size in MB.'],
-  ['source / source_not', 'df, wiki or none — where the game was catalogued from. source_id= matches that site\'s own id.'],
+  ['source / source_not', 'df, wiki or none — which upstream sites document the game (a game can be on both). source_id= matches an upstream site\'s own id.'],
   ['local, has_download', 'local=true = hosted on the archive\'s own CDN. has_download=false = no working link on record.'],
   ['sort, order', 'sort = id, title, creator, rating, difficulty, date, reviews, size or random. order = asc or desc. Games missing the sorted value always sort last.'],
   ['limit, offset, fields', 'limit=0 means no limit. fields=id,title,release_date trims the response to those keys.']

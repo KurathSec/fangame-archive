@@ -55,6 +55,11 @@ except ImportError:
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     from config import CLOUDFLARE_ACCOUNT_ID, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 
+# Shared `source` shape + wiki cross-linking rules (also used by the two
+# backfill scripts, so the matching rules exist in exactly one place).
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import source_links
+
 BUCKET_NAME = "fangame-files"
 PUBLIC_DOMAIN = "https://file.fangame-archive.com"
 
@@ -1805,18 +1810,51 @@ def main():
             src_game = games.get(str(src_seq))
             if src_game is None:
                 continue
-            src_orig = str(src_val[0]).strip() if isinstance(src_val, list) and src_val else ""
-            if src_orig.isdigit():
-                src_entry = {"type": "df", "id": src_orig}
-            elif src_orig.startswith("WIKI-") and src_orig[len("WIKI-"):].strip():
-                src_entry = {"type": "wiki", "id": src_orig[len("WIKI-"):].strip()}
-            else:
-                continue
-            if src_game.get("source") != src_entry:
-                src_game["source"] = src_entry
+            src_entry = source_links.source_from_mapping(src_val)
+            if src_entry and source_links.merge_source(src_game, src_entry, primary=True):
                 src_count += 1
     if src_count:
         log(f"Stamped upstream source on {src_count} game(s).")
+
+    # ── Wiki cross-link for new games ─────────────────────────────────────────
+    # A game ingested from Delicious Fruit also gets its IWanna Wiki entry linked
+    # when the two catalogs agree on the title (rules in source_links.py). The
+    # historical ~12k links ride the committed data/wiki_links.json artifact
+    # (backfill_wiki_links.py); this pass only covers games ingested since the
+    # artifact was generated, so the delta stays small.
+    #
+    # `wiki_games` is whatever fetch_wiki_games() managed to collect and it
+    # *breaks out on error*, so a partial catalog is possible. Matching on a
+    # partial catalog is unsafe (a title whose duplicate is missing looks unique
+    # and would be mislinked), so the pass is skipped unless the catalog is at
+    # least as large as when the artifact was built.
+    try:
+        wl_min = 0
+        wl_path = "data/wiki_links.json"
+        wl_known = set()
+        if os.path.exists(wl_path):
+            with open(wl_path, "r", encoding="utf-8") as f_wl:
+                wl_artifact = json.load(f_wl)
+            wl_min = int(wl_artifact.get("wiki_catalog_size") or 0)
+            wl_known = set(wl_artifact.get("links") or {})
+        if not wiki_games or len(wiki_games) < wl_min:
+            log(f"  Wiki cross-link pass skipped: catalog looks incomplete "
+                f"({len(wiki_games)} < {wl_min}); retried next run.")
+        else:
+            with db_lock:
+                # Games the artifact never considered — i.e. ingested since.
+                wl_scope = {s for s in games if s not in wl_known}
+                wl_links, wl_stats = source_links.match_wiki_links(
+                    games, wiki_games, only_seq_ids=wl_scope)
+                for wl_seq, wl_id in wl_links.items():
+                    source_links.merge_source(
+                        games[wl_seq], {"type": source_links.WIKI, "id": wl_id})
+                    log(f"  [WIKI LINK] Seq {wl_seq} '{games[wl_seq].get('title')}' -> wiki {wl_id}")
+            if wl_links:
+                log(f"Cross-linked {len(wl_links)} game(s) to the IWanna Wiki "
+                    f"({wl_stats['reject_creator_conflict']} rejected on creator mismatch).")
+    except Exception as e:
+        log(f"  [WARNING] Wiki cross-link pass failed: {e}")
 
     # Final normalization: a game with no ratings (rating_count == 0) is unrated, so
     # its avg_rating/avg_difficulty must be null (N/A), never 0.0. Runs after Steps 4A/4B

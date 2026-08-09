@@ -20,8 +20,10 @@ export const CORS_HEADERS = {
 
 export const ENGINE_UNKNOWN = "unknown";
 
-// Public page for a game on the site it was catalogued from. `source` on a game
-// record is {type, id}; the URL is derived here so the stored catalog stays compact.
+// Public page for a game on each site that documents it. `source` on a game
+// record is a list of {type, id} (ingest origin first, then cross-links such as
+// the IWanna Wiki entry found for a Delicious Fruit ingest); the URL is derived
+// here so the stored catalog stays compact.
 const SOURCE_SITES = {
   df: {
     label: "Delicious Fruit",
@@ -33,11 +35,25 @@ const SOURCE_SITES = {
   }
 };
 
+/** One {type, id} -> a resolvable link, or null when the site is unknown. */
 export function sourceLink(source) {
   if (!source || !source.type || !source.id) return null;
   const site = SOURCE_SITES[source.type];
   if (!site) return null;
   return { type: source.type, id: String(source.id), site: site.label, url: site.url(source.id) };
+}
+
+/** A game's `source` (list, or a bare object from older records) -> link list. */
+export function sourceLinks(source) {
+  const list = Array.isArray(source) ? source : (source ? [source] : []);
+  return list.map(sourceLink).filter(Boolean);
+}
+
+/** The type of a game's ingest origin (first entry), or "none". */
+export function primarySourceType(source) {
+  const list = Array.isArray(source) ? source : (source ? [source] : []);
+  const first = list.find((s) => s && s.type);
+  return first ? String(first.type).toLowerCase() : "none";
 }
 
 export function json(data, status = 200, extraHeaders = {}) {
@@ -281,8 +297,17 @@ function gameEngine(g) {
   return e ? e.toLowerCase() : ENGINE_UNKNOWN;
 }
 
-function sourceType(g) {
-  return (g.source && g.source.type) ? String(g.source.type).toLowerCase() : "none";
+// Every site that documents this game, not just the one it was ingested from —
+// so `source=wiki` reads as "has a wiki entry", which is what a caller wants.
+function sourceTypes(g) {
+  const list = Array.isArray(g.source) ? g.source : (g.source ? [g.source] : []);
+  const types = list.filter((s) => s && s.type).map((s) => String(s.type).toLowerCase());
+  return types.length ? types : ["none"];
+}
+
+function sourceIds(g) {
+  const list = Array.isArray(g.source) ? g.source : (g.source ? [g.source] : []);
+  return list.filter((s) => s && s.id).map((s) => String(s.id));
 }
 
 function inRange(date, r) {
@@ -349,10 +374,10 @@ export function matchesFilters(g, f) {
   if (f.sizeMinMb !== null && sizeMb < f.sizeMinMb) return false;
   if (f.sizeMaxMb !== null && sizeMb > f.sizeMaxMb) return false;
 
-  const st = sourceType(g);
-  if (f.sources.length && !f.sources.includes(st)) return false;
-  if (f.sourcesNot.length && f.sourcesNot.includes(st)) return false;
-  if (f.sourceId && String((g.source && g.source.id) || "") !== f.sourceId) return false;
+  const st = sourceTypes(g);
+  if (f.sources.length && !st.some((t) => f.sources.includes(t))) return false;
+  if (f.sourcesNot.length && st.some((t) => f.sourcesNot.includes(t))) return false;
+  if (f.sourceId && !sourceIds(g).includes(f.sourceId)) return false;
 
   const url = String(g.url || "");
   if (f.hasDownload !== null && Boolean(url) !== f.hasDownload) return false;
@@ -437,7 +462,8 @@ export function shape(g, fields, origin = "") {
     rating_count: g.rating_count ?? 0,
     file_size: g.file_size ?? 0,
     page_url: `${origin}/?game=${g.id}`,
-    source: sourceLink(g.source)
+    // Every upstream page that documents this game, ingest origin first.
+    source: sourceLinks(g.source)
   };
   if (!fields || !fields.length) return out;
   const picked = {};

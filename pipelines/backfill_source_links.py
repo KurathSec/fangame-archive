@@ -5,14 +5,15 @@ catalog id was ingested from — a numeric Delicious Fruit game id, or "WIKI-<id
 for an IWanna Wiki entry — but that mapping never reached games.json, so neither
 the site nor the public API could link a game back to where it came from.
 
-This writes it onto the game record in a compact, self-describing shape:
+This writes it onto the game record as the FIRST entry of the game's `source`
+list (see pipelines/source_links.py for the shape and the merge rules):
 
-    "source": {"type": "df",   "id": "17718"}
-    "source": {"type": "wiki", "id": "24268"}
+    "source": [{"type": "df", "id": "17718"}]
 
 Only the type and id are stored; the page URL is derived at the edges
 (functions/api/_lib/catalog.js and the drawer in src/components.jsx), so the
-30 MB catalog does not carry ~15k redundant URL strings.
+30 MB catalog does not carry ~15k redundant URL strings. Wiki cross-links added
+by backfill_wiki_links.py sit alongside and are never clobbered here.
 
 Locally-submitted games ("SUBMISSION-*") have no upstream page and are skipped.
 
@@ -37,6 +38,9 @@ import os
 import shutil
 import sys
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import source_links
+
 sys.stdout.reconfigure(encoding="utf-8")
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -45,43 +49,24 @@ SEQ_MAP = os.path.join(REPO_ROOT, "database", "seq_to_orig_map.json")
 RECENT_CHANGES = os.path.join(REPO_ROOT, "data", "recent_changes.json")
 
 
-def source_from_mapping(val):
-    """seq_to_orig_map value -> {"type", "id"}, or None when there is no upstream page."""
-    orig = ""
-    if isinstance(val, list) and val:
-        orig = str(val[0]).strip()
-    elif isinstance(val, str):
-        orig = val.strip()
-    if not orig:
-        return None
-    if orig.isdigit():
-        return {"type": "df", "id": orig}
-    if orig.startswith("WIKI-"):
-        wid = orig[len("WIKI-"):].strip()
-        return {"type": "wiki", "id": wid} if wid else None
-    # SUBMISSION-* (and anything else unrecognized) has no public upstream page.
-    return None
-
-
 def stamp_sources(games, seq_map):
-    """Write `source` onto every mapped game. Returns (added, corrected)."""
+    """Write the ingest origin onto every mapped game. Returns (added, corrected)."""
     added = 0
     corrected = 0
     for seq_id, val in seq_map.items():
         game = games.get(str(seq_id))
         if game is None:
             continue  # tombstone: mapped upstream id whose catalog entry was removed
-        src = source_from_mapping(val)
+        src = source_links.source_from_mapping(val)
         if src is None:
             continue
-        current = game.get("source")
-        if current == src:
-            continue
-        if current:
-            corrected += 1
-        else:
-            added += 1
-        game["source"] = src
+        had_origin = any(s["type"] == src["type"]
+                         for s in source_links.normalize_sources(game.get("source")))
+        if source_links.merge_source(game, src, primary=True):
+            if had_origin:
+                corrected += 1
+            else:
+                added += 1
     return added, corrected
 
 
@@ -102,14 +87,17 @@ def main():
     with open(SEQ_MAP, encoding="utf-8") as f:
         seq_map = json.load(f)
 
-    already = sum(1 for g in games.values() if g.get("source"))
+    already = sum(1 for g in games.values()
+                  if any(s["type"] != source_links.WIKI
+                         for s in source_links.normalize_sources(g.get("source"))))
     added, corrected = stamp_sources(games, seq_map)
     assigned = added + corrected
 
     by_type = {}
     for g in games.values():
-        src = g.get("source") or {}
-        by_type[src.get("type") or "none"] = by_type.get(src.get("type") or "none", 0) + 1
+        srcs = source_links.normalize_sources(g.get("source"))
+        for key in ([s["type"] for s in srcs] or ["none"]):
+            by_type[key] = by_type.get(key, 0) + 1
 
     print(f"catalog games      : {len(games)}")
     print(f"mappings           : {len(seq_map)}")

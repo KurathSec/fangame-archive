@@ -93,6 +93,13 @@ jobs:
       - name: Backfill Source Links (idempotent)
         run: python pipelines/backfill_source_links.py --apply --ci
 
+      # Adds the IWanna Wiki cross-link for games ingested from Delicious Fruit,
+      # from the committed data/wiki_links.json artifact (offline — no wiki call,
+      # so a wiki outage can never thin the mapping). New games are matched
+      # inline by the scraper, so this is a no-op after the first run.
+      - name: Backfill Wiki Cross-links (idempotent)
+        run: python pipelines/backfill_wiki_links.py --apply --ci
+
       - name: Merge Approved Game Submissions
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
