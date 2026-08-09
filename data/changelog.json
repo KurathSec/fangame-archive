@@ -1,5 +1,40 @@
 [
   {
+    "ver": "2026.014",
+    "date": "2026-08-09",
+    "note": "Public API: full catalog, tag/engine/date endpoints with composable tri-state filters, and links back to each game's source",
+    "changes": [
+      [
+        "Added",
+        "A new /api/all endpoint returns the entire catalog in one request — the archive is now fully readable from outside, with no key and no rate limit."
+      ],
+      [
+        "Added",
+        "Three new catalog endpoints: /api/tag and /api/engine list every tag or engine with its game count (or the matching games), and /api/releasedate reports date coverage year by year (or the games inside a period)."
+      ],
+      [
+        "Added",
+        "Every endpoint now shares one filter vocabulary, so filters combine freely across all of them. Tags and engines are tri-state exactly like the sidebar — require any, require all, or exclude — and date ranges stack the same way, several include periods at once with specific stretches carved back out."
+      ],
+      [
+        "Added",
+        "Games catalogued from Delicious Fruit or the IWanna Wiki now show a button in the detail panel linking straight to their entry on that site."
+      ],
+      [
+        "Added",
+        "API responses carry that upstream link too, alongside the game's engine, release date and its page on this site. /api/random can now be scoped by any filter, so a roll can be limited to, say, well-rated needle games from a chosen era."
+      ],
+      [
+        "Added",
+        "About & Contact now documents the public API: every endpoint, every filter, and runnable examples."
+      ],
+      [
+        "Changed",
+        "/api/search accepts the same filters and paging as the rest, and its existing ?q= / ?id= responses are unchanged. A malformed parameter on any endpoint now returns an error message instead of an empty result."
+      ]
+    ]
+  },
+  {
     "ver": "2026.013",
     "date": "2026-07-22",
     "note": "Release dates: ~15k games dated from Delicious Fruit, with sorting and a year filter",

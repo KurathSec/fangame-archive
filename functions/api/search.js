@@ -1,94 +1,77 @@
-// Pages Function API for keyword and ID directory search.
-// Optimized using Cloudflare Edge Cache API.
+// GET /api/search — keyword and ID lookup over the catalog.
+//
+//   /api/search?q=Happil     substring over title, creator and tags
+//   /api/search?id=17049     one game by its archive ID
+//
+// Since v2026.014 this shares the filter engine in functions/api/_lib/catalog.js
+// with /api/all, /api/tag, /api/engine and /api/releasedate, so the tri-state
+// tag/engine filters and date ranges compose here as well:
+//   /api/search?q=needle&engine=GameMaker%208&tag_not=trap&date_in=2018-01-01:
+//
+// Results are capped at 100 by default (raise with ?limit=, page with ?offset=).
+
+import {
+  preflight, json, badRequest, loadCatalog, parseQuery, buildResults,
+  cacheLookup, cacheStore, isCacheable
+} from "./_lib/catalog.js";
 
 export async function onRequest(context) {
+  const pre = preflight(context.request);
+  if (pre) return pre;
+
   const url = new URL(context.request.url);
-  const q = url.searchParams.get("q");
-  const id = url.searchParams.get("id");
+  const sp = url.searchParams;
+  const parsed = parseQuery(sp, { defaultLimit: 100, defaultSort: "id" });
+  if (parsed.errors.length) return badRequest(parsed.errors[0], { errors: parsed.errors });
 
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Content-Type": "application/json;charset=utf-8"
-  };
+  // An ID lookup is exact and single, so it ignores the 100-row default cap.
+  if (parsed.filters.ids) parsed.limit = 0;
 
-  if (context.request.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  const f = parsed.filters;
+  const hasAnyFilter = Boolean(
+    f.q || f.title || f.creator || f.ids ||
+    f.tagAny.length || f.tagAll.length || f.tagNot.length ||
+    f.engineAny.length || f.engineNot.length || f.hasEngine !== null ||
+    f.dateRanges.length || f.hasDate !== null ||
+    f.ratingMin !== null || f.ratingMax !== null ||
+    f.difficultyMin !== null || f.difficultyMax !== null ||
+    f.reviewsMin !== null || f.reviewsMax !== null ||
+    f.sizeMinMb !== null || f.sizeMaxMb !== null ||
+    f.sources.length || f.sourcesNot.length || f.sourceId ||
+    f.local !== null || f.hasDownload !== null
+  );
+  if (!hasAnyFilter) {
+    return json({
+      error: "Please provide a query parameter 'q' (for keyword search) or 'id' (for game ID search)",
+      example_id: `${url.origin}/api/search?id=17049`,
+      example_query: `${url.origin}/api/search?q=Happil`,
+      example_filtered: `${url.origin}/api/search?q=needle&engine=GameMaker%208&tag_not=trap`,
+      full_catalog: `${url.origin}/api/all`,
+      other_endpoints: ["/api/all", "/api/tag", "/api/engine", "/api/releasedate", "/api/random"],
+      docs: "Full parameter reference: the About & Contact page on this site."
+    }, 400);
   }
 
-  // 1. Edge caching lookup
-  const useCache = typeof caches !== "undefined";
-  let cacheKey, cache;
-  if (useCache) {
-    cache = caches.default;
-    cacheKey = new Request(context.request.url, context.request);
-    try {
-      const cachedResponse = await cache.match(cacheKey);
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-    } catch (e) {
-      console.warn("Cache match failed:", e);
-    }
-  }
+  const cacheable = isCacheable(parsed);
+  const { cache, key, hit } = await cacheLookup(context, cacheable);
+  if (hit) return hit;
 
   try {
-    // Fetch search_index.json from our own deployment
-    const indexUrl = `${url.origin}/data/search_index.json`;
-    const res = await fetch(indexUrl);
-    if (!res.ok) {
-      return new Response(JSON.stringify({ error: "Failed to load database search index" }), {
-        status: 500,
-        headers: corsHeaders
-      });
-    }
-
-    const games = await res.json();
-    let responseData = {};
-    let status = 200;
-
-    if (id) {
-      const match = games.find(g => String(g.id) === String(id));
-      responseData = { success: true, results: match ? [match] : [] };
-    } else if (q) {
-      const query = q.toLowerCase().trim();
-      const results = games.filter(g => {
-        const titleMatch = g.title.toLowerCase().includes(query);
-        const creatorMatch = g.creator.toLowerCase().includes(query);
-        const tagsMatch = g.tags.some(t => t.toLowerCase().includes(query));
-        return titleMatch || creatorMatch || tagsMatch;
-      });
-      responseData = { success: true, count: results.length, results: results.slice(0, 100) };
-    } else {
-      responseData = {
-        error: "Please provide a query parameter 'q' (for keyword search) or 'id' (for game ID search)",
-        example_id: `${url.origin}/api/search?id=17049`,
-        example_query: `${url.origin}/api/search?q=Happil`
-      };
-      status = 400;
-    }
-
-    const finalResponse = new Response(JSON.stringify(responseData), {
-      status,
-      headers: corsHeaders
-    });
-
-    // Write to Edge Cache if query succeeded (expires in 10 minutes)
-    if (useCache && status === 200 && context.request.method === "GET") {
-      finalResponse.headers.set("Cache-Control", "public, max-age=600");
-      try {
-        context.waitUntil(cache.put(cacheKey, finalResponse.clone()));
-      } catch (e) {
-        console.warn("Cache write failed:", e);
-      }
-    }
-
-    return finalResponse;
+    const games = await loadCatalog(url.origin);
+    const built = buildResults(games, parsed, url.origin);
+    // `count` stays the total number of matches (not the page size) for
+    // backwards compatibility with the pre-v2026.014 response shape.
+    const res = json({
+      success: true,
+      count: built.total,
+      total: built.total,
+      returned: built.count,
+      offset: built.offset,
+      limit: built.limit,
+      results: built.results
+    }, 200, cacheable ? {} : { "Cache-Control": "no-store" });
+    return cacheStore(context, cache, key, res);
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: corsHeaders
-    });
+    return json({ success: false, error: err.message }, 500);
   }
 }

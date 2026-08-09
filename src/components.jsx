@@ -20,6 +20,28 @@ function getShotUrl(path) {
 
 }
 
+// Where a game was catalogued from -> its page on that site. The catalog stores
+// only `source: {type, id}` (see pipelines/backfill_source_links.py) so ~15k
+// redundant URL strings stay out of games.json; the link is rebuilt here. The
+// /api/* responses ship a ready-made `url`, which is preferred when present.
+const SOURCE_SITES = {
+  df:   { label: 'Delicious Fruit', url: (id) => 'https://delicious-fruit.com/ratings/game_details.php?id=' + encodeURIComponent(id) },
+  wiki: { label: 'IWanna Wiki',     url: (id) => 'https://iwannawiki.com/games/' + encodeURIComponent(id) }
+};
+
+// Accepts a single {type, id} or an array of them, so a game known to more than
+// one upstream site renders one button per site.
+function sourceLinks(game) {
+  const raw = game && game.source;
+  const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  return list.map((s) => {
+    const site = s && SOURCE_SITES[s.type];
+    if (!site || !s.id) return null;
+    return { type: s.type, label: site.label, id: String(s.id), url: s.url || site.url(s.id) };
+  }).filter(Boolean);
+}
+window.sourceLinks = sourceLinks;
+
 // Shared components: icons, sidebar, drawer, lightbox, toasts.
 
 
@@ -444,6 +466,8 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
   if (game === null) return null;
 
+  const srcLinks = sourceLinks(game);
+
   // Copy this game's shareable deep link (?game=<id>) to the clipboard.
   const shareGame = async () => {
     const url = new URL(window.location.href);
@@ -658,6 +682,27 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
               </button>
             )}
           </section>
+
+          {/* Upstream entry: only the site this game was catalogued from is known,
+              so most games show a single button. */}
+          {srcLinks.length > 0 && (
+            <section className="drawer-sec source-row">
+              <span className="source-row-label">{window.t('view_upstream')}</span>
+              {srcLinks.map((s) => (
+                <a
+                  key={s.type}
+                  className="source-btn"
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={s.label + ' #' + s.id}
+                >
+                  {ic.ext}
+                  <span>{s.label}</span>
+                </a>
+              ))}
+            </section>
+          )}
 
 
 
@@ -1171,6 +1216,48 @@ function LinksView() {
 
 
 
+// ── Public API reference (rendered in About & Contact) ──────────────────────
+// Kept in English on purpose: every path, parameter and value below is a literal
+// the caller types, so translating the prose around them would only make the
+// reference harder to match against a real request. Only the section headings
+// and the surrounding notes are localised.
+
+const API_ENDPOINTS = [
+  ['/api/all', 'Every game in the archive. With no parameters it returns the whole catalog; with any filter below it returns just the matches.'],
+  ['/api/search', 'Keyword lookup (?q= over title, creator and tags) or exact lookup by archive id (?id=). Capped at 100 rows unless ?limit= says otherwise.'],
+  ['/api/tag', 'Every tag with its game count. Add ?tag= (or tag_all / tag_not) and it returns the matching games instead.'],
+  ['/api/engine', 'Every detected engine with its game count. Add ?engine= (or engine_not) and it returns the matching games instead.'],
+  ['/api/releasedate', 'Release-date coverage: how many games are dated, the earliest and latest, and a per-year breakdown. Add any date filter and it returns the matching games instead.'],
+  ['/api/random', 'A random pick, ?count=1..50. Never cached, so every call re-samples. Honours every filter, so the roll can be scoped.']
+];
+
+const API_FILTERS = [
+  ['q, title, creator', 'Case-insensitive substring. q searches title, creator and tags at once.'],
+  ['id', 'One or more archive ids: id=17049 or id=17049,3,7.'],
+  ['tag / tag_all / tag_not', 'Tri-state: any of / all of / none of. Comma-separated or repeated.'],
+  ['engine / engine_not', 'Any of / none of, case-insensitive. engine=unknown selects games whose engine was never detected.'],
+  ['has_engine', 'true = only games with a detected engine, false = only undetected.'],
+  ['date_from, date_to', 'One inclusive ISO range, e.g. date_from=2015-01-01&date_to=2018-12-31.'],
+  ['date_in / date_not', 'Repeatable FROM:TO ranges that stack: a game must be inside at least one date_in (when any is given) and inside no date_not. Either side may be empty for an open bound ("2020-01-01:" = 2020 onwards).'],
+  ['has_date', 'true = only dated games, false = only games no source has dated.'],
+  ['rating_min, rating_max', '0–10. Unrated games (no reviews) drop out as soon as the floor is above 0.'],
+  ['difficulty_min, difficulty_max', '0–100, same unrated rule.'],
+  ['reviews_min, reviews_max', 'Number of reviews behind the rating.'],
+  ['size_min_mb, size_max_mb', 'Download size in MB.'],
+  ['source / source_not', 'df, wiki or none — where the game was catalogued from. source_id= matches that site\'s own id.'],
+  ['local, has_download', 'local=true = hosted on the archive\'s own CDN. has_download=false = no working link on record.'],
+  ['sort, order', 'sort = id, title, creator, rating, difficulty, date, reviews, size or random. order = asc or desc. Games missing the sorted value always sort last.'],
+  ['limit, offset, fields', 'limit=0 means no limit. fields=id,title,release_date trims the response to those keys.']
+];
+
+const API_EXAMPLES = [
+  '/api/all?tag=needle&tag_not=trap&engine=GameMaker%208',
+  '/api/releasedate?date_in=2010-01-01:2012-12-31&date_in=2020-01-01:',
+  '/api/all?date_not=2015-01-01:2018-12-31&sort=date&limit=20',
+  '/api/engine?tag=avoidance',
+  '/api/random?count=3&rating_min=8&source=df'
+];
+
 // ── About & Contact — Notion-style properties + tag groups ──────────────────
 
 function ContactView() {
@@ -1346,6 +1433,62 @@ function ContactView() {
               ))}
 
             </div>
+
+          </div>
+
+
+
+          <div className="doc-section">
+
+            <div className="doc-section-label">{window.t('api_docs')}</div>
+
+            <p className="doc-sub" style={{ marginBottom: 14 }}>{window.t('api_docs_desc')}</p>
+
+            <div className="api-sub-label">{window.t('api_endpoints')}</div>
+
+            <div className="ntable">
+
+              {API_ENDPOINTS.map(([path, desc]) => (
+
+                <div key={path} className="ntable-row api-row">
+
+                  <span className="api-key"><a href={path} target="_blank" rel="noopener noreferrer">{path}</a></span>
+
+                  <span className="api-desc">{desc}</span>
+
+                </div>
+
+              ))}
+
+            </div>
+
+            <div className="api-sub-label">{window.t('api_filters')}</div>
+
+            <div className="ntable">
+
+              {API_FILTERS.map(([param, desc]) => (
+
+                <div key={param} className="ntable-row api-row">
+
+                  <span className="api-key">{param}</span>
+
+                  <span className="api-desc">{desc}</span>
+
+                </div>
+
+              ))}
+
+            </div>
+
+            <p className="api-note">{window.t('api_notes')}</p>
+
+            <div className="api-sub-label">{window.t('api_examples')}</div>
+
+            {API_EXAMPLES.map((ex) => (
+
+              <a key={ex} className="api-ex" href={ex} target="_blank" rel="noopener noreferrer">{ex}</a>
+
+            ))}
 
           </div>
 

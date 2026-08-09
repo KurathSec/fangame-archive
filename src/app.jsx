@@ -834,6 +834,9 @@ function RootApp() {
             creator_url: rawGame.creator ? (typeof rawGame.creator === 'object' ? (rawGame.creator.url || '#') : '#') : '#',
             engine: rawGame.engine || null,
             release_date: rawGame.release_date || null,
+            // Upstream provenance {type: 'df'|'wiki', id} -> drawer link back to
+            // the entry this game was catalogued from (absent for submissions).
+            source: rawGame.source || null,
             rating: finalRating,
             difficulty: finalDifficulty,
             reviews: reviewsCount,

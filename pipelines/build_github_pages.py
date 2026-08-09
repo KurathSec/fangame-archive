@@ -118,7 +118,10 @@ def main():
             "rating": rating,
             "difficulty": difficulty,
             "rating_count": rating_count,
-            "file_size": game.get("file_size", 0) or 0
+            "file_size": game.get("file_size", 0) or 0,
+            # Upstream provenance {"type": "df"|"wiki", "id": "..."} — the public
+            # API turns it into a link back to Delicious Fruit / the IWanna Wiki.
+            "source": game.get("source")
         })
         
     index_path = os.path.join(DIST_DIR, "data", "search_index.json")

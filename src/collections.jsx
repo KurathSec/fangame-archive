@@ -831,7 +831,9 @@ function mapIndexGame(e) {
   return {
     id: e.id, title: e.title || 'Untitled', creator: e.creator || 'Unknown', creator_url: '#',
     rating: (e.rating === undefined ? null : e.rating), difficulty: (e.difficulty === undefined ? null : e.difficulty),
-    reviews: e.rating_count || 0, file_size: e.file_size || 0, engine: null, tags: e.tags || [],
+    reviews: e.rating_count || 0, file_size: e.file_size || 0,
+    engine: e.engine || null, release_date: e.release_date || null, source: e.source || null,
+    tags: e.tags || [],
     url, df_id: 'id-' + String(e.id).padStart(5, '0'),
     flags: { local, shots: false, perf: false, broken: !url, missing: !url },
   };

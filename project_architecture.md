@@ -161,7 +161,9 @@ A mapping may persist as a **tombstone** after its game is removed from `games.j
 ```
 > **Reviews live in two stores — this is the single most important thing to know about them.** `reviews_scraped.json` is the offline corpus and is consumed **only** to compute `avg_rating`/`avg_difficulty`/`rating_count` into `games.json`. The detail drawer, however, renders review **text from D1** (`/api/comments`, §4). The two are bridged by [`sync_reviews_to_d1.py`](#87-reviews-dual-store-model--d1-sync-sync_reviews_to_d1py) (§8.7). A review's `game_id` here is its **origin id** (Delicious Fruit id, or `WIKI-<n>` for wiki-sourced games), which the bridge maps to the sequential catalog id via `seq_to_orig_map`. Consequence: a review can correctly feed an average yet be **absent from the drawer** if it was never synced into D1 — see §8.7 and the runbook (§10).
 
-**Build artifact `data/search_index.json`** — per-game records (`id`, `title`, `creator`, `url`, `tags`, plus `rating`, `difficulty`, `rating_count`, `file_size`) consumed by the public `/api/search` and `/api/random` endpoints. `rating`/`difficulty` are `null` for unrated games.
+**Build artifact `data/search_index.json`** — per-game records (`id`, `title`, `creator`, `url`, `tags`, plus `engine`, `release_date`, `rating`, `difficulty`, `rating_count`, `file_size`, `source`) consumed by the six public catalog endpoints (§4.2). `rating`/`difficulty` are `null` for unrated games.
+
+**Field `source` (per game)** — `{"type": "df" | "wiki", "id": "<upstream id>"}`, the entry a game was ingested from. It is a projection of `database/seq_to_orig_map.json` (the long-standing seq→origin mapping) onto the game record, so the drawer and the API can link back to Delicious Fruit / the IWanna Wiki. Only type+id are stored — the page URL is derived at the edges (`functions/api/_lib/catalog.js`, `src/components.jsx`) so the 30 MB catalog does not carry ~15k redundant URL strings. Locally-submitted games (`SUBMISSION-*`) have no upstream page and stay unsourced. Written by [`backfill_source_links.py`](#83-pipeline-scripts-pipelines) for the historical mass and inline by the scraper for every new ingest.
 
 ### 2.2 D1 Schema (`fangame-comments`)
 
@@ -348,8 +350,12 @@ All handlers run on the Workers runtime as Pages Functions. Responses use the `j
 | `/api/collections/membership` | GET | required | `?gameId=` → the caller's lists containing the game (+ `main` favorite flag) for the per-game manager. |
 | `/api/collections/public` | GET | none | Paginated public library — `visibility='public' AND moderation_status='approved'`, non-empty, owner not banned. Edge-cacheable. |
 | `/api/collections/shared/:token` | GET | none | Read a shared collection by opaque token — unlisted always, public only when approved; never private/pending/banned-owner. A shared folder returns `children` (each with `game_ids`), filtered to preset/blank-text or individually `approved` children; `owner_name` is included when `share_show_owner=1`. |
+| `/api/all` | GET | none | Public — the whole catalog, or any filtered slice. See §4.2. |
+| `/api/tag` | GET | none | Public — tag directory with counts, or the games carrying a tag. See §4.2. |
+| `/api/engine` | GET | none | Public — engine directory with counts, or the games built with one. See §4.2. |
+| `/api/releasedate` | GET | none | Public — release-date coverage, or the games inside/outside date ranges. See §4.2. |
 | `/api/search` | GET | none | Public bot/keyword search; see §4.2. |
-| `/api/random` | GET | none | Public — returns random game(s); `?count=` (1–50, default 1), optional `?tag=`; not cached. See §4.2. |
+| `/api/random` | GET | none | Public — returns random game(s); `?count=` (1–50, default 1); not cached. See §4.2. |
 | `/api/clerk-js` | GET | none | Inert legacy proxy for clerk-js (no longer the primary load path; see §3.2). |
 
 ### 4.1 Write pipeline (comments & submissions)
@@ -369,16 +375,24 @@ All handlers run on the Workers runtime as Pages Functions. Responses use the `j
 - `/api/submissions` only accepts staged URLs that belong to the caller (`userOwnsStagingKey`), with the extension class matching the upload kind, and HEAD-verifies the staged game file still exists.
 - **Lifecycle**: CI merge promotes staged files with server-side copies and deletes them once the row is marked merged (§8.3); the admin app deletes them on reject; the CI sweep removes oversize or > 48 h-unreferenced leftovers. Abuse limits in §6.
 
-### 4.2 Search & random endpoints (`/api/search`, `/api/random`)
+### 4.2 Public catalog endpoints (`/api/all`, `/api/tag`, `/api/engine`, `/api/releasedate`, `/api/search`, `/api/random`)
 
-Public read APIs (also usable by bots). Both fetch the deployment's own `data/search_index.json` and return the **same enriched per-game record**: `id`, `title`, `creator`, `url`, `tags`, `rating`, `difficulty`, `rating_count`, `file_size` (`rating`/`difficulty` are `null` for unrated games).
+Six credential-free read APIs (also usable by bots). All of them fetch the deployment's own `data/search_index.json` and return the **same enriched per-game record**: `id`, `title`, `creator`, `url`, `tags`, `engine`, `release_date`, `rating`, `difficulty`, `rating_count`, `file_size`, `page_url` (the `?game=<id>` deep link) and `source` (`{type, id, site, url}` — the upstream Delicious Fruit / IWanna Wiki entry, `null` for submissions; §2.1). `rating`/`difficulty` are `null` for unrated games.
 
-**`/api/search`:**
-- `?id=` → exact match by game id.
-- `?q=` → case-insensitive substring match over title/creator/tags, capped at 100 results.
-Successful GETs are stored in the **edge cache** (`caches.default`, `Cache-Control: public, max-age=600`) keyed by URL, so repeat queries are served without re-reading the index.
+> **One filter engine, six endpoints.** `functions/api/_lib/catalog.js` owns parsing (`parseQuery`), the predicate (`matchesFilters`), sorting (`sortGames`) and shaping (`shape`/`buildResults`); every endpoint is a thin view over it. Consequence: **any filter works on any endpoint** and they compose. Tag/engine filters are tri-state and mirror the Explorer sidebar exactly (§5): bare = OR (any of), `_all` = AND, `_not` = NOT, absent = neutral. Date ranges stack the same way as the sidebar's chips — repeatable `date_in=FROM:TO` (include) and `date_not=FROM:TO` (exclude), open bounds allowed — and an **undated game is inside no range**, so `date_in` drops it while `date_not` leaves it alone. A malformed parameter returns **HTTP 400 with the message**, never a silently-empty result.
 
-**`/api/random`:** returns `count` (default 1, max 50) **distinct** random games, optionally restricted to a `?tag=` (case-insensitive). Responses are **not cached** (`Cache-Control: no-store`) so each call re-samples.
+Full parameter list: `q`/`title`/`creator`, `id`, `tag`/`tag_all`/`tag_not`, `engine`/`engine_not`/`has_engine` (`engine=unknown` selects undetected), `date_from`+`date_to`, `date_in`/`date_not`, `has_date`, `rating_min|max`, `difficulty_min|max`, `reviews_min|max`, `size_min_mb|size_max_mb`, `source`/`source_not`/`source_id`, `local`, `has_download`, `sort`+`order`, `limit`/`offset`/`fields`.
+
+- **`/api/all`** — the entire catalog (`limit` defaults to 0 = no limit), or any filtered slice of it.
+- **`/api/tag`** — with no tag filter, the **tag directory** (every tag + count, computed over whatever the *other* filters left); with `?tag=`/`tag_all`/`tag_not`, the matching games.
+- **`/api/engine`** — same dual shape for engines; the `unknown` bucket counts games whose engine was never detected.
+- **`/api/releasedate`** — with no date filter, **coverage** (`dated`/`undated`, `earliest`, `latest`, per-year counts); with any date filter, the matching games (newest first by default).
+- **`/api/search`** — `?id=` exact match (uncapped) or `?q=` substring over title/creator/tags, capped at 100 unless `?limit=` says otherwise. `count` remains the **total match count** (not the page size) for backwards compatibility with the pre-v2026.014 shape; `total`/`returned` are the unambiguous names.
+- **`/api/random`** — `count` (default 1, max 50) **distinct** random games from the filtered pool.
+
+Successful GETs are stored in the **edge cache** (`caches.default`, `Cache-Control: public, max-age=600`) keyed by URL, so repeat queries are served without re-reading the index. `/api/random` is the sole exception (`Cache-Control: no-store`) so each call re-samples.
+
+The About & Contact view (§5) renders this same reference as user-facing docs, so **the endpoint/parameter tables in `src/components.jsx` (`API_ENDPOINTS`/`API_FILTERS`/`API_EXAMPLES`) must be updated alongside any change here.**
 
 ---
 
@@ -424,6 +438,7 @@ window.setCreatorSearch = (creatorName) => {
 ### 5.4 Detail drawer, reviews & favorites (`src/components.jsx`, `src/collections.jsx`)
 - Opening a game drawer lazily fetches `GET /api/comments?game_id=…` and pages results client-side.
 - The drawer header carries a **copy-share-link button** beside the title; it copies the game's deep link (`?game=<id>`) to the clipboard (with an `execCommand` fallback for non-secure contexts) and shows a toast. See §5.7 for the underlying routing.
+- Below the download row, an **upstream-entry row** links back to where the game was catalogued from, rendered from the game's `source` field (§2.1) by the shared `sourceLinks(game)` helper. The helper accepts a single `{type, id}` **or an array**, so a game known to more than one upstream site renders one button per site; today `seq_to_orig_map` records exactly one origin per game, so in practice each sourced game shows one button (Delicious Fruit or IWanna Wiki) and submissions show none. It also honours a ready-made `url` when present, which is what the `/api/*` responses ship.
 - `CommentEditor` exposes optional rating/difficulty via independent toggles (`hasRating`/`hasDiff`) — disabled toggles submit `null`. Custom tags validated to ≤10 × ≤20 chars. Bodies render via `CommentBody` (bold/italic/links/newlines) with `||spoiler||` → blurred `Spoiler` component.
 - **Turnstile** widgets mount on-demand when a write form opens, yielding the token submitted to the API.
 - **Favorites client** (`FavoritesAPI` in `collections.jsx`) wraps `GET/POST /api/favorites` and `DELETE /api/favorites/:id`, attaching the Clerk bearer token. It mirrors state to `localStorage` and broadcasts a `favorites:changed` event so every favorite button and the Collections grid stay in sync. When no auth token is present it degrades to a local-only mock.
@@ -514,6 +529,8 @@ Run: `python pipelines/scrape_and_migrate_new_games.py` (via `sync_and_deploy.ba
 6. **Normalize unrated** — immediately before the delta, any game with `rating_count == 0` has `avg_rating`/`avg_difficulty` forced to `null` (§8.6). Because this edits `games.json` (not just the build output), the correction is carried in the version delta and reaches cached/incremental clients, not only fresh full-loads.
 7. **Engine backlog sweep** — a bounded batch of R2-hosted games still missing `engine` (approved submissions merged earlier in the CI run, earlier inline failures, admin-replaced links) is downloaded and recognized (§8.8). Runs *before* the delta so engine values propagate incrementally, like the unrated normalization.
 7b. **Release-date sweep** — dateless DF-mapped games are matched against one DF advanced-search "Released between" query over the last 90 days, then pinned to exact days by bounded bisection (≤40 queries/run). Also before the delta, so dates ride the incremental update. `fetch_df_ids_in_window` returns `None` on failure — never treated as an empty window; affected games simply retry next run. Wiki-only ingests set `release_date` inline from the entry's post-import `created_at`.
+
+7c. **Source provenance stamp** — every mapped game gets `source` (§2.1) written from the in-memory `seq_map`, after all claims/ingests and before the delta. Doing it here (rather than leaving it to `backfill_source_links.py`, §8.3) is what keeps the field on the *incremental* path: a backfill that assigned on every run would bump the version with no timeline entry every cycle and full-reload every client.
 8. **Version delta** — if anything changed, bump `recent_changes.json` `version` and append a timeline entry (`updated`/`deleted`); prune timeline history to keep the file < 10 MB.
 9. **Compile & sync** — persist `games.json`/`seq_to_orig_map.json`, push brand-new games' reviews into D1 (§8.7), then invoke `update_storage_stats.py` and `build_github_pages.py`.
 
@@ -535,6 +552,7 @@ Run: `python pipelines/build_github_pages.py`. **Requires esbuild** (pinned in `
 - `sync_reviews_to_d1.py` — the reviews → D1 bridge (full detail in §8.7). Importable (`sync_reviews_to_d1(reviews, apply=True)`, used by the master sync) and runnable as a CLI (`py … sync_reviews_to_d1.py [file] [apply]`) for the full backfill (§9.4).
 - `harvest_release_dates.py` — one-time, dev-machine, credential-free harvest of DF release dates via windowed advanced-search queries (months, then days inside non-empty months, ~7k requests, resumable). Every window's outcome is recorded as done-or-**failed** — a failed request is never "no games"; reruns retry exactly the failed/unattempted windows and `--finalize` refuses while any remain. Writes the committed artifact `data/release_dates.json` (git-only; NOT in `sync_db_r2.py`'s DB_FILES).
 - `backfill_release_dates.py` — permanent idempotent CI step (right after the R2 download): stamps `release_date` from the artifact (pass 1), then wiki `created_at` for WIKI-mapped games (pass 2; post-2019-11-21 import guard), optional `--title-match` pass 3 (OFF in CI — date-semantics risk). Zero assignments → exit 0 with no bump; otherwise bumps `recent_changes.version` **without** a timeline entry (backfill_engine.py pattern → one forced full client reload).
+- `backfill_source_links.py` — permanent idempotent CI step (same slot): projects `database/seq_to_orig_map.json` onto each game as `source` (§2.1). Same no-bump-on-zero / bump-without-timeline contract. **Why it is a no-op in steady state:** the scraper stamps `source` inline before its delta generation (§8.1), so newly ingested games carry the field in the *normal* incremental update; if this script had to assign on every run, every run would force a full client reload. It remains in CI to catch remappings (a title-match claim moving a catalog id to a different upstream id).
 
 ### 8.4 `dedupe_reviews.py` — source de-duplication
 Repeatable cleanup of `temp/reviews_scraped.json` using the same identity model as `review_key` (§8.1.2). Collapses duplicate written comments and named rating-only entries to the **best** representative (prefers a row that has a date, then higher `likes`), while leaving anonymous rating-only entries intact so rating averages are unaffected. Removing true duplicates *corrects* previously double-counted averages.

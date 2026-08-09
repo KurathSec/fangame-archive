@@ -1791,6 +1791,33 @@ def main():
     except Exception as e:
         log(f"  [WARNING] Release-date sweep failed: {e}")
 
+    # ── Source provenance ─────────────────────────────────────────────────────
+    # Stamp every mapped game with where it was ingested from, so the drawer and
+    # the public API can link back to the upstream entry. seq_map is the single
+    # source of truth; this runs after every claim/ingest above and BEFORE the
+    # delta generation, so newly ingested games carry `source` in the normal
+    # incremental update instead of waiting for backfill_source_links.py (which
+    # stays in CI only as a no-op safety net for remappings). Locally submitted
+    # games ("SUBMISSION-*") have no upstream page and are left unsourced.
+    src_count = 0
+    with db_lock:
+        for src_seq, src_val in seq_map.items():
+            src_game = games.get(str(src_seq))
+            if src_game is None:
+                continue
+            src_orig = str(src_val[0]).strip() if isinstance(src_val, list) and src_val else ""
+            if src_orig.isdigit():
+                src_entry = {"type": "df", "id": src_orig}
+            elif src_orig.startswith("WIKI-") and src_orig[len("WIKI-"):].strip():
+                src_entry = {"type": "wiki", "id": src_orig[len("WIKI-"):].strip()}
+            else:
+                continue
+            if src_game.get("source") != src_entry:
+                src_game["source"] = src_entry
+                src_count += 1
+    if src_count:
+        log(f"Stamped upstream source on {src_count} game(s).")
+
     # Final normalization: a game with no ratings (rating_count == 0) is unrated, so
     # its avg_rating/avg_difficulty must be null (N/A), never 0.0. Runs after Steps 4A/4B
     # so rating_count is final (e.g. Delicious Fruit games keep their aggregate rating).

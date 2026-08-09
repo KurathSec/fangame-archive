@@ -86,6 +86,13 @@ jobs:
       - name: Backfill Release Dates (idempotent)
         run: python pipelines/backfill_release_dates.py --apply --ci
 
+      # Stamps `source` ({type: df|wiki, id}) from database/seq_to_orig_map.json
+      # onto games missing it, so the drawer and the public API can link back to
+      # the upstream entry. The scraper stamps new games inline, so after the
+      # first run this is a no-op safety net for remappings; needs no secrets.
+      - name: Backfill Source Links (idempotent)
+        run: python pipelines/backfill_source_links.py --apply --ci
+
       - name: Merge Approved Game Submissions
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
