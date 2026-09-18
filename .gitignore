@@ -40,6 +40,9 @@ data/games.json
 data/recent_changes.json
 data/profiles.json
 database/seq_to_orig_map.json
+# Engine-recognition resume state: R2 owns it (Database/engine_recognition_state.json),
+# synced by pipelines/sync_db_r2.py like the three above. 2.8 MB, rewritten every sweep.
+data/engine_recognition_state.json
 
 # Exclude historical JSON database backups
 data/games.json.*
@@ -81,3 +84,16 @@ Desktop.ini
 .env.local
 .env.*
 pipelines/archive/
+
+# ==========================================
+# 8. Work in Progress (local-only, not shipped)
+# ==========================================
+# Cover-screenshot capture. capture_cover_screenshots.py drives Wine/Xvfb/bwrap
+# on the capture machine and cannot run in CI; backfill_cover_screenshots.py is
+# its CI half, and cover_screenshots_ci_step.yml.local holds the deploy.yml step
+# that would invoke it. Un-ignore all four together when the feature ships —
+# committing the workflow step alone breaks the deploy job.
+pipelines/capture_cover_screenshots.py
+pipelines/backfill_cover_screenshots.py
+pipelines/cover_screenshots_ci_step.yml.local
+data/cover_screenshots.json
