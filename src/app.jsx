@@ -6,8 +6,26 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "defaultView": "list"
 }/*EDITMODE-END*/;
 
+// Tweak values persist to localStorage under `archive_tweaks` — written by the
+// `tweakchange` listener in RootApp, read before first paint by the inline theme
+// script in index.html, and read by the admin panel so both surfaces share one
+// appearance. Restoring them here is what makes a choice survive a reload: only
+// keys the app actually declares are taken back, so a stale or foreign entry
+// cannot introduce an unknown tweak.
+function readSavedTweaks(defaults) {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('archive_tweaks') || '{}'); } catch (e) {}
+  if (!saved || typeof saved !== 'object') return defaults;
+  const merged = { ...defaults };
+  for (const key of Object.keys(defaults)) {
+    if (Object.prototype.hasOwnProperty.call(saved, key)) merged[key] = saved[key];
+  }
+  return merged;
+}
+
 function App() {
-  const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+  const initialTweaks = React.useMemo(() => readSavedTweaks(TWEAK_DEFAULTS), []);
+  const [tweaks, setTweak] = window.useTweaks(initialTweaks);
   const [view, setView] = React.useState(() => {
     try {
       const q = new URLSearchParams(window.location.search);

@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Archive — Fangame Library</title>
 
+  <script>
+    // Apply the saved appearance before first paint. UI tweaks persist to
+    // localStorage under `archive_tweaks` (written on every change in app.jsx, and
+    // read by the admin panel too), so a reload opens in the last chosen theme
+    // instead of flashing light and snapping to dark once React mounts.
+    (function () {
+      var t = {};
+      try { t = JSON.parse(localStorage.getItem('archive_tweaks') || '{}') || {}; } catch (e) {}
+      document.documentElement.dataset.theme = t.dark ? 'dark' : 'light';
+      document.documentElement.dataset.density = t.density === 'compact' ? 'compact' : 'comfortable';
+    })();
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <!-- Warm the TLS handshake to Clerk's Frontend API so session resolution on load is faster -->

@@ -1,5 +1,20 @@
 [
   {
+    "ver": "2026.015",
+    "date": "2026-09-18",
+    "note": "The light/dark choice is remembered between visits",
+    "changes": [
+      [
+        "Fixed",
+        "Dark mode no longer resets when you close the tab. The setting was already being saved, but nothing read it back on the next load, so every visit started light again — the archive now opens in whichever theme you left it in."
+      ],
+      [
+        "Changed",
+        "The saved theme is applied before the page draws, so returning in dark mode no longer flashes light for a moment while the app starts up. Layout density is restored the same way, and the admin panel keeps inheriting the main site's theme."
+      ]
+    ]
+  },
+  {
     "ver": "2026.014",
     "date": "2026-08-09",
     "note": "Public API: full catalog, tag/engine/date endpoints with composable tri-state filters, and links to each game's Delicious Fruit and IWanna Wiki pages",
