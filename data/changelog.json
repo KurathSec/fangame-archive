@@ -1,5 +1,28 @@
 [
   {
+    "ver": "2026.016",
+    "date": "2026-10-13",
+    "note": "Filter Browse Games by collection, and open any public collection straight in the catalog",
+    "changes": [
+      [
+        "Added",
+        "Browse Games has a new Collections filter. Add any public collection, or any of your own lists and folders (your main saves included), and each becomes a chip that cycles exactly like a tag: OR → +AND → -NOT. Show only the games in one list, hide everything in another, or combine them — for example, the games in a public needle collection that aren't in your own “cleared” list. Picking a folder covers every list inside it."
+      ],
+      [
+        "Added",
+        "The collection picker shows Public Collections and My Collections side by side, with a search box, and stays open so you can add several at once. While one of your own lists is in use as a filter, adding or removing games from it updates the results right away."
+      ],
+      [
+        "Added",
+        "Every public collection now has a “Show in Browse Games” button — on its card in the public library and on the collection page — that opens the catalog already filtered to that collection, with every other filter and sort available on top. From the collection page, Back takes you back to it."
+      ],
+      [
+        "Fixed",
+        "Reopening the site in a tab where you had last been viewing a shared collection showed “Collection unavailable” instead of the catalog."
+      ]
+    ]
+  },
+  {
     "ver": "2026.015",
     "date": "2026-09-18",
     "note": "The light/dark choice is remembered between visits",

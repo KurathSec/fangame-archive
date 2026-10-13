@@ -704,6 +704,27 @@ a { color: inherit; text-decoration: none; }
 }
 .date-range-add:hover:not(:disabled) { background: var(--panel-2); border-color: var(--muted-2); }
 .date-range-add:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* collection membership filter (CollectionFilterSection in collections.jsx) */
+.colf-add {
+  width: 100%;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 28px; margin-top: 6px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text-soft); font: inherit; font-size: 11.5px; font-weight: 500;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+.colf-add:hover, .colf-add.open { background: var(--panel-2); border-color: var(--accent); color: var(--text); }
+.colf-add svg { width: 12px; height: 12px; }
+.colf-hint { font-size: 10.5px; color: var(--muted); margin: 6px 0 8px; padding-left: 2px; }
+.colf-chip { max-width: 100%; }
+.colf-chip svg { width: 11px; height: 11px; flex-shrink: 0; }
+.colf-chip .colf-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag.colf-chip.colf-err { border-style: dashed; opacity: 0.75; }
+.tag.colf-chip.colf-err .ct { color: var(--not-text); opacity: 1; }
 .drawer-close {
   margin-left: auto;
   width: 24px; height: 24px;
@@ -2174,6 +2195,8 @@ div[data-field="lastName"] {
 }
 .coll-copylink:hover { background: var(--panel-2); border-color: var(--muted-2); }
 .coll-copylink svg { width: 13px; height: 13px; }
+.coll-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.coll-actions .coll-copylink { margin-top: 0; }
 
 /* ── Card grid ── */
 .fav-grid {
@@ -2394,6 +2417,34 @@ div[data-field="lastName"] {
 .cm-new button:hover:not(:disabled) { filter: brightness(0.95); }
 .cm-new button:disabled { opacity: 0.5; cursor: not-allowed; }
 .cm-new button svg { width: 13px; height: 13px; }
+
+/* collection filter picker: search + Public / Mine columns (stacked when narrow) */
+.colf-pop { display: flex; flex-direction: column; min-height: 0; }
+.colf-search { padding: 8px; border-bottom: 1px solid var(--border); background: var(--bg-soft); }
+.colf-search input {
+  width: 100%; height: 28px; padding: 0 9px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--panel); color: var(--text);
+  font: inherit; font-size: 12px; outline: none;
+}
+.colf-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.colf-cols { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+.colf-pop.wide .colf-cols { grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.colf-col { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.colf-col + .colf-col { border-top: 1px solid var(--border); }
+.colf-pop.wide .colf-col + .colf-col { border-top: 0; border-left: 1px solid var(--border); }
+.colf-row-ic { flex-shrink: 0; display: inline-flex; color: var(--muted); }
+.colf-row-ic svg { width: 12px; height: 12px; }
+.colf-row-ic.star { color: var(--gold-deep); }
+[data-theme="dark"] .colf-row-ic.star { color: var(--gold); }
+.colf-owner { color: var(--muted); font-weight: 400; }
+.colf-msg { padding: 10px 8px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.colf-msg button {
+  margin-left: 8px; padding: 0;
+  border: 0; background: none;
+  color: var(--accent); font: inherit; font-weight: 500;
+  cursor: pointer;
+}
 
 /* ── Create / edit + share modal (mirrors .drawer-scrim / .lbox) ── */
 .col-scrim {
@@ -2847,6 +2898,7 @@ div[data-field="lastName"] {
 }
 .publib-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-2); transform: translateY(-2px); }
 .publib-card.skeleton { cursor: default; pointer-events: none; }
+.publib-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .publib-card-name {
   font-size: 14px; font-weight: 600; color: var(--text);
   line-height: 1.35;
@@ -2867,6 +2919,25 @@ div[data-field="lastName"] {
   font-variant-numeric: tabular-nums;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* Footer row: meta text + "Show in Browse Games"; the button wraps under the
+   text when a long translation would squeeze the meta out. */
+.publib-card-bottom {
+  margin-top: auto; padding-top: 4px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+}
+.publib-card-bottom .publib-card-foot { flex: 1 1 110px; min-width: 0; margin-top: 0; padding-top: 0; }
+.publib-browse {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 9px;
+  border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--panel); color: var(--text-soft);
+  font: inherit; font-size: 11px; font-weight: 500;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, color .14s ease;
+}
+.publib-browse:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+.publib-browse svg { width: 12px; height: 12px; }
 .publib-pager {
   display: flex; align-items: center; justify-content: center; gap: 12px;
   margin-top: 22px;

@@ -34,7 +34,11 @@ function App() {
       // A deep link (?game=<id>) always opens inside the catalog.
       if (q.get('game')) return 'explorer';
     } catch (e) {}
-    return sessionStorage.getItem('archive_view') || 'explorer';
+    // The shared page only exists with a ?collection token; restoring it from
+    // the session without one (e.g. reopening the bare site in the same tab
+    // after viewing a shared link) would request /api/collections/shared/null.
+    const saved = sessionStorage.getItem('archive_view');
+    return saved && saved !== 'shared' ? saved : 'explorer';
   });
   const [collectionToken, setCollectionToken] = React.useState(() => {
     try { return new URLSearchParams(window.location.search).get('collection'); } catch (e) { return null; }
@@ -283,23 +287,44 @@ function App() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
+  const goToView = (v) => {
+    setView(v); setSidebarOpen(false);
+    if (v !== 'shared') {
+      setCollectionToken(null);
+      try { const u = new URL(window.location.href); if (u.searchParams.has('collection')) { u.searchParams.delete('collection'); window.history.replaceState({}, '', u); } } catch (e) {}
+    }
+    if (v !== 'explorer' && v !== 'collections') { setActiveGame(null); syncGameUrl(null, { replace: true }); }
+  };
+
+  // "Show in Browse Games" on a public/shared collection: park the collection as
+  // an include filter for the Explorer to pick up on mount, then switch there.
+  // Leaving a shared page is a history push (the open drawer closes with it), so
+  // Back returns to the collection; from the library it is a plain view switch.
+  const showCollectionInBrowse = (entry) => {
+    window.__pendingCollectionFilter = entry;
+    if (view === 'shared') {
+      setActiveGame(null);
+      setIsRoll(false);
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('collection');
+        u.searchParams.delete('game');
+        window.history.pushState({}, '', u);
+      } catch (e) {}
+    }
+    goToView('explorer');
+  };
+
   return (
     <div className={`app${sidebarOpen ? ' sidebar-mobile-open' : ''}`}>
       {sidebarOpen && <div className="sidebar-scrim-mobile" onClick={() => setSidebarOpen(false)} />}
-      <window.Sidebar view={view} onView={(v) => {
-                       setView(v); setSidebarOpen(false);
-                       if (v !== 'shared') {
-                         setCollectionToken(null);
-                         try { const u = new URL(window.location.href); if (u.searchParams.has('collection')) { u.searchParams.delete('collection'); window.history.replaceState({}, '', u); } } catch (e) {}
-                       }
-                       if (v !== 'explorer' && v !== 'collections') { setActiveGame(null); syncGameUrl(null, { replace: true }); }
-                     }}
+      <window.Sidebar view={view} onView={goToView}
                      tweaks={tweaks} setTweak={setTweak}
                      gameCount={window.DATA.GAMES.length}
                      storageSize={window.DATA.STORAGE_SIZE}
                      auth={auth} identity={identity} onLogout={handleLogout} />
       <main className="main">
-        {view === 'explorer'    && <window.Explorer    tweaks={tweaks} setTweak={setTweak} onOpenGame={openGame} activeId={activeGame?.id} />}
+        {view === 'explorer'    && <window.Explorer    tweaks={tweaks} setTweak={setTweak} onOpenGame={openGame} activeId={activeGame?.id} auth={auth} />}
         {view === 'donation'    && <window.DonationView gameCount={window.DATA.GAMES.length} storageSize={window.DATA.STORAGE_SIZE} />}
         {view === 'links'       && <window.LinksView />}
         {view === 'updates'     && <window.UpdateLogView />}
@@ -307,8 +332,8 @@ function App() {
         {view === 'submit'      && <window.SubmitGameView auth={auth} identity={identity} onOpenLogin={handleOpenLogin} />}
         {view === 'mycontent'   && <window.MyContentView auth={auth} identity={identity} onOpenLogin={handleOpenLogin} />}
         {view === 'collections' && <window.CollectionsView auth={auth} onOpenGame={openGame} onView={setView} onOpenLogin={handleOpenLogin} />}
-        {view === 'publib'      && <window.PublicLibraryView auth={auth} onView={setView} />}
-        {view === 'shared'      && <window.SharedCollectionView token={collectionToken} onOpenGame={openGame} onView={setView} />}
+        {view === 'publib'      && <window.PublicLibraryView auth={auth} onView={setView} onShowInBrowse={showCollectionInBrowse} />}
+        {view === 'shared'      && <window.SharedCollectionView token={collectionToken} onOpenGame={openGame} onView={setView} onShowInBrowse={showCollectionInBrowse} />}
         {activeGame && (view === 'explorer' || view === 'collections' || view === 'shared' || view === 'publib') && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} auth={auth} identity={identity} />}
       </main>
 

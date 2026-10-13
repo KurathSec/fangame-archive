@@ -199,7 +199,7 @@ function getPageNumbers(current, total) {
   return pages;
 }
 
-function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
+function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
   const [searchTitle, setSearchTitle]     = React.useState('');
   const [searchCreator, setSearchCreator] = React.useState('');
   const [rating, setRating]   = React.useState([0.0, 10.0]);
@@ -213,6 +213,21 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
   const [dateRanges, setDateRanges] = React.useState([]);
   const [drFrom, setDrFrom] = React.useState('');
   const [drTo, setDrTo] = React.useState('');
+  // Collection membership filters — entries and resolution live in
+  // collections.jsx (CollectionFilterSection / useCollectionFilterSets).
+  // "Show in Browse Games" on a public collection parks one entry before
+  // switching here; Explorer remounts on every visit, so the initialiser is
+  // where it is picked up.
+  const [colFilters, setColFilters] = React.useState(() => {
+    const parked = window.__pendingCollectionFilter;
+    window.__pendingCollectionFilter = null;
+    return parked ? [parked] : [];
+  });
+  const colSets = window.useCollectionFilterSets(colFilters, auth);
+  // Own lists and the main bucket need a session; drop them on sign-out.
+  React.useEffect(() => {
+    if (auth === 'out') setColFilters((fs) => (fs.some((f) => f.kind !== 'public') ? fs.filter((f) => f.kind === 'public') : fs));
+  }, [auth]);
 
   const [flags,  setFlags]    = React.useState({ local: false, shots: false, missing: false });
   const [sort,   setSort]     = React.useState('id');
@@ -339,6 +354,14 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
   const filtered = React.useMemo(() => {
     const qTitle = searchTitle.trim().toLowerCase();
     const qCreator = searchCreator.trim().toLowerCase();
+    // Collection membership, tri-state like tags. An entry still loading (or
+    // that failed to load) is left out rather than read as an empty set.
+    const colOr = [], colAnd = [], colNot = [];
+    colFilters.forEach((f) => {
+      const st = colSets.get(f.key);
+      if (!st || st.status !== 'ready') return;
+      (f.mode === 'and' ? colAnd : f.mode === 'not' ? colNot : colOr).push(st.ids);
+    });
     return window.DATA.GAMES.filter((g) => {
       if (qTitle && !g.title.toLowerCase().includes(qTitle)) return false;
       if (qCreator && !g.creator.toLowerCase().includes(qCreator)) return false;
@@ -395,6 +418,10 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
         if (dateRanges.some((r) => r.mode === 'out' && inRange(r))) return false;
       }
 
+      if (colOr.length && !colOr.some((ids) => ids.has(g.id))) return false;
+      if (colAnd.length && !colAnd.every((ids) => ids.has(g.id))) return false;
+      if (colNot.length && colNot.some((ids) => ids.has(g.id))) return false;
+
       if (flags.local     && !g.flags.local) return false;
       if (flags.shots     && !g.flags.shots) return false;
       if (flags.missing   && !g.flags.missing) return false;
@@ -447,11 +474,14 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
       }
       return desc ? -comparison : comparison;
     });
-  }, [searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, flags, sort, desc]);
+  }, [searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, colFilters, colSets, flags, sort, desc]);
 
+  // A re-resolved collection set (the viewer edited a list while browsing) can
+  // change the results without a filter change, so it doesn't reset the page;
+  // the clamp below keeps the page in range instead.
   React.useEffect(() => {
     setPage(1);
-  }, [searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, flags, sort, desc]);
+  }, [searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, colFilters, flags, sort, desc]);
 
 
   React.useEffect(() => {
@@ -461,6 +491,9 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
   }, [page]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+  React.useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const pagedItems = React.useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
@@ -731,6 +764,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId }) {
               </div>
             )}
           </div>
+          <window.CollectionFilterSection value={colFilters} onChange={setColFilters} sets={colSets} auth={auth} />
           <div className="fp-section">
             <h4>{window.t('archive_flags')}</h4>
             <div className="checklist">

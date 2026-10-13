@@ -444,7 +444,10 @@ function collectionLabel(c) {
 }
 
 // ── Anchored popover (portal, escapes drawer overflow) ───────────────────────
-function AnchoredPopover({ anchorRef, onClose, width, children }) {
+// `align` picks which anchor edge the popover lines up with (default right).
+// Passing the popover's `height` lets it open upward when there is no room
+// below the anchor — e.g. a picker near the bottom of the filter pane.
+function AnchoredPopover({ anchorRef, onClose, width, height, align, children }) {
   const popRef = React.useRef(null);
   const [pos, setPos] = React.useState(null);
   const w = width || 268;
@@ -452,16 +455,19 @@ function AnchoredPopover({ anchorRef, onClose, width, children }) {
     const place = () => {
       const el = anchorRef.current; if (!el) return;
       const r = el.getBoundingClientRect();
-      let left = r.right - w; if (left < 8) left = 8;
+      let left = align === 'left' ? r.left : r.right - w; if (left < 8) left = 8;
       if (left + w > window.innerWidth - 8) left = window.innerWidth - 8 - w;
       let top = r.bottom + 6;
+      if (height && top + height > window.innerHeight - 8) {
+        top = r.top - 6 - height >= 8 ? r.top - 6 - height : Math.max(8, window.innerHeight - 8 - height);
+      }
       setPos({ left, top });
     };
     place();
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
-  }, [anchorRef, w]);
+  }, [anchorRef, w, height, align]);
   React.useEffect(() => {
     const onDoc = (e) => {
       if (popRef.current && popRef.current.contains(e.target)) return;
@@ -854,7 +860,7 @@ async function resolveGamesByIds(ids) {
 }
 
 // ── Shared read-only collection page (?collection=<token>) ───────────────────
-function SharedCollectionView({ token, onOpenGame, onView }) {
+function SharedCollectionView({ token, onOpenGame, onView, onShowInBrowse }) {
   const [state, setState] = React.useState({ loading: true, error: false, col: null, games: [], sections: null });
   const [copied, setCopied] = React.useState(false);
   const copyShareLink = () => {
@@ -907,10 +913,18 @@ function SharedCollectionView({ token, onOpenGame, onView }) {
           <h1 className="coll-title">{state.col.name || t('shared_collection', 'Shared collection')}</h1>
           {state.col.description && <p className="coll-sub">{state.col.description}</p>}
           <p className="coll-sub mono">{totalGames} {t('games_suffix', 'games')}{state.col.owner_name ? ' · ' + t('by_author', 'by') + ' ' + state.col.owner_name : ''}</p>
-          <button className="coll-copylink" onClick={copyShareLink}>
-            {copied ? window.ic.check : window.ic.link}
-            <span>{copied ? t('copied', 'Copied') : t('copy_share_link', 'Copy link')}</span>
-          </button>
+          <div className="coll-actions">
+            <button className="coll-copylink" onClick={copyShareLink}>
+              {copied ? window.ic.check : window.ic.link}
+              <span>{copied ? t('copied', 'Copied') : t('copy_share_link', 'Copy link')}</span>
+            </button>
+            {onShowInBrowse && (
+              <button className="coll-copylink" onClick={() => onShowInBrowse(colFilterEntry('public', token, state.col.name))}>
+                {window.ic.archive}
+                <span>{t('show_in_browse', 'Show in Browse Games')}</span>
+              </button>
+            )}
+          </div>
         </div>
         {state.sections ? state.sections.map((sec, i) => (
           <div key={i} className="colsec">
@@ -936,7 +950,7 @@ function SharedCollectionView({ token, onOpenGame, onView }) {
 }
 
 // ── Public library ───────────────────────────────────────────────────────────
-function PublicLibraryView({ auth, onView }) {
+function PublicLibraryView({ auth, onView, onShowInBrowse }) {
   const [state, setState] = React.useState({ loading: true, error: false, items: [], page: 1, hasMore: false });
   const load = React.useCallback((page) => {
     setState((s) => ({ ...s, loading: true, error: false }));
@@ -965,11 +979,20 @@ function PublicLibraryView({ auth, onView }) {
     <React.Fragment>
       <div className="publib-grid">
         {state.items.map((c) => (
-          <button key={c.id} className="publib-card" onClick={() => open(c)}>
+          <div key={c.id} className="publib-card" role="button" tabIndex={0} onClick={() => open(c)}
+               onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(c); } }}>
             <div className="publib-card-name">{(c.child_count || 0) > 0 && window.ic.folder}{c.name || t('collection_untitled', 'Untitled list')}</div>
             {c.description && <div className="publib-card-desc">{c.description}</div>}
-            <div className="publib-card-foot mono">{c.item_count || 0} {t('games_suffix', 'games')}{c.owner_name ? ' · ' + t('by_author', 'by') + ' ' + c.owner_name : ''}</div>
-          </button>
+            <div className="publib-card-bottom">
+              <div className="publib-card-foot mono">{c.item_count || 0} {t('games_suffix', 'games')}{c.owner_name ? ' · ' + t('by_author', 'by') + ' ' + c.owner_name : ''}</div>
+              {onShowInBrowse && c.share_token && (
+                <button className="publib-browse" title={t('show_in_browse', 'Show in Browse Games')}
+                        onClick={(e) => { e.stopPropagation(); onShowInBrowse(colFilterEntry('public', c.share_token, c.name)); }}>
+                  {window.ic.archive}<span>{t('show_in_browse', 'Show in Browse Games')}</span>
+                </button>
+              )}
+            </div>
+          </div>
         ))}
       </div>
       {(state.page > 1 || state.hasMore) && (
@@ -1100,10 +1123,251 @@ function CollectionsManager({ auth, onOpenGame }) {
   );
 }
 
+// ══ Browse Games: filter by collection membership ═══════════════════════════
+// The Explorer can narrow the catalog to games inside — or outside — any
+// approved public collection, any of the viewer's own lists or folders, and
+// the main saves bucket. An entry mirrors the tag filter's tri-state:
+//   { key, kind: 'public'|'mine'|'main', ref, name, mode: 'or'|'and'|'not' }
+// with key 'pub:<share_token>' | 'mine:<id>' | 'main'. Membership resolves
+// client-side into a Set of game ids from the existing read endpoints, so the
+// filter needs no API of its own: a public collection (or any shared link) via
+// /api/collections/shared/:token, an own list via /api/collections/:id, an own
+// folder as the union of its sub-lists (a folder holds no games itself), and
+// the main bucket via /api/favorites.
+function colFilterEntry(kind, ref, name) {
+  const key = kind === 'main' ? 'main' : (kind === 'public' ? 'pub:' : 'mine:') + ref;
+  return { key, kind, ref: kind === 'main' ? null : ref, name: name || null, mode: 'or' };
+}
+function colFilterLabel(e) {
+  if (e.kind === 'main') return t('main_saves', 'Main saves');
+  return e.name || t('collection_untitled', 'Untitled list');
+}
+
+async function resolveCollectionIds(entry) {
+  if (entry.kind === 'main') return new Set(await FavoritesAPI.list());
+  if (entry.kind === 'public') {
+    const col = (await CollectionsAPI.shared(entry.ref)).collection;
+    return new Set(col.children ? col.children.flatMap((ch) => ch.game_ids || []) : (col.game_ids || []));
+  }
+  const tree = await CollectionsAPI.listTree();
+  const kids = tree.filter((c) => c.parent_id === entry.ref).map((c) => c.id);
+  const details = await Promise.all((kids.length ? kids : [entry.ref]).map((id) => CollectionsAPI.detail(id)));
+  const ids = new Set();
+  details.forEach((d) => ((d.collection && d.collection.game_ids) || []).forEach((id) => ids.add(id)));
+  return ids;
+}
+
+// Resolved sets for the active entries: key -> { status: 'loading'|'ready'|'error', ids }.
+// Public collections are fetched once per entry. Own lists and the main bucket
+// re-resolve after every collections:changed / favorites:changed broadcast (the
+// drawer's save popover, the bookmark button), so "not in my list" stays true
+// while browsing; the previous set stays applied until the new one lands. A
+// failed entry is retried on the next change or auth transition.
+function useCollectionFilterSets(entries, auth) {
+  const [sets, setSets] = React.useState(() => new Map());
+  const [epoch, setEpoch] = React.useState(0);
+  const fetchedFor = React.useRef(new Map()); // key -> epoch its in-flight/settled fetch belongs to
+  React.useEffect(() => {
+    const bump = () => setEpoch((n) => n + 1);
+    window.addEventListener('collections:changed', bump);
+    window.addEventListener('favorites:changed', bump);
+    return () => { window.removeEventListener('collections:changed', bump); window.removeEventListener('favorites:changed', bump); };
+  }, []);
+  const sig = entries.map((e) => e.key).join('\n');
+  React.useEffect(() => {
+    const live = new Set(entries.map((e) => e.key));
+    for (const k of [...fetchedFor.current.keys()]) if (!live.has(k)) fetchedFor.current.delete(k);
+    setSets((m) => {
+      if ([...m.keys()].every((k) => live.has(k))) return m;
+      return new Map([...m].filter(([k]) => live.has(k)));
+    });
+    entries.forEach((e) => {
+      const want = e.kind === 'public' ? 0 : epoch;
+      if (fetchedFor.current.get(e.key) === want) return;
+      fetchedFor.current.set(e.key, want);
+      setSets((m) => (m.has(e.key) ? m : new Map(m).set(e.key, { status: 'loading', ids: null })));
+      resolveCollectionIds(e).then(
+        (ids) => { if (fetchedFor.current.get(e.key) === want) setSets((m) => new Map(m).set(e.key, { status: 'ready', ids })); },
+        () => {
+          if (fetchedFor.current.get(e.key) !== want) return;
+          fetchedFor.current.delete(e.key);
+          setSets((m) => new Map(m).set(e.key, { status: 'error', ids: null }));
+        });
+    });
+  }, [sig, epoch, auth]);
+  return sets;
+}
+
+// Every approved public collection, for the picker. The library endpoint pages
+// 24 at a time; walk it once and reuse the result for two minutes — the same
+// window the endpoint's own Cache-Control allows.
+let publicIndex = null; // { at, promise }
+function loadPublicIndex() {
+  if (publicIndex && Date.now() - publicIndex.at < 120000) return publicIndex.promise;
+  const promise = (async () => {
+    const out = [];
+    for (let page = 1; page <= 40; page++) {
+      const d = await CollectionsAPI.publicList(page);
+      out.push(...(d.collections || []));
+      if (!d.hasMore) break;
+    }
+    return out;
+  })();
+  publicIndex = { at: Date.now(), promise };
+  promise.catch(() => { if (publicIndex && publicIndex.promise === promise) publicIndex = null; });
+  return promise;
+}
+
+// The picker: one popover, two columns — Public Collections and My Collections
+// (stacked on narrow screens). Rows toggle; the popover stays open so several
+// collections can be added in one go.
+function CollectionFilterPicker({ anchorRef, auth, selected, onToggle, onClose }) {
+  const wide = window.innerWidth >= 640;
+  const width = wide ? 560 : Math.min(340, window.innerWidth - 16);
+  const height = Math.min(Math.round(window.innerHeight * 0.6), 420);
+  const [q, setQ] = React.useState('');
+  const [pub, setPub] = React.useState({ loading: true, error: false, items: [] });
+  const [pubTry, setPubTry] = React.useState(0);
+  const { collections } = useCollections(auth);
+
+  React.useEffect(() => {
+    let alive = true;
+    setPub((s) => ({ ...s, loading: true, error: false }));
+    loadPublicIndex().then(
+      (items) => { if (alive) setPub({ loading: false, error: false, items }); },
+      () => { if (alive) setPub({ loading: false, error: true, items: [] }); });
+    return () => { alive = false; };
+  }, [pubTry]);
+
+  const needle = q.trim().toLowerCase();
+  const hit = (...texts) => !needle || texts.some((x) => x && x.toLowerCase().includes(needle));
+  const msg = (text, retry) => (
+    <div className="colf-msg">{text}{retry && <button onClick={retry}>{t('retry', 'Retry')}</button>}</div>
+  );
+  const row = (entry, { icon, star, owner, count, indent } = {}) => {
+    const on = selected.has(entry.key);
+    return (
+      <button key={entry.key} className={'cm-row' + (on ? ' on' : '')} style={indent ? { paddingLeft: 30 } : null} onClick={() => onToggle(entry)}>
+        <span className="cm-check">{on ? window.ic.check : null}</span>
+        {icon && <span className={'colf-row-ic' + (star ? ' star' : '')}>{icon}</span>}
+        <span className="cm-row-name">{colFilterLabel(entry)}{owner && <span className="colf-owner"> · {owner}</span>}</span>
+        {count != null && <span className="cm-row-ct mono">{count}</span>}
+      </button>
+    );
+  };
+
+  let pubBody;
+  if (pub.loading) pubBody = msg(t('col_filter_loading', 'Loading…'));
+  else if (pub.error) pubBody = msg(t('col_filter_error', "Couldn't load collections."), () => setPubTry((n) => n + 1));
+  else if (!pub.items.length) pubBody = msg(t('publib_empty', 'No public collections yet'));
+  else {
+    const rows = pub.items
+      .filter((c) => c.share_token && hit(c.name || t('collection_untitled', 'Untitled list'), c.owner_name))
+      .map((c) => row(colFilterEntry('public', c.share_token, c.name), {
+        icon: (c.child_count || 0) > 0 ? window.ic.folder : null, owner: c.owner_name, count: c.item_count || 0 }));
+    pubBody = rows.length ? rows : msg(t('col_filter_no_match', 'No matching collections'));
+  }
+
+  let mineBody;
+  if (auth === 'out') mineBody = msg(t('col_filter_signin', 'Sign in to filter by your own collections.'));
+  else if (collections === null) mineBody = msg(t('col_filter_loading', 'Loading…'));
+  else {
+    const rows = [];
+    const main = colFilterEntry('main');
+    if (hit(colFilterLabel(main))) rows.push(row(main, { icon: window.ic.star, star: true }));
+    buildTree(collections).forEach((c) => {
+      const entry = colFilterEntry('mine', c.id, c.name);
+      if (!c.children.length) {
+        if (hit(colFilterLabel(entry))) rows.push(row(entry, { count: c.item_count || 0 }));
+        return;
+      }
+      // A folder matches by its own name (then all its lists show) or through a list.
+      const folderHit = hit(colFilterLabel(entry));
+      const kids = c.children.filter((k) => folderHit || hit(collectionLabel(k)));
+      if (!kids.length && !folderHit) return;
+      rows.push(row(entry, { icon: window.ic.folder, count: c.children.reduce((n, k) => n + (k.item_count || 0), 0) }));
+      kids.forEach((k) => rows.push(row(colFilterEntry('mine', k.id, k.name), { count: k.item_count || 0, indent: true })));
+    });
+    mineBody = rows.length ? rows
+      : msg(collections.length || needle ? t('col_filter_no_match', 'No matching collections') : t('col_filter_mine_empty', 'You have no collections yet.'));
+  }
+
+  return (
+    <AnchoredPopover anchorRef={anchorRef} onClose={onClose} width={width} height={height} align="left">
+      <div className={'colf-pop' + (wide ? ' wide' : '')} style={{ height }}>
+        <div className="colf-search">
+          <input autoFocus={wide} value={q} onChange={(e) => setQ(e.target.value)}
+                 placeholder={t('col_filter_search', 'Search collections…')} />
+        </div>
+        <div className="colf-cols">
+          <div className="colf-col">
+            <div className="cm-head">{t('nav.public_collections', 'Public Collections')}</div>
+            <div className="cm-list">{pubBody}</div>
+          </div>
+          <div className="colf-col">
+            <div className="cm-head">{t('my_collections', 'My Collections')}</div>
+            <div className="cm-list">{mineBody}</div>
+          </div>
+        </div>
+      </div>
+    </AnchoredPopover>
+  );
+}
+
+// The filter-pane section the Explorer renders: an "add" button opening the
+// picker, and one chip per entry. A chip click cycles exactly like a tag —
+// OR → +AND → -NOT → removed — and its count is the resolved set's size.
+function CollectionFilterSection({ value, onChange, sets, auth }) {
+  const anchorRef = React.useRef(null);
+  const [open, setOpen] = React.useState(false);
+  const selected = new Set(value.map((e) => e.key));
+  const toggle = (entry) => onChange(selected.has(entry.key) ? value.filter((e) => e.key !== entry.key) : [...value, entry]);
+  const cycle = (key) => onChange(value
+    .map((e) => (e.key !== key ? e : e.mode === 'or' ? { ...e, mode: 'and' } : e.mode === 'and' ? { ...e, mode: 'not' } : null))
+    .filter(Boolean));
+
+  return (
+    <div className="fp-section">
+      <h4>
+        <span>{window.t('col_filter_label', { count: value.length })}</span>
+        <span className="reset" onClick={() => onChange([])}>{t('reset', 'reset')}</span>
+      </h4>
+      <button ref={anchorRef} type="button" className={'colf-add' + (open ? ' open' : '')} onClick={() => setOpen((o) => !o)}>
+        {window.ic.plus}<span>{t('col_filter_add', 'Add a collection')}</span>
+      </button>
+      {value.length > 0 && (
+        <React.Fragment>
+          <div className="colf-hint">{t('tag_instruction', 'Click to cycle: OR → +AND → -NOT → Off')}</div>
+          <div className="tag-cloud engine-cloud">
+            {value.map((e) => {
+              const st = sets.get(e.key);
+              const status = st ? st.status : 'loading';
+              let cls = 'tag engine-tag colf-chip ' + (e.mode === 'and' ? 'tag-and on' : e.mode === 'not' ? 'tag-not on' : 'tag-or on');
+              if (status === 'error') cls += ' colf-err';
+              const prefix = e.mode === 'and' ? '+ ' : e.mode === 'not' ? '- ' : '';
+              const ct = status === 'ready' ? st.ids.size.toLocaleString() : status === 'error' ? '!' : '…';
+              const icon = e.kind === 'public' ? window.ic2.shield : e.kind === 'main' ? window.ic.star : null;
+              const title = status === 'error' ? t('col_filter_chip_error', "Couldn't load this collection")
+                : e.kind === 'public' ? t('nav.public_collections', 'Public Collections') : t('my_collections', 'My Collections');
+              return (
+                <span key={e.key} className={cls} title={title} onClick={() => cycle(e.key)}>
+                  {icon}<span className="colf-name">{prefix}{colFilterLabel(e)}</span><span className="ct">{ct}</span>
+                </span>
+              );
+            })}
+          </div>
+        </React.Fragment>
+      )}
+      {open && <CollectionFilterPicker anchorRef={anchorRef} auth={auth} selected={selected} onToggle={toggle} onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+
 Object.assign(window, {
   favShotUrl, FavoritesAPI, useFavorites, FavoriteButton, FavCard, CollectionsView,
   CollectionsAPI, useCollections, useMembership, buildTree, CollectionMenuButton,
   CollectionEditModal, CollectionsManager, SharedCollectionView, PublicLibraryView,
+  CollectionFilterSection, useCollectionFilterSets,
 });
 
 })();
