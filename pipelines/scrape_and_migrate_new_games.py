@@ -102,16 +102,40 @@ def normalize_str(s):
     return s
 
 # ── 🌐 DELICIOUS FRUIT SCRAPER ────────────────────────────────────────────────
+DF_LIST_ATTEMPTS = 3
+
+
+def df_entry_gone(df_id):
+    """True only when DF answers 404 for a game's details page (deleted upstream)."""
+    try:
+        res = requests.get(f"https://delicious-fruit.com/ratings/game_details.php?id={df_id}",
+                           headers=HEADERS, timeout=(10, 40))
+        return res.status_code == 404
+    except Exception:
+        return False
+
+
 def scrape_full_list():
     log("Fetching game list from delicious-fruit.com/ratings/full.php?q=ALL...")
     url = "https://delicious-fruit.com/ratings/full.php?q=ALL"
-    
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=8)
-        res.raise_for_status()
-        res.encoding = 'utf-8' # Force requests to use UTF-8 decoding
-    except Exception as e:
-        log(f"[WARNING] Failed to download Delicious Fruit games list: {e}")
+
+    # The list used to render in a few seconds, but DF has started taking well
+    # over a minute at times (Cloudflare answers 524 after ~125 s). The old 8 s
+    # timeout skipped the whole DF sync on every run from 2026-10-18 15:27 UTC
+    # on; a longer read timeout plus spaced retries rides those spells out.
+    res = None
+    for attempt in range(1, DF_LIST_ATTEMPTS + 1):
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=(15, 120))
+            res.raise_for_status()
+            res.encoding = 'utf-8' # Force requests to use UTF-8 decoding
+            break
+        except Exception as e:
+            log(f"[WARNING] Failed to download Delicious Fruit games list (attempt {attempt}/{DF_LIST_ATTEMPTS}): {e}")
+            res = None
+            if attempt < DF_LIST_ATTEMPTS:
+                time.sleep(30)
+    if res is None:
         log("Skipping Delicious Fruit scraping and sync due to network error.")
         return None
 
@@ -1872,6 +1896,38 @@ def main():
                     norm_count += 1
     if norm_count:
         log(f"Normalized {norm_count} unrated game(s) (rating_count=0) to null rating/difficulty.")
+
+    # Upstream-ghost sweep (pipelines/upstream_ghosts.py): retire DF listings
+    # that DF deleted while a same-title, same-creator copy survives — e.g. a
+    # game submitted to DF twice. Needs a complete live list: on a partial one,
+    # live games would look deleted (each ghost is also 404-confirmed).
+    if scraped_games and CLOUDFLARE_ACCOUNT_ID and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
+        try:
+            import upstream_ghosts
+            live_df_ids = {str(sg["df_id"]) for sg in scraped_games}
+            held_df_ids = {d for g in games.values() for d in upstream_ghosts.df_ids(g)}
+            if len(live_df_ids) < 0.9 * len(held_df_ids):
+                log(f"\nUpstream-ghost sweep skipped: live DF list has {len(live_df_ids)} ids "
+                    f"vs {len(held_df_ids)} held — looks incomplete.")
+            else:
+                ghosts = upstream_ghosts.find_ghosts(games, live_df_ids)
+                log(f"\nUpstream-ghost sweep: {len(ghosts)} candidate(s).")
+                if ghosts:
+                    ghost_client = boto3.client(
+                        's3',
+                        endpoint_url=f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com",
+                        aws_access_key_id=AWS_ACCESS_KEY_ID,
+                        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                        config=Config(signature_version='s3v4')
+                    )
+                    result = upstream_ghosts.resolve(
+                        games, ghosts, ghost_client, confirm_gone=df_entry_gone, log=log,
+                        engine_state=engine_state if engine_recog is not None else None)
+                    log(f"  Upstream-ghost sweep: {len(result['deleted'])} deleted "
+                        f"({len(result['moved'])} after handing their file to the survivor), "
+                        f"{len(result['review'])} left for review.")
+        except Exception as e:
+            log(f"  [WARNING] Upstream-ghost sweep failed: {e}")
 
     # Engine recognition backlog sweep: recognize a bounded batch of R2-hosted
     # games that still lack `engine` (approved submissions merged earlier in the
