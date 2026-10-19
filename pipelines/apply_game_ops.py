@@ -35,6 +35,37 @@ from merge_approved_submissions import (
 DB_NAME = "fangame-comments"
 TEMP_DIR = "temp_game_ops"
 GAME_EXTS = [".zip", ".rar", ".7z", ".exe", ".tar", ".gz"]
+# Engine-recognition attempt history (engine_recognition.STATE_PATH), downloaded
+# from R2 before this step and re-uploaded after the scraper's backlog sweep.
+ENGINE_STATE = os.path.join("data", "engine_recognition_state.json")
+
+
+def reset_engine_attempts(game_ids):
+    """Give games whose file was just replaced a fresh engine-recognition attempt.
+
+    The scraper's backlog sweep skips any game with a recorded failure, and that
+    record describes the OLD file (or, for the v2026.009 local backfill, a game
+    that had no file at all). Dropping it lets the sweep try the new file. An
+    absent or unreadable state file is left alone: writing a fresh one here
+    would replace the real history in R2.
+    """
+    if not game_ids or not os.path.exists(ENGINE_STATE):
+        return 0
+    try:
+        with open(ENGINE_STATE, encoding="utf-8") as f:
+            state = json.load(f)
+    except Exception as ex:
+        print(f"[WARNING] Engine state unreadable, not reset: {ex}")
+        return 0
+    if not isinstance(state, dict) or not state:
+        return 0
+    dropped = [g for g in game_ids if state.pop(str(g), None) is not None]
+    if dropped:
+        tmp = ENGINE_STATE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False)
+        os.replace(tmp, ENGINE_STATE)
+    return len(dropped)
 
 
 def _run(cmd):
@@ -125,6 +156,7 @@ def main():
     file_keys = []      # (bucket, key) R2 game files to delete
     shot_keys = []      # (bucket, key) R2 screenshots to delete
     uploaded_keys = set()  # (bucket, key) we just wrote this run — never delete these
+    relinked = set()    # gid whose download now points at a different file
     outcomes = []       # (op_id, status, note)
 
     os.makedirs(TEMP_DIR, exist_ok=True)
@@ -195,6 +227,7 @@ def main():
                 entry["file_size"] = 0
                 outcomes.append((op_id, "applied", f"could not mirror ({err or 'no R2 client'}); set external URL"))
             updated[gid] = entry
+            relinked.add(gid)
 
         elif kind == "upload_replace":
             # The moderator already streamed the file into R2 staging; new_url
@@ -234,6 +267,7 @@ def main():
             uploaded_keys.add((GAMES_BUCKET, new_key))
             file_keys.append((GAMES_BUCKET, staging_key))
             updated[gid] = entry
+            relinked.add(gid)
             outcomes.append((op_id, "applied", f"mirrored uploaded file to R2 ({size} bytes)"))
 
         else:
@@ -267,6 +301,9 @@ def main():
             os.replace(tmp, path)
         print(f"\nCatalog updated: {len(deleted)} deleted, {len(updated)} changed. "
               f"Version -> {new_version}.")
+        n = reset_engine_attempts(relinked)
+        if n:
+            print(f"Cleared {n} engine-recognition attempt record(s) for relinked games.")
 
         # Never delete an object we (re)wrote this run — guards the case where the
         # old game file and the freshly promoted file share the same key.
