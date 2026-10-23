@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.031",
+    "date": "2026-10-24",
+    "note": "More games start in the browser",
+    "changes": [
+      [
+        "Fixed",
+        "More games whose extensions bring their own C++ runtime, games packed with UPX, and a few GameMaker Studio games that stopped while starting now start."
+      ]
+    ]
+  },
+  {
     "ver": "2026.030",
     "date": "2026-10-24",
     "note": "More games start in the browser",
