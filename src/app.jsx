@@ -31,11 +31,16 @@ function App() {
       const q = new URLSearchParams(window.location.search);
       // A shared-collection link (?collection=<token>) opens the read-only page.
       if (q.get('collection')) return 'shared';
-      // A deep link (?game=<id>) opens inside the catalog — or on the Playing or Local
-      // games page when this tab was there (coming back from /play/, src/play.jsx).
+      // A deep link (?game=<id>) opens inside the catalog — or on the page this tab was
+      // on when it went to play (coming back from /play/, src/play.jsx), with the
+      // Explorer's filters as they were.
       if (q.get('game')) {
+        if (sessionStorage.getItem('archive_back') === '1') {
+          sessionStorage.removeItem('archive_back');
+          window.__restoreExplorer = true;
+        }
         const back = sessionStorage.getItem('archive_view');
-        return back === 'playing' || back === 'localgames' ? back : 'explorer';
+        return ['playing', 'localgames', 'collections', 'publib'].includes(back) ? back : 'explorer';
       }
     } catch (e) {}
     // The shared page only exists with a ?collection token; restoring it from

@@ -204,12 +204,21 @@ function getPageNumbers(current, total) {
 // same filters behind a toolbar button, sorted by when they were last played.
 function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse' }) {
   const playing = mode === 'playing';
-  const [searchTitle, setSearchTitle]     = React.useState('');
+  // Back from the player (src/app.jsx): the search, filters, sort and page this tab
+  // left with (kept in sessionStorage below), once.
+  const stateKey = 'archive_explorer_' + mode;
+  const [restored] = React.useState(() => {
+    if (!window.__restoreExplorer) return null;
+    window.__restoreExplorer = false;
+    try { return JSON.parse(sessionStorage.getItem(stateKey) || 'null'); } catch (e) { return null; }
+  });
+  const was = (key, fallback) => (restored && restored[key] !== undefined ? restored[key] : fallback);
+  const [searchTitle, setSearchTitle]     = React.useState(was('searchTitle', ''));
   // An author link followed from the Playing page lands here (see setCreatorSearch).
   const [searchCreator, setSearchCreator] = React.useState(() => {
     const parked = !playing && window.__pendingCreatorSearch;
     if (!playing) window.__pendingCreatorSearch = null;
-    return parked || '';
+    return parked || was('searchCreator', '');
   });
   const playingEntries = window.usePlaying(auth);
   const playedAt = React.useMemo(() => new Map(playingEntries.map((e) => [e.id, e.at])), [playingEntries]);
@@ -217,15 +226,15 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse
     () => (playing ? window.DATA.GAMES.filter((g) => playedAt.has(g.id)) : window.DATA.GAMES),
     [playing, playedAt]
   );
-  const [rating, setRating]   = React.useState([0.0, 10.0]);
-  const [diff,   setDiff]     = React.useState([0, 100]);
-  const [tags,   setTags]     = React.useState(new Map());
+  const [rating, setRating]   = React.useState(was('rating', [0.0, 10.0]));
+  const [diff,   setDiff]     = React.useState(was('diff', [0, 100]));
+  const [tags,   setTags]     = React.useState(() => new Map(was('tags', [])));
   const [showAllTags, setShowAllTags] = React.useState(false);
-  const [engines, setEngines] = React.useState(new Map());
+  const [engines, setEngines] = React.useState(() => new Map(was('engines', [])));
   // Release-date range filters: [{from, to, mode: 'in'|'out'}]. A game must
   // fall inside at least one 'in' range (when any exist) and inside no 'out'
   // range. from/to may be null for an open end.
-  const [dateRanges, setDateRanges] = React.useState([]);
+  const [dateRanges, setDateRanges] = React.useState(was('dateRanges', []));
   const [drFrom, setDrFrom] = React.useState('');
   const [drTo, setDrTo] = React.useState('');
   // Collection membership filters — entries and resolution live in
@@ -236,7 +245,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse
   const [colFilters, setColFilters] = React.useState(() => {
     const parked = window.__pendingCollectionFilter;
     window.__pendingCollectionFilter = null;
-    return parked ? [parked] : [];
+    return parked ? [parked] : was('colFilters', []);
   });
   const colSets = window.useCollectionFilterSets(colFilters, auth);
   // Own lists and the main bucket need a session; drop them on sign-out.
@@ -248,11 +257,16 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse
   const [flags,  setFlags]    = React.useState(() => {
     const parked = !playing && window.__pendingPlayableFilter;
     if (!playing) window.__pendingPlayableFilter = false;
-    return { playable: !!parked, local: false, shots: false, missing: false };
+    return parked ? { playable: true, local: false, shots: false, missing: false } : was('flags', { playable: false, local: false, shots: false, missing: false });
   });
-  const [sort,   setSort]     = React.useState(playing ? 'played' : 'id');
-  const [desc,   setDesc]     = React.useState(true);
-  const [page,   setPage]     = React.useState(1);
+  const [sort,   setSort]     = React.useState(was('sort', playing ? 'played' : 'id'));
+  const [desc,   setDesc]     = React.useState(was('desc', true));
+  const [page,   setPage]     = React.useState(was('page', 1));
+  React.useEffect(() => {
+    try {
+      sessionStorage.setItem(stateKey, JSON.stringify({ searchTitle, searchCreator, rating, diff, tags: [...tags], engines: [...engines], dateRanges, colFilters, flags, sort, desc, page }));
+    } catch (e) {}
+  }, [stateKey, searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, colFilters, flags, sort, desc, page]);
   const [tagSearch, setTagSearch] = React.useState('');
 
   const handleSortChange = (newSort) => {
@@ -508,7 +522,13 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse
   // A re-resolved collection set (the viewer edited a list while browsing) can
   // change the results without a filter change, so it doesn't reset the page;
   // the clamp below keeps the page in range instead.
+  // (not at mount: a page restored from before going to play stays)
+  const filtersSeen = React.useRef(false);
   React.useEffect(() => {
+    if (!filtersSeen.current) {
+      filtersSeen.current = true;
+      return;
+    }
     setPage(1);
   }, [searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, colFilters, flags, sort, desc]);
 

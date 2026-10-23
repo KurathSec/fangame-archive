@@ -1,5 +1,24 @@
 [
   {
+    "ver": "2026.022",
+    "date": "2026-10-23",
+    "note": "Back from playing keeps your filters; more games start",
+    "changes": [
+      [
+        "Fixed",
+        "Going back from a game to the archive keeps the search, filters, sort and page you had, and returns to your collections or Public Collections if you started the game there."
+      ],
+      [
+        "Fixed",
+        "Games whose exe sits in a folder further inside the download (two folders deep, or next to a readme) are found and start."
+      ],
+      [
+        "Fixed",
+        "More GameMaker 8 games start in the browser: ones with CleanMem.dll, and GameMaker 8.0 games whose runner keeps its data at a different place in the exe."
+      ]
+    ]
+  },
+  {
     "ver": "2026.021",
     "date": "2026-10-23",
     "note": "GameMaker: Studio 2 games play in the browser",
