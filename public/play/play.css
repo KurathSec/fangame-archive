@@ -96,6 +96,11 @@ dialog p { margin: 0; color: var(--muted); }
 .dlg-list { display: flex; flex-direction: column; gap: 8px; }
 .dlg-list > div { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 
+/* a dialog the game opened (play.mjs gameDialog) */
+#gamedlg .game-text { color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 50vh; overflow: auto; }
+#gamedlg .game-input { width: 100%; box-sizing: border-box; }
+#gamedlg .dlg-buttons .primary { background: var(--accent); border-color: var(--accent); color: white; }
+
 /* which saves: the account's or this browser's (play.mjs chooseSaves) */
 .choose-list { display: flex; flex-direction: column; gap: 8px; }
 .choose-opt {

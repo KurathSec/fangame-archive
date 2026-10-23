@@ -1,5 +1,20 @@
 [
   {
+    "ver": "2026.023",
+    "date": "2026-10-23",
+    "note": "Game dialogs in the page; faster start when signed in",
+    "changes": [
+      [
+        "Changed",
+        "Messages, questions and text boxes a game opens (common in GameMaker 8 games) appear in the page instead of the browser's own pop-up: they stay in full screen, Enter answers OK or Yes and Esc Cancel or No as on Windows, and the key that closes them no longer reaches the game."
+      ],
+      [
+        "Changed",
+        "When you are signed in, your saves are fetched while the game downloads and is prepared, so the game no longer waits on “Getting your saves…” before it starts."
+      ]
+    ]
+  },
+  {
     "ver": "2026.022",
     "date": "2026-10-23",
     "note": "Back from playing keeps your filters; more games start",

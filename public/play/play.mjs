@@ -21,6 +21,7 @@ const TEXT = {
   en: {
     back: '← Archive', loading: 'Loading…', step_info: 'Looking up the game…', step_cached: 'Loading the copy kept in this browser…',
     step_download: 'Downloading… {done} / {total} MB', step_import: 'Preparing the game…', step_saves: 'Getting your saves…', step_start: 'Starting…',
+    dlg_ok: 'OK', dlg_cancel: 'Cancel', dlg_yes: 'Yes', dlg_no: 'No',
     sound_hint: 'Click or press a key to turn on sound', keys: 'Keys', saves: 'Saves', fullscreen: 'Fullscreen (F4)',
     sync_signin: 'Sign in to keep saves in your account', sync_ok: 'Saves kept in your account', sync_saving: 'Saving to your account…',
     sync_error: 'Saves not in your account: {error}', sync_local: 'Saves kept in this browser',
@@ -39,6 +40,7 @@ const TEXT = {
   'zh-CN': {
     back: '← 返回 Archive', loading: '加载中…', step_info: '正在查找游戏…', step_cached: '正在载入本浏览器中保存的副本…',
     step_download: '下载中… {done} / {total} MB', step_import: '正在准备游戏…', step_saves: '正在获取你的存档…', step_start: '正在启动…',
+    dlg_ok: '确定', dlg_cancel: '取消', dlg_yes: '是', dlg_no: '否',
     sound_hint: '点击或按任意键开启声音', keys: '按键', saves: '存档', fullscreen: '全屏 (F4)',
     sync_signin: '登录后可把存档保存在账户中', sync_ok: '存档已保存在你的账户中', sync_saving: '正在保存到账户…',
     sync_error: '存档未能保存到账户：{error}', sync_local: '存档保存在本浏览器中',
@@ -57,6 +59,7 @@ const TEXT = {
   'zh-TW': {
     back: '← 返回 Archive', loading: '載入中…', step_info: '正在查找遊戲…', step_cached: '正在載入本瀏覽器中保存的副本…',
     step_download: '下載中… {done} / {total} MB', step_import: '正在準備遊戲…', step_saves: '正在取得你的存檔…', step_start: '正在啟動…',
+    dlg_ok: '確定', dlg_cancel: '取消', dlg_yes: '是', dlg_no: '否',
     sound_hint: '點擊或按任意鍵開啟聲音', keys: '按鍵', saves: '存檔', fullscreen: '全螢幕 (F4)',
     sync_signin: '登入後可把存檔保存在帳戶中', sync_ok: '存檔已保存在你的帳戶中', sync_saving: '正在保存到帳戶…',
     sync_error: '存檔未能保存到帳戶：{error}', sync_local: '存檔保存在本瀏覽器中',
@@ -75,6 +78,7 @@ const TEXT = {
   ja: {
     back: '← Archive に戻る', loading: '読み込み中…', step_info: 'ゲームを探しています…', step_cached: 'このブラウザに保存したコピーを読み込んでいます…',
     step_download: 'ダウンロード中… {done} / {total} MB', step_import: 'ゲームを準備しています…', step_saves: 'セーブデータを取得しています…', step_start: '起動しています…',
+    dlg_ok: 'OK', dlg_cancel: 'キャンセル', dlg_yes: 'はい', dlg_no: 'いいえ',
     sound_hint: 'クリックかキーを押すと音が出ます', keys: 'キー', saves: 'セーブ', fullscreen: '全画面 (F4)',
     sync_signin: 'ログインするとセーブをアカウントに保存できます', sync_ok: 'セーブはアカウントに保存されています', sync_saving: 'アカウントに保存中…',
     sync_error: 'セーブをアカウントに保存できません: {error}', sync_local: 'セーブはこのブラウザに保存されています',
@@ -93,6 +97,7 @@ const TEXT = {
   ko: {
     back: '← Archive로 돌아가기', loading: '불러오는 중…', step_info: '게임을 찾는 중…', step_cached: '이 브라우저에 저장된 사본을 불러오는 중…',
     step_download: '다운로드 중… {done} / {total} MB', step_import: '게임을 준비하는 중…', step_saves: '세이브를 가져오는 중…', step_start: '시작하는 중…',
+    dlg_ok: '확인', dlg_cancel: '취소', dlg_yes: '예', dlg_no: '아니요',
     sound_hint: '클릭하거나 키를 누르면 소리가 켜집니다', keys: '키', saves: '세이브', fullscreen: '전체 화면 (F4)',
     sync_signin: '로그인하면 세이브를 계정에 보관할 수 있습니다', sync_ok: '세이브가 계정에 보관되어 있습니다', sync_saving: '계정에 저장하는 중…',
     sync_error: '세이브를 계정에 저장하지 못했습니다: {error}', sync_local: '세이브가 이 브라우저에 보관되어 있습니다',
@@ -111,6 +116,7 @@ const TEXT = {
   ru: {
     back: '← В Archive', loading: 'Загрузка…', step_info: 'Ищем игру…', step_cached: 'Загружаем копию из этого браузера…',
     step_download: 'Скачивание… {done} / {total} МБ', step_import: 'Подготовка игры…', step_saves: 'Получаем ваши сохранения…', step_start: 'Запуск…',
+    dlg_ok: 'ОК', dlg_cancel: 'Отмена', dlg_yes: 'Да', dlg_no: 'Нет',
     sound_hint: 'Щёлкните или нажмите клавишу, чтобы включить звук', keys: 'Клавиши', saves: 'Сохранения', fullscreen: 'Во весь экран (F4)',
     sync_signin: 'Войдите, чтобы хранить сохранения в аккаунте', sync_ok: 'Сохранения хранятся в аккаунте', sync_saving: 'Сохраняем в аккаунт…',
     sync_error: 'Сохранения не попали в аккаунт: {error}', sync_local: 'Сохранения хранятся в этом браузере',
@@ -129,6 +135,7 @@ const TEXT = {
   fr: {
     back: '← Retour à l\'Archive', loading: 'Chargement…', step_info: 'Recherche du jeu…', step_cached: 'Chargement de la copie gardée dans ce navigateur…',
     step_download: 'Téléchargement… {done} / {total} Mo', step_import: 'Préparation du jeu…', step_saves: 'Récupération de vos sauvegardes…', step_start: 'Démarrage…',
+    dlg_ok: 'OK', dlg_cancel: 'Annuler', dlg_yes: 'Oui', dlg_no: 'Non',
     sound_hint: 'Cliquez ou appuyez sur une touche pour activer le son', keys: 'Touches', saves: 'Sauvegardes', fullscreen: 'Plein écran (F4)',
     sync_signin: 'Connectez-vous pour garder vos sauvegardes dans votre compte', sync_ok: 'Sauvegardes gardées dans votre compte', sync_saving: 'Envoi vers votre compte…',
     sync_error: 'Sauvegardes absentes du compte : {error}', sync_local: 'Sauvegardes gardées dans ce navigateur',
@@ -147,6 +154,7 @@ const TEXT = {
   de: {
     back: '← Zurück zum Archive', loading: 'Wird geladen…', step_info: 'Spiel wird gesucht…', step_cached: 'Die in diesem Browser gespeicherte Kopie wird geladen…',
     step_download: 'Download… {done} / {total} MB', step_import: 'Spiel wird vorbereitet…', step_saves: 'Deine Spielstände werden geholt…', step_start: 'Wird gestartet…',
+    dlg_ok: 'OK', dlg_cancel: 'Abbrechen', dlg_yes: 'Ja', dlg_no: 'Nein',
     sound_hint: 'Klicke oder drücke eine Taste, um den Ton einzuschalten', keys: 'Tasten', saves: 'Spielstände', fullscreen: 'Vollbild (F4)',
     sync_signin: 'Melde dich an, um Spielstände im Konto zu behalten', sync_ok: 'Spielstände im Konto gespeichert', sync_saving: 'Wird im Konto gespeichert…',
     sync_error: 'Spielstände nicht im Konto: {error}', sync_local: 'Spielstände in diesem Browser gespeichert',
@@ -400,13 +408,13 @@ const sync = {
    * changed since they last did; otherwise the side that changed wins (the account's when only
    * it did, this browser's when only it did: it goes up).
    */
-  async pull() {
+  async pull(remote) {
     if (!this.clerk) {
       this.show('', t('sync_signin'), `/?game=${id}`);
       return;
     }
     status(t('step_saves'), { progress: null });
-    const { save } = await this.api('GET');
+    const { save } = await remote;
     const local = await loadSaves(this.db, slug);
     const hasLocal = local.some((s) => s.data);
     if (save) {
@@ -488,6 +496,14 @@ async function main() {
   if (!self.crossOriginIsolated) return fail('cross-origin isolation is off (COOP/COEP headers)');
   status(t('step_info'), { title: t('loading'), progress: null });
   const clerk = loadClerk();
+  // The account's saves are asked for while the game downloads and imports, so they are
+  // usually there by the time it can start.
+  const remote = clerk.then((c) => {
+    if (!c) return null;
+    sync.clerk = c;
+    return sync.api('GET');
+  });
+  remote.catch(() => {});
   let game = null;
   try {
     game = await gameRecord();
@@ -500,7 +516,7 @@ async function main() {
     sync.db = db;
     await ensureImported(db, game);
     sync.clerk = await clerk;
-    await sync.pull().catch((e) => sync.show('error', t('sync_error', { error: e.message ?? e })));
+    await sync.pull(remote).catch((e) => sync.show('error', t('sync_error', { error: e.message ?? e })));
     if (!sync.clerk) sync.show('', t('sync_signin'), `/?game=${id}`);
   } catch (e) {
     logLines.push(String(e?.stack ?? e));
@@ -553,6 +569,7 @@ function start(game) {
       fit();
     },
     onSaved: () => sync.changed(),
+    onPrompt: gameDialog,
     async onDone(status) {
       if (status === 0) {
         // the game quit (Esc in most fangames): back to the archive, saves first
@@ -595,6 +612,62 @@ function sameSaves(a, b) {
     for (let i = 0; i < d.length; i++) if (d[i] !== e[i]) return false;
   }
   return true;
+}
+
+/**
+ * A dialog the game opened (GameMaker 8's show_message, show_question, get_string...), in
+ * the page instead of the browser's own: it stays in full screen, and the key that closes it
+ * does not reach the game. Resolves to the text typed, '' for OK or Yes, null for Cancel
+ * or No; Escape is Cancel/No (OK for a message), as on Windows.
+ */
+function gameDialog({ title, text, def, kind }) {
+  return new Promise((resolve) => {
+    const dlg = $('gamedlg');
+    dlg.replaceChildren();
+    const form = document.createElement('form');
+    form.method = 'dialog';
+    const el = (tag, content) => Object.assign(document.createElement(tag), { textContent: content });
+    if (title) form.append(el('h2', title));
+    const body = el('p', text);
+    body.className = 'game-text';
+    form.append(body);
+    let input = null;
+    if (kind === 'text') {
+      input = Object.assign(document.createElement('input'), { type: 'text', value: def ?? '', className: 'game-input' });
+      form.append(input);
+    }
+    const buttons = document.createElement('div');
+    buttons.className = 'dlg-buttons';
+    const button = (value, label, primary) => {
+      const b = el('button', label);
+      b.type = 'submit';
+      b.value = value;
+      if (primary) b.className = 'primary';
+      return b;
+    };
+    const ok = button('ok', kind === 'question' ? t('dlg_yes') : t('dlg_ok'), true);
+    if (kind === 'question') buttons.append(ok, button('no', t('dlg_no')));
+    else if (kind === 'text') buttons.append(ok, button('no', t('dlg_cancel')));
+    else buttons.append(ok);
+    form.append(buttons);
+    // Enter in the text field is OK
+    form.onsubmit = (ev) => {
+      if (ev.submitter == null) {
+        ev.preventDefault();
+        dlg.close('ok');
+      }
+    };
+    dlg.append(form);
+    dlg.oncancel = (ev) => {
+      ev.preventDefault();
+      dlg.close(kind === 'message' ? 'ok' : 'no');
+    };
+    dlg.onclose = () => resolve(dlg.returnValue === 'ok' ? (input ? input.value : '') : null);
+    dlg.returnValue = '';
+    dlg.showModal();
+    (input ?? ok).focus();
+    input?.select();
+  });
 }
 
 /** Asks which saves to play with: 'cloud' or 'local'. */
