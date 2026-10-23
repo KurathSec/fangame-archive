@@ -98,6 +98,7 @@ dialog p { margin: 0; color: var(--muted); }
 
 /* a dialog the game opened (play.mjs gameDialog) */
 #gamedlg .game-text { color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 50vh; overflow: auto; }
+#gamedlg .game-text.game-error { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 12.5px; }
 #gamedlg .game-input { width: 100%; box-sizing: border-box; }
 #gamedlg .dlg-buttons .primary { background: var(--accent); border-color: var(--accent); color: white; }
 

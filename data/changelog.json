@@ -1,5 +1,24 @@
 [
   {
+    "ver": "2026.029",
+    "date": "2026-10-24",
+    "note": "More games start in the browser",
+    "changes": [
+      [
+        "Fixed",
+        "A GameMaker 8 game's error message is shown, with Ignore and Abort as on Windows, instead of the game stopping on a black screen."
+      ],
+      [
+        "Fixed",
+        "Games that keep their saves in a folder they ship empty, games packed as LZH archives, GameMaker 8 games built with other versions of the runner, and games whose extensions need newer Windows runtime files now start."
+      ],
+      [
+        "Fixed",
+        "Games using the FoxWriting text extension no longer stop at the start (their extension text is not drawn yet)."
+      ]
+    ]
+  },
+  {
     "ver": "2026.028",
     "date": "2026-10-24",
     "note": "Settings page removed",

@@ -24,7 +24,7 @@ const TEXT = {
   en: {
     back: '← Archive', loading: 'Loading…', step_info: 'Looking up the game…', step_cached: 'Loading the copy kept in this browser…',
     step_download: 'Downloading… {done} / {total} MB', step_import: 'Preparing the game…', step_saves: 'Getting your saves…', step_start: 'Starting…',
-    dlg_ok: 'OK', dlg_cancel: 'Cancel', dlg_yes: 'Yes', dlg_no: 'No',
+    dlg_ok: 'OK', dlg_cancel: 'Cancel', dlg_yes: 'Yes', dlg_no: 'No', dlg_ignore: 'Ignore', dlg_abort: 'Abort',
     sound_hint: 'Click or press a key to turn on sound', keys: 'Keys', saves: 'Saves', fullscreen: 'Fullscreen (F4)',
     sync_signin: 'Sign in to keep saves in your account', sync_ok: 'Saves kept in your account', sync_saving: 'Saving to your account…',
     sync_error: 'Saves not in your account: {error}', sync_local: 'Saves kept in this browser',
@@ -43,7 +43,7 @@ const TEXT = {
   'zh-CN': {
     back: '← 返回 Archive', loading: '加载中…', step_info: '正在查找游戏…', step_cached: '正在载入本浏览器中保存的副本…',
     step_download: '下载中… {done} / {total} MB', step_import: '正在准备游戏…', step_saves: '正在获取你的存档…', step_start: '正在启动…',
-    dlg_ok: '确定', dlg_cancel: '取消', dlg_yes: '是', dlg_no: '否',
+    dlg_ok: '确定', dlg_cancel: '取消', dlg_yes: '是', dlg_no: '否', dlg_ignore: '忽略', dlg_abort: '中止',
     sound_hint: '点击或按任意键开启声音', keys: '按键', saves: '存档', fullscreen: '全屏 (F4)',
     sync_signin: '登录后可把存档保存在账户中', sync_ok: '存档已保存在你的账户中', sync_saving: '正在保存到账户…',
     sync_error: '存档未能保存到账户：{error}', sync_local: '存档保存在本浏览器中',
@@ -62,7 +62,7 @@ const TEXT = {
   'zh-TW': {
     back: '← 返回 Archive', loading: '載入中…', step_info: '正在查找遊戲…', step_cached: '正在載入本瀏覽器中保存的副本…',
     step_download: '下載中… {done} / {total} MB', step_import: '正在準備遊戲…', step_saves: '正在取得你的存檔…', step_start: '正在啟動…',
-    dlg_ok: '確定', dlg_cancel: '取消', dlg_yes: '是', dlg_no: '否',
+    dlg_ok: '確定', dlg_cancel: '取消', dlg_yes: '是', dlg_no: '否', dlg_ignore: '忽略', dlg_abort: '中止',
     sound_hint: '點擊或按任意鍵開啟聲音', keys: '按鍵', saves: '存檔', fullscreen: '全螢幕 (F4)',
     sync_signin: '登入後可把存檔保存在帳戶中', sync_ok: '存檔已保存在你的帳戶中', sync_saving: '正在保存到帳戶…',
     sync_error: '存檔未能保存到帳戶：{error}', sync_local: '存檔保存在本瀏覽器中',
@@ -81,7 +81,7 @@ const TEXT = {
   ja: {
     back: '← Archive に戻る', loading: '読み込み中…', step_info: 'ゲームを探しています…', step_cached: 'このブラウザに保存したコピーを読み込んでいます…',
     step_download: 'ダウンロード中… {done} / {total} MB', step_import: 'ゲームを準備しています…', step_saves: 'セーブデータを取得しています…', step_start: '起動しています…',
-    dlg_ok: 'OK', dlg_cancel: 'キャンセル', dlg_yes: 'はい', dlg_no: 'いいえ',
+    dlg_ok: 'OK', dlg_cancel: 'キャンセル', dlg_yes: 'はい', dlg_no: 'いいえ', dlg_ignore: '無視', dlg_abort: '中止',
     sound_hint: 'クリックかキーを押すと音が出ます', keys: 'キー', saves: 'セーブ', fullscreen: '全画面 (F4)',
     sync_signin: 'ログインするとセーブをアカウントに保存できます', sync_ok: 'セーブはアカウントに保存されています', sync_saving: 'アカウントに保存中…',
     sync_error: 'セーブをアカウントに保存できません: {error}', sync_local: 'セーブはこのブラウザに保存されています',
@@ -100,7 +100,7 @@ const TEXT = {
   ko: {
     back: '← Archive로 돌아가기', loading: '불러오는 중…', step_info: '게임을 찾는 중…', step_cached: '이 브라우저에 저장된 사본을 불러오는 중…',
     step_download: '다운로드 중… {done} / {total} MB', step_import: '게임을 준비하는 중…', step_saves: '세이브를 가져오는 중…', step_start: '시작하는 중…',
-    dlg_ok: '확인', dlg_cancel: '취소', dlg_yes: '예', dlg_no: '아니요',
+    dlg_ok: '확인', dlg_cancel: '취소', dlg_yes: '예', dlg_no: '아니요', dlg_ignore: '무시', dlg_abort: '중단',
     sound_hint: '클릭하거나 키를 누르면 소리가 켜집니다', keys: '키', saves: '세이브', fullscreen: '전체 화면 (F4)',
     sync_signin: '로그인하면 세이브를 계정에 보관할 수 있습니다', sync_ok: '세이브가 계정에 보관되어 있습니다', sync_saving: '계정에 저장하는 중…',
     sync_error: '세이브를 계정에 저장하지 못했습니다: {error}', sync_local: '세이브가 이 브라우저에 보관되어 있습니다',
@@ -119,7 +119,7 @@ const TEXT = {
   ru: {
     back: '← В Archive', loading: 'Загрузка…', step_info: 'Ищем игру…', step_cached: 'Загружаем копию из этого браузера…',
     step_download: 'Скачивание… {done} / {total} МБ', step_import: 'Подготовка игры…', step_saves: 'Получаем ваши сохранения…', step_start: 'Запуск…',
-    dlg_ok: 'ОК', dlg_cancel: 'Отмена', dlg_yes: 'Да', dlg_no: 'Нет',
+    dlg_ok: 'ОК', dlg_cancel: 'Отмена', dlg_yes: 'Да', dlg_no: 'Нет', dlg_ignore: 'Пропустить', dlg_abort: 'Прервать',
     sound_hint: 'Щёлкните или нажмите клавишу, чтобы включить звук', keys: 'Клавиши', saves: 'Сохранения', fullscreen: 'Во весь экран (F4)',
     sync_signin: 'Войдите, чтобы хранить сохранения в аккаунте', sync_ok: 'Сохранения хранятся в аккаунте', sync_saving: 'Сохраняем в аккаунт…',
     sync_error: 'Сохранения не попали в аккаунт: {error}', sync_local: 'Сохранения хранятся в этом браузере',
@@ -138,7 +138,7 @@ const TEXT = {
   fr: {
     back: '← Retour à l\'Archive', loading: 'Chargement…', step_info: 'Recherche du jeu…', step_cached: 'Chargement de la copie gardée dans ce navigateur…',
     step_download: 'Téléchargement… {done} / {total} Mo', step_import: 'Préparation du jeu…', step_saves: 'Récupération de vos sauvegardes…', step_start: 'Démarrage…',
-    dlg_ok: 'OK', dlg_cancel: 'Annuler', dlg_yes: 'Oui', dlg_no: 'Non',
+    dlg_ok: 'OK', dlg_cancel: 'Annuler', dlg_yes: 'Oui', dlg_no: 'Non', dlg_ignore: 'Ignorer', dlg_abort: 'Abandonner',
     sound_hint: 'Cliquez ou appuyez sur une touche pour activer le son', keys: 'Touches', saves: 'Sauvegardes', fullscreen: 'Plein écran (F4)',
     sync_signin: 'Connectez-vous pour garder vos sauvegardes dans votre compte', sync_ok: 'Sauvegardes gardées dans votre compte', sync_saving: 'Envoi vers votre compte…',
     sync_error: 'Sauvegardes absentes du compte : {error}', sync_local: 'Sauvegardes gardées dans ce navigateur',
@@ -157,7 +157,7 @@ const TEXT = {
   de: {
     back: '← Zurück zum Archive', loading: 'Wird geladen…', step_info: 'Spiel wird gesucht…', step_cached: 'Die in diesem Browser gespeicherte Kopie wird geladen…',
     step_download: 'Download… {done} / {total} MB', step_import: 'Spiel wird vorbereitet…', step_saves: 'Deine Spielstände werden geholt…', step_start: 'Wird gestartet…',
-    dlg_ok: 'OK', dlg_cancel: 'Abbrechen', dlg_yes: 'Ja', dlg_no: 'Nein',
+    dlg_ok: 'OK', dlg_cancel: 'Abbrechen', dlg_yes: 'Ja', dlg_no: 'Nein', dlg_ignore: 'Ignorieren', dlg_abort: 'Abbrechen',
     sound_hint: 'Klicke oder drücke eine Taste, um den Ton einzuschalten', keys: 'Tasten', saves: 'Spielstände', fullscreen: 'Vollbild (F4)',
     sync_signin: 'Melde dich an, um Spielstände im Konto zu behalten', sync_ok: 'Spielstände im Konto gespeichert', sync_saving: 'Wird im Konto gespeichert…',
     sync_error: 'Spielstände nicht im Konto: {error}', sync_local: 'Spielstände in diesem Browser gespeichert',
@@ -311,7 +311,8 @@ async function download(url, size, token) {
   return bytes;
 }
 
-const runnable = (e) => e && (e.kind === 'gm80' || e.kind === 'gm81' || e.kind === 'gms');
+// (gm8: a GameMaker 8 runner of another build, or packed; it runs without mods)
+const runnable = (e) => e && (e.kind === 'gm80' || e.kind === 'gm81' || e.kind === 'gm8' || e.kind === 'gms');
 
 /** The game, imported into this browser (once per catalog file); `token` is the account's. */
 async function ensureImported(db, game, token) {
@@ -653,6 +654,7 @@ function gameDialog({ title, text, def, kind }) {
     body.className = 'game-text';
     form.append(body);
     let input = null;
+    if (kind === 'error') body.classList.add('game-error');
     if (kind === 'text') {
       input = Object.assign(document.createElement('input'), { type: 'text', value: def ?? '', className: 'game-input' });
       form.append(input);
@@ -666,8 +668,10 @@ function gameDialog({ title, text, def, kind }) {
       if (primary) b.className = 'primary';
       return b;
     };
-    const ok = button('ok', kind === 'question' ? t('dlg_yes') : t('dlg_ok'), true);
+    // ('error': GameMaker 8's runtime error, Ignore goes on, Abort ends the game, as on Windows)
+    const ok = button('ok', kind === 'question' ? t('dlg_yes') : kind === 'error' ? t('dlg_ignore') : t('dlg_ok'), true);
     if (kind === 'question') buttons.append(ok, button('no', t('dlg_no')));
+    else if (kind === 'error') buttons.append(ok, button('no', t('dlg_abort')));
     else if (kind === 'text') buttons.append(ok, button('no', t('dlg_cancel')));
     else buttons.append(ok);
     form.append(buttons);
