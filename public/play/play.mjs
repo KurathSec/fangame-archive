@@ -194,7 +194,7 @@ const store = {
 
 const id = Number(new URLSearchParams(location.search).get('id'));
 const slug = `fa-${id}`;
-const PLAYABLE = { 'GameMaker 8': true, 'GameMaker: Studio': true };
+const PLAYABLE = { 'GameMaker 8': true, 'GameMaker: Studio': true, 'GameMaker: Studio 2': true };
 
 for (const [el, key] of [['back', 'back'], ['keys', 'keys'], ['saves', 'saves'], ['fs', 'fullscreen'], ['hint', 'sound_hint']]) $(el).textContent = t(key);
 $('back').href = `/?game=${id}`;
