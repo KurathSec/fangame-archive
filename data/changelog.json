@@ -1,5 +1,24 @@
 [
   {
+    "ver": "2026.024",
+    "date": "2026-10-23",
+    "note": "More games start in the browser",
+    "changes": [
+      [
+        "Fixed",
+        "Games packed as a self-extracting installer inside a folder, and downloads that hold an old and a new copy of a game, start (the newer copy)."
+      ],
+      [
+        "Fixed",
+        "Games whose extensions need the Universal C Runtime, read or write the registry, or run a background thread that waits by spinning no longer stop or run slowly."
+      ],
+      [
+        "Fixed",
+        "A game that asks the internet for something now gets an answer that the connection failed, as on a computer that is offline, instead of waiting forever."
+      ]
+    ]
+  },
+  {
     "ver": "2026.023",
     "date": "2026-10-23",
     "note": "Game dialogs in the page; faster start when signed in",
