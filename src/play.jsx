@@ -4,9 +4,9 @@
 //    hosted on the archive's own CDN, up to PLAY_MAX_BYTES;
 //  - the drawer's Play row (`PlayRow`), with the mods to apply, stored where the player
 //    reads them (localStorage `gmr.mods.fa-<id>`, gm-recomp's format);
-//  - the Explorer's Playing panel (`PlayingPanel`): the games played here (localStorage
-//    `fa.playing`, written by the player) and, when signed in, those with saves in the
-//    account (/api/saves).
+//  - My Content › Playing (`usePlaying`, `PlayingGrid`; an Explorer in 'playing' mode):
+//    the games played here (localStorage `fa.playing`, written by the player) and, when
+//    signed in, those with saves in the account (/api/saves).
 
 const PLAY_ENGINES = { 'GameMaker 8': 'gm8', 'GameMaker: Studio': 'gms' };
 // The whole archive is unpacked in the browser's memory.
@@ -227,45 +227,51 @@ function playedWhen(at) {
   return rtf.format(-Math.round(s / (86400 * 30)), 'month');
 }
 
-/** The Explorer's left column: the games being played, with the site's screenshots. */
-function PlayingPanel({ onOpenGame, auth, onShowPlayable }) {
-  const entries = usePlaying(auth);
-  const byId = React.useMemo(() => new Map(window.DATA.GAMES.map((g) => [g.id, g])), [window.DATA.GAMES]);
-  const list = entries.map((e) => ({ e, g: byId.get(e.id) })).filter((x) => x.g);
+/** My Content › Playing (an Explorer in 'playing' mode lays it out and filters it): the
+ *  games being played as cards with the site's screenshot (title only without one). */
+function PlayingGrid({ games, playedAt, total, activeId, onOpenGame }) {
+  if (total === 0) {
+    return (
+      <div className="playing-empty">
+        <div className="playing-empty-icon">{playIcons.play}</div>
+        <div>{window.t('play.playing_empty')}</div>
+        <button className="playing-show" onClick={() => {
+          // Browse Games mounts with the playable filter on (see its flags initialiser)
+          window.__pendingPlayableFilter = true;
+          if (window.setView) window.setView('explorer');
+        }}>{window.t('play.show_playable')}</button>
+      </div>
+    );
+  }
+  if (games.length === 0) return <div className="playing-empty"><div>{window.t('no_games_found')}</div></div>;
   return (
-    <aside className="playing-pane">
-      <h4 className="playing-head">{playIcons.play}<span>{window.t('play.playing')}</span></h4>
-      {list.length === 0 ? (
-        <div className="playing-empty">
-          <div>{window.t('play.playing_empty')}</div>
-          <button className="playing-show" onClick={onShowPlayable}>{window.t('play.show_playable')}</button>
-        </div>
-      ) : (
-        <div className="playing-list">
-          {list.map(({ e, g }) => {
-            const shot = (window.DATA.SCREENSHOTS[g.id] || [])[0];
-            return (
-              <div key={g.id} className="playing-card" role="button" tabIndex={0}
-                   onClick={() => onOpenGame(g)}
-                   onKeyDown={(ev) => { if (ev.key === 'Enter') onOpenGame(g); }}>
-                {shot && <img className="playing-shot" src={getShotUrl(shot.image_path)} alt="" loading="lazy" />}
-                <div className="playing-meta">
-                  <span className="playing-title">{g.title}</span>
-                  <span className="playing-when">{playedWhen(e.at)}{e.account ? ' · ' + window.t('play.in_account') : ''}</span>
-                </div>
-                <div className="playing-actions">
-                  <a className="playing-play" href={playUrl(g)} title={window.t('play.button')}
-                     onClick={(ev) => { ev.stopPropagation(); handOff(g); }}>{playIcons.play}</a>
-                  <button className="playing-x" title={window.t('play.remove')}
-                          onClick={(ev) => { ev.stopPropagation(); hidePlaying(g.id); }}>{window.ic.x}</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </aside>
+    <div className="playing-grid">
+      {games.map((g) => {
+        const shot = (window.DATA.SCREENSHOTS[g.id] || [])[0];
+        return (
+          <div key={g.id} className={'playing-card' + (g.id === activeId ? ' active' : '')} role="button" tabIndex={0}
+               onClick={() => onOpenGame(g)}
+               onKeyDown={(ev) => { if (ev.key === 'Enter') onOpenGame(g); }}>
+            {shot && <img className="playing-shot" src={getShotUrl(shot.image_path)} alt="" loading="lazy" />}
+            <div className="playing-meta">
+              <span className="playing-title">{g.title}</span>
+              <span className="playing-creator">{g.creator}</span>
+              <span className="playing-when">{playedWhen(playedAt.get(g.id))}</span>
+            </div>
+            <div className="playing-actions">
+              <a className="playing-play" href={playUrl(g)} title={window.t('play.button')}
+                 onClick={(ev) => { ev.stopPropagation(); handOff(g); }}>{playIcons.play}</a>
+              <button className="playing-x" title={window.t('play.remove')}
+                      onClick={(ev) => { ev.stopPropagation(); hidePlaying(g.id); }}>{window.ic.x}</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
-Object.assign(window, { playability, PlayRow, PlayingPanel });
+// the sidebar's icon for My Content › Playing
+window.ic2 = Object.assign(window.ic2 || {}, { play: playIcons.play });
+
+Object.assign(window, { playability, PlayRow, PlayingGrid, usePlaying });

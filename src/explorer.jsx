@@ -199,9 +199,24 @@ function getPageNumbers(current, total) {
   return pages;
 }
 
-function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
+// mode 'browse': the whole catalog (Browse Games). mode 'playing': the games being
+// played in the browser (My Content › Playing, src/play.jsx) as screenshot cards, the
+// same filters behind a toolbar button, sorted by when they were last played.
+function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse' }) {
+  const playing = mode === 'playing';
   const [searchTitle, setSearchTitle]     = React.useState('');
-  const [searchCreator, setSearchCreator] = React.useState('');
+  // An author link followed from the Playing page lands here (see setCreatorSearch).
+  const [searchCreator, setSearchCreator] = React.useState(() => {
+    const parked = !playing && window.__pendingCreatorSearch;
+    if (!playing) window.__pendingCreatorSearch = null;
+    return parked || '';
+  });
+  const playingEntries = window.usePlaying(auth);
+  const playedAt = React.useMemo(() => new Map(playingEntries.map((e) => [e.id, e.at])), [playingEntries]);
+  const baseGames = React.useMemo(
+    () => (playing ? window.DATA.GAMES.filter((g) => playedAt.has(g.id)) : window.DATA.GAMES),
+    [playing, playedAt]
+  );
   const [rating, setRating]   = React.useState([0.0, 10.0]);
   const [diff,   setDiff]     = React.useState([0, 100]);
   const [tags,   setTags]     = React.useState(new Map());
@@ -229,8 +244,13 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
     if (auth === 'out') setColFilters((fs) => (fs.some((f) => f.kind !== 'public') ? fs.filter((f) => f.kind === 'public') : fs));
   }, [auth]);
 
-  const [flags,  setFlags]    = React.useState({ playable: false, local: false, shots: false, missing: false });
-  const [sort,   setSort]     = React.useState('id');
+  // The Playing page's empty state parks the playable filter for Browse Games.
+  const [flags,  setFlags]    = React.useState(() => {
+    const parked = !playing && window.__pendingPlayableFilter;
+    if (!playing) window.__pendingPlayableFilter = false;
+    return { playable: !!parked, local: false, shots: false, missing: false };
+  });
+  const [sort,   setSort]     = React.useState(playing ? 'played' : 'id');
   const [desc,   setDesc]     = React.useState(true);
   const [page,   setPage]     = React.useState(1);
   const [tagSearch, setTagSearch] = React.useState('');
@@ -244,7 +264,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
     }
   };
   const [filtersOpen, setFiltersOpen] = React.useState(false);
-  // The filters open from the toolbar; its button counts the ones in effect.
+  // On the Playing page the filters open from the toolbar; the button counts the ones in effect.
   const activeFilters =
     (rating[0] !== 0 || rating[1] !== 10 ? 1 : 0) +
     (diff[0] !== 0 || diff[1] !== 100 ? 1 : 0) +
@@ -282,8 +302,6 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
   };
 
   const toggleFlag = (k) => setFlags((f) => ({ ...f, [k]: !f[k] }));
-  // (the Playing panel's empty state)
-  const showPlayable = () => { setFlags((f) => ({ ...f, playable: true })); setPage(1); };
 
   // Engine buckets (single value per game). null engine => Unknown sentinel.
   const engineList = React.useMemo(() => {
@@ -371,7 +389,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
       if (!st || st.status !== 'ready') return;
       (f.mode === 'and' ? colAnd : f.mode === 'not' ? colNot : colOr).push(st.ids);
     });
-    return window.DATA.GAMES.filter((g) => {
+    return baseGames.filter((g) => {
       if (qTitle && !g.title.toLowerCase().includes(qTitle)) return false;
       if (qCreator && !g.creator.toLowerCase().includes(qCreator)) return false;
       
@@ -467,6 +485,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
         }
         case 'size':   comparison = (a.file_size || 0) - (b.file_size || 0); break;
         case 'rev':    comparison = (a.reviews || 0) - (b.reviews || 0); break;
+        case 'played': comparison = (playedAt.get(a.id) || 0) - (playedAt.get(b.id) || 0); break;
         case 'date': {
           // Dateless games always sort to the bottom, like unrated in 'rating'.
           if (!a.release_date && !b.release_date) {
@@ -484,7 +503,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
       }
       return desc ? -comparison : comparison;
     });
-  }, [searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, colFilters, colSets, flags, sort, desc]);
+  }, [baseGames, playedAt, searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, colFilters, colSets, flags, sort, desc]);
 
   // A re-resolved collection set (the viewer edited a list while browsing) can
   // change the results without a filter change, so it doesn't reset the page;
@@ -528,6 +547,12 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
 
   React.useEffect(() => {
     window.setCreatorSearch = (creatorName) => {
+      if (playing) {
+        // Browse Games mounts and takes it (see searchCreator's initialiser)
+        window.__pendingCreatorSearch = creatorName;
+        if (window.setView) window.setView('explorer');
+        return;
+      }
       if (window.setView) {
         window.setView('explorer');
       }
@@ -548,7 +573,9 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
         <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title="Toggle menu">
           {window.ic.menu}
         </button>
-        <span className="crumb"><b>{window.t('library')}</b><span>/</span>{window.t('browse_games')}</span>
+        <span className="crumb">
+          <b>{playing ? window.t('my_content') : window.t('library')}</b><span>/</span>{playing ? window.t('play.playing') : window.t('browse_games')}
+        </span>
         <div className="search search-title-input" style={{ marginRight: '8px', maxWidth: '240px' }}>
           {React.cloneElement(window.ic.search, { className: 's-icon' })}
           <input value={searchTitle} onChange={(e) => setSearchTitle(e.target.value)} placeholder={window.t('search_title')} />
@@ -571,6 +598,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
         <span className="lbl">{window.t('sort_by')}</span>
         <div style={{ display: 'inline-flex', alignItems: 'center' }}>
           <select className="sel" value={sort} onChange={(e) => handleSortChange(e.target.value)}>
+            {playing && <option value="played">{window.t('play.sort_played')}</option>}
             <option value="id">{window.t('sort_id')}</option>
             <option value="title">{window.t('sort_title')}</option>
             <option value="rating">{window.t('sort_rating')}</option>
@@ -621,25 +649,34 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
           {window.ic.dice} {window.t('roll_random')}
         </button>
 
-        <button
-          className={`filter-btn${filtersOpen ? ' active' : ''}${activeFilters ? ' has' : ''}`}
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          title={window.t('toggle_filters')}
-          aria-expanded={filtersOpen}
-        >
-          {window.ic.list}
-          <span>{window.t('play.filters_btn')}</span>
-          {activeFilters > 0 && <span className="filter-btn-count tnum">{activeFilters}</span>}
-        </button>
+        {playing ? (
+          <button
+            className={`filter-btn${filtersOpen ? ' active' : ''}${activeFilters ? ' has' : ''}`}
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            title={window.t('toggle_filters')}
+            aria-expanded={filtersOpen}
+          >
+            {window.ic.list}
+            <span>{window.t('play.filters_btn')}</span>
+            {activeFilters > 0 && <span className="filter-btn-count tnum">{activeFilters}</span>}
+          </button>
+        ) : (
+          <button
+            className={`iconbtn mobile-filter-btn${filtersOpen ? ' active' : ''}`}
+            onClick={() => setFiltersOpen(!filtersOpen)}
+            title={window.t('toggle_filters')}
+          >
+            {window.ic.list}
+          </button>
+        )}
 
         <div className="tb-spacer" />
         <span className="mono" style={{ color: 'var(--muted)', fontSize: 11.5 }}>
-          {window.t('games_count', { filtered: filtered.length, total: window.DATA.GAMES.length })}
+          {window.t('games_count', { filtered: filtered.length, total: baseGames.length })}
         </span>
       </div>
 
-      <div className="content">
-        <window.PlayingPanel onOpenGame={onOpenGame} auth={auth} onShowPlayable={showPlayable} />
+      <div className={'content' + (playing ? ' filters-behind-button' : '')}>
         {filtersOpen && <div className="filterpane-scrim filterpane-scrim-mobile" onClick={() => setFiltersOpen(false)} />}
         <aside className={`filterpane${filtersOpen ? ' open mobile-open' : ''}`}>
           <div className="fp-section">
@@ -799,7 +836,10 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
         </aside>
 
         <div className="grid-wrap" ref={gridWrapRef}>
-          {view === 'grid' ? (
+          {playing ? (
+            <window.PlayingGrid games={pagedItems} playedAt={playedAt} total={baseGames.length}
+                                activeId={activeId} onOpenGame={onOpenGame} />
+          ) : view === 'grid' ? (
             <div className="grid">
               {pagedItems.map((g) => <Card key={g.id} game={g} active={g.id === activeId} onClick={() => onOpenGame(g)} />)}
             </div>

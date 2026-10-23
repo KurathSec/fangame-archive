@@ -1,5 +1,20 @@
 [
   {
+    "ver": "2026.018",
+    "date": "2026-10-23",
+    "note": "Playing moves to My Content",
+    "changes": [
+      [
+        "Changed",
+        "Playing is now under My Content in the sidebar: the games you play in the browser, as cards with their screenshots, most recently played first, with the usual filters behind a Filters button. Play one again straight from its card."
+      ],
+      [
+        "Changed",
+        "Browse Games is back to its usual layout, filters on the left, and keeps the new Playable in browser filter."
+      ]
+    ]
+  },
+  {
     "ver": "2026.017",
     "date": "2026-10-23",
     "note": "Play GameMaker games right in the browser",

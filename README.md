@@ -36,7 +36,7 @@ The catalog is split into **minified** chunks under Cloudflare Pages' 25 MB per-
 * **Detail drawer** — metadata (author, game engine, size), screenshots, and live reviews fetched on demand, with Markdown + click-to-reveal spoilers. Engines are auto-detected from the game files by the CI pipeline (GameMaker 8 / Studio / Studio 2, MMF2, Unity, and more) and are also filterable.
 * **Accounts & reviews** — Clerk-backed login; submit reviews (optional rating/difficulty, custom tags) and suggest new games, all gated by Turnstile and daily quotas, then moderated. Game submissions can attach the actual files instead of links — direct upload of the archive (≤ 500 MB, presigned PUT straight to R2) and screenshots (≤ 8 MB), staged in a capped 5 GB pool until review.
 * **Collections** — cloud-synced favorites (the "main" bucket) plus named **collections**: build lists and one level of folders, save a game to several at once via a per-game menu, and rename/describe them. Share a collection by instant link (blank/preset name, no description) or submit it to the **moderated Public Collections library**; public collections lock their name/description. Shared pages open fast (`?collection=<token>`) even for signed-out visitors.
-* **Play in the browser** — GameMaker 8 and GameMaker: Studio games hosted on the archive run in the browser from their original files ([gm-recomp](https://github.com/KurathSec/gm-recomp) recompiles them to WebAssembly): a *Play in browser* button under Download, mods beside it, key remapping, F4 for full screen, Esc back to the archive, and saves kept in the player's account when signed in. Browse Games shows the games being played on the left and filters by *Playable in browser*.
+* **Play in the browser** — GameMaker 8 and GameMaker: Studio games hosted on the archive run in the browser from their original files ([gm-recomp](https://github.com/KurathSec/gm-recomp) recompiles them to WebAssembly): a *Play in browser* button under Download, mods beside it, key remapping, F4 for full screen, Esc back to the archive, and saves kept in the player's account when signed in. *My Content › Playing* lists the games being played with their screenshots, and Browse Games filters by *Playable in browser*.
 * **Internationalization** — 8 languages (`en`, `zh-CN`, `zh-TW`, `ja`, `ko`, `ru`, `fr`, `de`) with live switching.
 * **Public API** — `/api/search?q=` / `?id=` (keyword/ID, edge-cached) and `/api/random?count=&tag=` (random games, uncached); both return rating, difficulty, review count, file size, tags, and download URL.
 
@@ -60,7 +60,7 @@ fangame-archive/
 │   ├── explorer.jsx              # Search + tri-state tag filter + pagination
 │   ├── collections.jsx           # Favorites + Collections v2 client, hooks & UI (popover, modal, manager, public library, shared page)
 │   ├── i18n.jsx                  # Dictionaries, window.t(), language selector
-│   ├── play.jsx                  # Browser play: playability, the drawer's Play row + mods, the Playing panel
+│   ├── play.jsx                  # Browser play: playability, the drawer's Play row + mods, My Content › Playing
 │   ├── data.jsx                  # In-memory data shaping (window.DATA)
 │   ├── tweaks-panel.jsx          # Theme/density/layout tweaks
 │   └── styles.css / account.css  # Design tokens and layout

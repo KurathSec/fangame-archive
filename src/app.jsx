@@ -31,8 +31,9 @@ function App() {
       const q = new URLSearchParams(window.location.search);
       // A shared-collection link (?collection=<token>) opens the read-only page.
       if (q.get('collection')) return 'shared';
-      // A deep link (?game=<id>) always opens inside the catalog.
-      if (q.get('game')) return 'explorer';
+      // A deep link (?game=<id>) opens inside the catalog — or on the Playing page when
+      // this tab was there (coming back from /play/, src/play.jsx).
+      if (q.get('game')) return sessionStorage.getItem('archive_view') === 'playing' ? 'playing' : 'explorer';
     } catch (e) {}
     // The shared page only exists with a ?collection token; restoring it from
     // the session without one (e.g. reopening the bare site in the same tab
@@ -150,7 +151,7 @@ function App() {
           try { localStorage.removeItem('archive_auth_cache'); } catch (e) {}
           if (active) {
             setView(current => {
-              if (current === 'collections') return 'explorer';
+              if (current === 'collections' || current === 'playing') return 'explorer';
               return current;
             });
           }
@@ -186,7 +187,7 @@ function App() {
     if (window.Clerk) {
       await Clerk.signOut();
       window.pushToast('Signed out', '', 'success');
-      if (view === 'mycontent' || view === 'collections' || view === 'submit') {
+      if (view === 'mycontent' || view === 'collections' || view === 'submit' || view === 'playing') {
         setView('explorer');
       }
     }
@@ -270,7 +271,7 @@ function App() {
         if (g) {
           setActiveGame(g);
           setIsRoll(false);
-          setView(v => (v === 'explorer' || v === 'collections' || v === 'shared' || v === 'publib') ? v : 'explorer');
+          setView(v => (v === 'explorer' || v === 'collections' || v === 'shared' || v === 'publib' || v === 'playing') ? v : 'explorer');
           return;
         }
       }
@@ -293,7 +294,7 @@ function App() {
       setCollectionToken(null);
       try { const u = new URL(window.location.href); if (u.searchParams.has('collection')) { u.searchParams.delete('collection'); window.history.replaceState({}, '', u); } } catch (e) {}
     }
-    if (v !== 'explorer' && v !== 'collections') { setActiveGame(null); syncGameUrl(null, { replace: true }); }
+    if (v !== 'explorer' && v !== 'collections' && v !== 'playing') { setActiveGame(null); syncGameUrl(null, { replace: true }); }
   };
 
   // "Show in Browse Games" on a public/shared collection: park the collection as
@@ -325,6 +326,7 @@ function App() {
                      auth={auth} identity={identity} onLogout={handleLogout} />
       <main className="main">
         {view === 'explorer'    && <window.Explorer    tweaks={tweaks} setTweak={setTweak} onOpenGame={openGame} activeId={activeGame?.id} auth={auth} />}
+        {view === 'playing'     && <window.Explorer    mode="playing" tweaks={tweaks} setTweak={setTweak} onOpenGame={openGame} activeId={activeGame?.id} auth={auth} />}
         {view === 'donation'    && <window.DonationView gameCount={window.DATA.GAMES.length} storageSize={window.DATA.STORAGE_SIZE} />}
         {view === 'links'       && <window.LinksView />}
         {view === 'updates'     && <window.UpdateLogView />}
@@ -334,7 +336,7 @@ function App() {
         {view === 'collections' && <window.CollectionsView auth={auth} onOpenGame={openGame} onView={setView} onOpenLogin={handleOpenLogin} />}
         {view === 'publib'      && <window.PublicLibraryView auth={auth} onView={setView} onShowInBrowse={showCollectionInBrowse} />}
         {view === 'shared'      && <window.SharedCollectionView token={collectionToken} onOpenGame={openGame} onView={setView} onShowInBrowse={showCollectionInBrowse} />}
-        {activeGame && (view === 'explorer' || view === 'collections' || view === 'shared' || view === 'publib') && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} auth={auth} identity={identity} />}
+        {activeGame && (view === 'explorer' || view === 'collections' || view === 'shared' || view === 'publib' || view === 'playing') && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} auth={auth} identity={identity} />}
       </main>
 
       <window.Toasts items={toasts} />

@@ -2743,7 +2743,7 @@ Object.assign(window.TRANSLATIONS.en, {
   "play.playing_empty": "Games you play in the browser show up here.",
   "play.show_playable": "Show playable games",
   "play.remove": "Remove from Playing",
-  "play.in_account": "saves in account"
+  "play.sort_played": "Last played"
 });
 Object.assign(window.TRANSLATIONS["zh-CN"], {
   "play.button": "在浏览器中游玩",
@@ -2776,7 +2776,7 @@ Object.assign(window.TRANSLATIONS["zh-CN"], {
   "play.playing_empty": "在浏览器中玩过的游戏会显示在这里。",
   "play.show_playable": "显示可游玩的游戏",
   "play.remove": "从“正在玩”中移除",
-  "play.in_account": "存档在账户中"
+  "play.sort_played": "最近游玩"
 });
 Object.assign(window.TRANSLATIONS["zh-TW"], {
   "play.button": "在瀏覽器中遊玩",
@@ -2809,7 +2809,7 @@ Object.assign(window.TRANSLATIONS["zh-TW"], {
   "play.playing_empty": "在瀏覽器中玩過的遊戲會顯示在這裡。",
   "play.show_playable": "顯示可遊玩的遊戲",
   "play.remove": "從「正在玩」中移除",
-  "play.in_account": "存檔在帳戶中"
+  "play.sort_played": "最近遊玩"
 });
 Object.assign(window.TRANSLATIONS.ja, {
   "play.button": "ブラウザでプレイ",
@@ -2842,7 +2842,7 @@ Object.assign(window.TRANSLATIONS.ja, {
   "play.playing_empty": "ブラウザでプレイしたゲームがここに表示されます。",
   "play.show_playable": "プレイ可能なゲームを表示",
   "play.remove": "「プレイ中」から外す",
-  "play.in_account": "セーブはアカウントに"
+  "play.sort_played": "最近プレイ"
 });
 Object.assign(window.TRANSLATIONS.ko, {
   "play.button": "브라우저에서 플레이",
@@ -2875,7 +2875,7 @@ Object.assign(window.TRANSLATIONS.ko, {
   "play.playing_empty": "브라우저에서 플레이한 게임이 여기에 표시됩니다.",
   "play.show_playable": "플레이 가능한 게임 보기",
   "play.remove": "플레이 중에서 제거",
-  "play.in_account": "세이브는 계정에"
+  "play.sort_played": "최근 플레이"
 });
 Object.assign(window.TRANSLATIONS.ru, {
   "play.button": "Играть в браузере",
@@ -2908,7 +2908,7 @@ Object.assign(window.TRANSLATIONS.ru, {
   "play.playing_empty": "Здесь появятся игры, в которые вы играли в браузере.",
   "play.show_playable": "Показать игры для браузера",
   "play.remove": "Убрать из «Играю»",
-  "play.in_account": "сохранения в аккаунте"
+  "play.sort_played": "Недавно сыгранные"
 });
 Object.assign(window.TRANSLATIONS.fr, {
   "play.button": "Jouer dans le navigateur",
@@ -2941,7 +2941,7 @@ Object.assign(window.TRANSLATIONS.fr, {
   "play.playing_empty": "Les jeux auxquels vous jouez dans le navigateur apparaissent ici.",
   "play.show_playable": "Afficher les jeux jouables",
   "play.remove": "Retirer de « En cours »",
-  "play.in_account": "sauvegardes dans le compte"
+  "play.sort_played": "Joué récemment"
 });
 Object.assign(window.TRANSLATIONS.de, {
   "play.button": "Im Browser spielen",
@@ -2974,7 +2974,7 @@ Object.assign(window.TRANSLATIONS.de, {
   "play.playing_empty": "Spiele, die du im Browser spielst, erscheinen hier.",
   "play.show_playable": "Spielbare Spiele zeigen",
   "play.remove": "Aus „Wird gespielt“ entfernen",
-  "play.in_account": "Spielstände im Konto"
+  "play.sort_played": "Zuletzt gespielt"
 });
 
 // Get default language (always English unless manually overridden by user)
