@@ -66,24 +66,8 @@ const PLAY_MODS = [
 
 const modKey = (id) => 'gmr.mods.fa-' + id;
 
-// Mods that change how a game plays (no death, debug mode, the hitbox as the player):
-// offered only to a signed-in player who turned them on in Settings (SettingsView), kept
-// per account in this browser (fa.settings.<user id>); public/play/play.mjs applies them
-// on the same condition.
-const GATED_MODS = ['debug', 'GodMode', 'DotKid'];
-const settingsKey = () => (window.Clerk && window.Clerk.user ? 'fa.settings.' + window.Clerk.user.id : null);
-function playSettings() {
-  const k = settingsKey();
-  return k ? playStore.get(k, {}) : {};
-}
-function modOffered(m, auth) {
-  if (!GATED_MODS.includes(m.id)) return true;
-  if (!auth || auth === 'out') return false;
-  const extra = playSettings().extraMods || {};
-  return !!extra[m.id];
-}
-
-function PlayMods({ game, mods, kind, choices, setChoices }) {
+function PlayMods({ game, kind, choices, setChoices }) {
+  const mods = PLAY_MODS.filter((m) => m.engines.includes(kind));
   const update = (next) => {
     setChoices(next);
     playStore.set(modKey(game.id), next);
@@ -141,7 +125,7 @@ const playIcons = {
 };
 
 /** The drawer's row under Download: Play in browser, and the mods beside it. */
-function PlayRow({ game, auth }) {
+function PlayRow({ game }) {
   const p = playability(game);
   const [open, setOpen] = React.useState(false);
   const [choices, setChoices] = React.useState(() => playStore.get(modKey(game.id), {}));
@@ -161,10 +145,9 @@ function PlayRow({ game, auth }) {
       </section>
     );
   }
-  // (none for GameMaker: Studio 2 yet; Debug mode, GodMode and DotKid only when turned on)
-  const offered = PLAY_MODS.filter((m) => m.engines.includes(p.kind) && modOffered(m, auth));
-  const onCount = offered.filter((m) => choices[m.id] && choices[m.id].on).length;
-  const hasMods = offered.length > 0;
+  const onCount = PLAY_MODS.filter((m) => m.engines.includes(p.kind) && choices[m.id] && choices[m.id].on).length;
+  // (none for GameMaker: Studio 2 yet)
+  const hasMods = PLAY_MODS.some((m) => m.engines.includes(p.kind));
   return (
     <section className="drawer-sec play-sec">
       <div className="play-row">
@@ -178,7 +161,7 @@ function PlayRow({ game, auth }) {
           </button>
         )}
       </div>
-      {open && hasMods && <PlayMods game={game} mods={offered} kind={p.kind} choices={choices} setChoices={setChoices} />}
+      {open && hasMods && <PlayMods game={game} kind={p.kind} choices={choices} setChoices={setChoices} />}
     </section>
   );
 }
@@ -388,57 +371,6 @@ function formatBytes(n) {
 }
 
 /** Library › Local games: the games stored in this browser, to delete one by one or all. */
-// ── Settings ────────────────────────────────────────────────────────────────
-// My Content › Settings (signed in only): which of the gated mods a game's Play options
-// offer. All off until turned on here.
-function SettingsView({ auth }) {
-  const [settings, setSettings] = React.useState(playSettings);
-  const extra = settings.extraMods || {};
-  const set = (id, on) => {
-    const next = { ...settings, extraMods: { ...extra, [id]: on } };
-    setSettings(next);
-    const k = settingsKey();
-    if (k) playStore.set(k, next);
-  };
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
-      <div className="topbar">
-        <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title={window.t('close_menu_title')}>{window.ic.menu}</button>
-        <span className="crumb"><b>{window.t('my_content')}</b><span>/</span>{window.t('nav.settings')}</span>
-      </div>
-      <div className="collview">
-        <div className="collview-inner">
-          <div className="coll-head">
-            <h1 className="coll-title">
-              <span className="coll-title-star">{window.ic2.gear}</span>
-              {window.t('nav.settings')}
-            </h1>
-          </div>
-          {auth === 'out' ? (
-            <p className="coll-sub">{window.t('settings.signin')}</p>
-          ) : (
-            <section className="settings-sec">
-              <h2 className="settings-title">{window.t('settings.play_title')}</h2>
-              <p className="coll-sub">{window.t('settings.play_about')}</p>
-              <div className="play-mods settings-mods">
-                {GATED_MODS.map((id) => (
-                  <div key={id} className={'play-mod' + (extra[id] ? ' on' : '')}>
-                    <label className="play-mod-head">
-                      <input type="checkbox" checked={!!extra[id]} onChange={(e) => set(id, e.target.checked)} />
-                      <span className="play-mod-name">{window.t('play.mod.' + id)}</span>
-                    </label>
-                    <div className="play-mod-about">{window.t('play.mod.' + id + '.about')}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function LocalGamesView({ onOpenGame }) {
   const ids = useLocalGames();
   const [estimate, setEstimate] = React.useState(null);
@@ -532,4 +464,4 @@ function LocalGamesView({ onOpenGame }) {
 // the sidebar's icon for My Content › Playing
 window.ic2 = Object.assign(window.ic2 || {}, { play: playIcons.play });
 
-Object.assign(window, { playability, PlayRow, PlayingGrid, usePlaying, PlayButton, LocalGamesView, useLocalGames, SettingsView });
+Object.assign(window, { playability, PlayRow, PlayingGrid, usePlaying, PlayButton, LocalGamesView, useLocalGames });

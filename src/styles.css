@@ -3129,8 +3129,3 @@ div[data-field="lastName"] {
   .local-size { min-width: 0; }
   .local-shot { width: 56px; height: 42px; }
 }
-
-/* My Content › Settings (src/play.jsx SettingsView) */
-.settings-sec { display: flex; flex-direction: column; gap: 8px; max-width: 640px; margin-top: 8px; }
-.settings-title { margin: 0; font-size: 15px; font-weight: 600; }
-.settings-mods { padding: 0; border: none; background: none; }

@@ -548,19 +548,6 @@ async function main() {
   start(game);
 }
 
-/**
- * The mods chosen in the game's drawer that may run: Debug mode, GodMode and DotKid only
- * for a signed-in player who turned them on in the archive's Settings (src/play.jsx keeps
- * them in fa.settings.<user id>).
- */
-function allowedChoices() {
-  const choices = loadChoices(slug);
-  const user = sync.clerk && sync.clerk.user;
-  const extra = (user && store.get(`fa.settings.${user.id}`, {}).extraMods) || {};
-  for (const gated of ['debug', 'GodMode', 'DotKid']) if (!extra[gated]) delete choices[gated];
-  return choices;
-}
-
 function start(game) {
   const screen = $('screen');
   let gameW = 640, gameH = 480;
@@ -587,7 +574,7 @@ function start(game) {
     game: slug,
     local: true,
     canvas: screen,
-    modChoices: allowedChoices(),
+    modChoices: loadChoices(slug),
     keymap: loadKeymap(slug).map,
     // F4 is the browser's full screen: a game's own switch only resizes its window here
     pageKeys: { F4: toggleFullscreen },

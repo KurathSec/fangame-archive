@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.028",
+    "date": "2026-10-24",
+    "note": "Settings page removed",
+    "changes": [
+      [
+        "Changed",
+        "Debug mode, GodMode and DotKid are offered in a game's Play options again, as before 2026.026; the Settings page that turned them on is gone."
+      ]
+    ]
+  },
+  {
     "ver": "2026.027",
     "date": "2026-10-24",
     "note": "Browser play for selected accounts",

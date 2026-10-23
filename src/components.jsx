@@ -183,9 +183,8 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth,
     { k: 'collections', label: window.t('nav.collections'),   icon: ic.star,           count: null },
     { k: 'playing',     label: window.t('play.playing'),      icon: window.ic2.play,   count: playingCount || null },
     { k: 'submit',      label: window.t('submit_game'),       icon: window.ic2.upload, count: null },
-    { k: 'mycontent',   label: window.t('my_content'),        icon: window.ic2.inbox,  count: null },
-    { k: 'settings',    label: window.t('nav.settings'),      icon: window.ic2.gear,   count: null }
-  ].filter((n) => window.PLAY_ACCESS || (n.k !== 'playing' && n.k !== 'settings'));
+    { k: 'mycontent',   label: window.t('my_content'),        icon: window.ic2.inbox,  count: null }
+  ].filter((n) => window.PLAY_ACCESS || n.k !== 'playing');
 
   return (
     <aside className="sb">
@@ -695,7 +694,7 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
           </section>
 
           {/* Play in the browser (src/play.jsx): under Download, with the mods beside it. */}
-          {window.PlayRow && <window.PlayRow game={game} auth={auth} />}
+          {window.PlayRow && <window.PlayRow game={game} />}
 
           {/* Upstream entry: only the site this game was catalogued from is known,
               so most games show a single button. */}
