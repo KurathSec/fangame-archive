@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Play — Fangame Archive</title>
+  <script>
+    // The archive's light/dark choice (see public/index.html).
+    (function () {
+      var t = {};
+      try { t = JSON.parse(localStorage.getItem('archive_tweaks') || '{}') || {}; } catch (e) {}
+      document.documentElement.dataset.theme = t.dark ? 'dark' : 'light';
+    })();
+    window.CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsuZmFuZ2FtZS1hcmNoaXZlLmNvbSQ";
+    window.CLERK_JS_URL = "https://clerk.fangame-archive.com/npm/@clerk/clerk-js@5/dist/clerk.browser.js";
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="play.css" />
+</head>
+<body>
+  <header id="bar">
+    <a id="back" href="/"></a>
+    <span id="title"></span>
+    <span id="sync" hidden></span>
+    <button id="keys" type="button" disabled></button>
+    <button id="saves" type="button" disabled></button>
+    <button id="fs" type="button"></button>
+  </header>
+  <main id="stage">
+    <canvas id="screen" width="640" height="480"></canvas>
+    <div id="status">
+      <div id="status-title"></div>
+      <div id="status-step"></div>
+      <progress id="status-bar" hidden></progress>
+      <div id="status-detail"></div>
+      <div id="status-actions" hidden></div>
+    </div>
+    <div id="hint" hidden></div>
+  </main>
+  <dialog id="keysdlg"></dialog>
+  <dialog id="savesdlg"></dialog>
+  <script type="module" src="play.mjs"></script>
+</body>
+</html>

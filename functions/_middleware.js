@@ -12,7 +12,7 @@ export async function onRequest(context) {
       status: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Turnstile-Token",
         "Access-Control-Max-Age": "86400"
       }
@@ -72,7 +72,8 @@ export async function onRequest(context) {
             }
           }
 
-          if (user.status === "muted") {
+          // (muting stops reviews and submissions; a muted player still keeps their game saves)
+          if (user.status === "muted" && !url.pathname.startsWith("/api/saves/")) {
             if (request.method !== "GET" && request.method !== "OPTIONS") {
               return addCorsHeaders(errorResponse("Your account is muted and cannot post reviews.", 403));
             }
@@ -100,7 +101,7 @@ export async function onRequest(context) {
   }
 
   // 3. Enforce authorization on write requests
-  const isApiWrite = url.pathname.startsWith("/api/") && request.method !== "GET" && request.method !== "OPTIONS";
+  const isApiWrite = url.pathname.startsWith("/api/") && request.method !== "GET" && request.method !== "HEAD" && request.method !== "OPTIONS";
   if (isApiWrite) {
     if (!context.data.user) {
       return addCorsHeaders(errorResponse("Unauthorized. Missing or invalid authentication token.", 401));
@@ -110,6 +111,13 @@ export async function onRequest(context) {
   // 4. Proceed to downstream handlers
   try {
     const response = await context.next();
+    // The browser player's page (/play/, public/play/) is cross-origin isolated, which
+    // running a game needs (SharedArrayBuffer). `credentialless` still lets it load
+    // Clerk and the fonts. Also in the build's _headers.
+    if (url.pathname === "/play" || url.pathname.startsWith("/play/")) {
+      response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+      response.headers.set("Cross-Origin-Embedder-Policy", "credentialless");
+    }
     return addCorsHeaders(response);
   } catch (err) {
     console.error("Endpoint Execution Error:", err);

@@ -1,0 +1,97 @@
+/* The browser player page (/play/). Colours follow the archive's (src/styles.css). */
+:root {
+  --bg: #fafaf9;
+  --panel: #ffffff;
+  --panel-2: #f7f6f4;
+  --border: #ececea;
+  --border-strong: #dcdbd8;
+  --text: #18181b;
+  --muted: #71717a;
+  --accent: oklch(0.56 0.13 152);
+  --accent-text: oklch(0.36 0.10 152);
+  --danger: oklch(0.60 0.18 25);
+  --radius: 6px;
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+}
+[data-theme="dark"] {
+  --bg: #0a0a0a;
+  --panel: #141414;
+  --panel-2: #1a1a1a;
+  --border: #262626;
+  --border-strong: #333;
+  --text: #ededed;
+  --muted: #a1a1aa;
+  --accent: oklch(0.70 0.15 152);
+  --accent-text: oklch(0.80 0.12 152);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex; flex-direction: column;
+  background: #000; color: var(--text);
+  font: 13px/1.45 var(--font-sans);
+}
+[hidden] { display: none !important; }
+
+#bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 12px; background: var(--bg); border-bottom: 1px solid var(--border);
+}
+#back { color: var(--muted); text-decoration: none; white-space: nowrap; }
+#back:hover { color: var(--text); }
+#title { font-weight: 600; margin-right: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sync { font-size: 12px; color: var(--muted); white-space: nowrap; }
+#sync.ok { color: var(--accent-text); }
+#sync.error { color: var(--danger); }
+#sync a { color: inherit; }
+button, .button {
+  font: inherit; color: var(--text); background: var(--panel);
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: 4px 10px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+button:hover:not(:disabled), .button:hover { border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary, .button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+body.fullscreen #bar { display: none; }
+
+#stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; }
+#screen { display: block; image-rendering: pixelated; background: #000; }
+#status {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(440px, calc(100% - 32px)); padding: 18px 20px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  display: flex; flex-direction: column; gap: 8px;
+}
+#status-title { font-weight: 600; font-size: 15px; }
+#status-step { color: var(--muted); }
+#status-bar { width: 100%; height: 6px; accent-color: var(--accent); }
+#status-detail { color: var(--muted); font: 12px/1.4 var(--font-mono); word-break: break-word; }
+#status.error #status-step { color: var(--danger); }
+#status-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+#hint {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px 12px; border-radius: 6px;
+  background: rgba(20, 20, 24, 0.85); color: #e4e4e7; pointer-events: none;
+}
+
+dialog {
+  width: min(480px, calc(100vw - 32px)); padding: 0; color: var(--text); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 10px;
+}
+dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+dialog form { display: flex; flex-direction: column; gap: 12px; padding: 18px; margin: 0; }
+dialog h2 { margin: 0; font-size: 16px; }
+dialog p { margin: 0; color: var(--muted); }
+.km-table { display: flex; flex-direction: column; gap: 4px; max-height: 55vh; overflow: auto; }
+.km-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: center; }
+.km-head { color: var(--muted); font-size: 12px; }
+.km-game { font-weight: 600; }
+.km-keys { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.km-none { color: var(--muted); }
+.km-key, .km-add { padding: 2px 8px; font-size: 12px; }
+.km-listen { border-color: var(--accent); color: var(--accent-text); }
+.km-scope { display: flex; gap: 16px; }
+.km-buttons, .dlg-buttons { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.km-buttons .primary { background: var(--accent); border-color: var(--accent); color: white; }
+.dlg-list { display: flex; flex-direction: column; gap: 8px; }
+.dlg-list > div { display: flex; gap: 8px; align-items: center; justify-content: space-between; }

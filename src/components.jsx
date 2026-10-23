@@ -684,6 +684,9 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
             )}
           </section>
 
+          {/* Play in the browser (src/play.jsx): under Download, with the mods beside it. */}
+          {window.PlayRow && <window.PlayRow game={game} />}
+
           {/* Upstream entry: only the site this game was catalogued from is known,
               so most games show a single button. */}
           {srcLinks.length > 0 && (

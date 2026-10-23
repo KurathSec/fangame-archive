@@ -97,3 +97,6 @@ pipelines/capture_cover_screenshots.py
 pipelines/backfill_cover_screenshots.py
 pipelines/cover_screenshots_ci_step.yml.local
 data/cover_screenshots.json
+
+# The browser player bundle (gm-recomp web/tools/bundle.sh), copied in by the build
+/public/play/gmr

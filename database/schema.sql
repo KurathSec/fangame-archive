@@ -24,6 +24,20 @@ CREATE TABLE IF NOT EXISTS user_favorites (
 
 CREATE INDEX IF NOT EXISTS idx_user_favorites_user_id ON user_favorites(user_id);
 
+-- Saves of games played in the browser (/play/, the gm-recomp player), kept in the
+-- account of a signed-in player: one row per (user, game), the save files as the player
+-- exports them (JSON, base64 contents). Written by /api/saves/:gameId.
+CREATE TABLE IF NOT EXISTS game_saves (
+    user_id TEXT NOT NULL,
+    game_id INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, game_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_game_saves_user_updated ON game_saves(user_id, updated_at);
+
 -- User-created collections (Collections v2). `user_favorites` above remains the
 -- untouched "main" loose-favorites bucket; these are named lists/folders on top.
 -- A node is a FOLDER (has sub-collections, no games) or a LIST (has games, no

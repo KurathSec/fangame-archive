@@ -36,6 +36,7 @@ The catalog is split into **minified** chunks under Cloudflare Pages' 25 MB per-
 * **Detail drawer** — metadata (author, game engine, size), screenshots, and live reviews fetched on demand, with Markdown + click-to-reveal spoilers. Engines are auto-detected from the game files by the CI pipeline (GameMaker 8 / Studio / Studio 2, MMF2, Unity, and more) and are also filterable.
 * **Accounts & reviews** — Clerk-backed login; submit reviews (optional rating/difficulty, custom tags) and suggest new games, all gated by Turnstile and daily quotas, then moderated. Game submissions can attach the actual files instead of links — direct upload of the archive (≤ 500 MB, presigned PUT straight to R2) and screenshots (≤ 8 MB), staged in a capped 5 GB pool until review.
 * **Collections** — cloud-synced favorites (the "main" bucket) plus named **collections**: build lists and one level of folders, save a game to several at once via a per-game menu, and rename/describe them. Share a collection by instant link (blank/preset name, no description) or submit it to the **moderated Public Collections library**; public collections lock their name/description. Shared pages open fast (`?collection=<token>`) even for signed-out visitors.
+* **Play in the browser** — GameMaker 8 and GameMaker: Studio games hosted on the archive run in the browser from their original files ([gm-recomp](https://github.com/KurathSec/gm-recomp) recompiles them to WebAssembly): a *Play in browser* button under Download, mods beside it, key remapping, F4 for full screen, Esc back to the archive, and saves kept in the player's account when signed in. Browse Games shows the games being played on the left and filters by *Playable in browser*.
 * **Internationalization** — 8 languages (`en`, `zh-CN`, `zh-TW`, `ja`, `ko`, `ru`, `fr`, `de`) with live switching.
 * **Public API** — `/api/search?q=` / `?id=` (keyword/ID, edge-cached) and `/api/random?count=&tag=` (random games, uncached); both return rating, difficulty, review count, file size, tags, and download URL.
 
@@ -48,6 +49,7 @@ fangame-archive/
 ├── public/                       # Static assets served at the root
 │   ├── index.html                # Entry point: config globals + Babel script mounts
 │   ├── favicon.ico
+│   ├── play/                     # The browser player page (/play/?id=…; gm-recomp's bundle goes in play/gmr/)
 │   ├── img/                      # Static images
 │   └── js/                       # Vendored libraries
 ├── src/                          # Frontend SPA (React via in-browser Babel)
@@ -58,6 +60,7 @@ fangame-archive/
 │   ├── explorer.jsx              # Search + tri-state tag filter + pagination
 │   ├── collections.jsx           # Favorites + Collections v2 client, hooks & UI (popover, modal, manager, public library, shared page)
 │   ├── i18n.jsx                  # Dictionaries, window.t(), language selector
+│   ├── play.jsx                  # Browser play: playability, the drawer's Play row + mods, the Playing panel
 │   ├── data.jsx                  # In-memory data shaping (window.DATA)
 │   ├── tweaks-panel.jsx          # Theme/density/layout tweaks
 │   └── styles.css / account.css  # Design tokens and layout
@@ -70,6 +73,8 @@ fangame-archive/
 │       ├── submissions.js        # POST game submission
 │       ├── favorites.js          # GET/POST favorites  (+ favorites/[id].js DELETE)
 │       ├── collections.js        # Collections v2 CRUD + items/visibility/membership/public/shared (collections/**)
+│       ├── saves.js              # Browser-play saves in the account (+ saves/[id].js GET/PUT/DELETE)
+│       ├── play/file/            # The browser player's game download, streamed from R2
 │       ├── search.js             # Public keyword/ID search (edge-cached)
 │       └── clerk-js.js           # Legacy first-party clerk-js proxy (fallback)
 ├── pipelines/                    # Python ingestion, cleanup, and build scripts
@@ -121,6 +126,13 @@ fangame-archive/
 
 > Auth and write APIs depend on Clerk + D1 + Turnstile and only function against the deployed Cloudflare environment; local dev primarily exercises the read-only catalog UI.
 
+**Play in the browser locally** — the player page needs gm-recomp's player bundle in `public/play/gmr` (git-ignored). Build it in a gm-recomp checkout and link it:
+```bash
+web/tools/bundle.sh /path/to/bundle            # in gm-recomp (see its README)
+ln -s /path/to/bundle public/play/gmr          # here
+```
+`dev_server.py` sends the page's isolation headers and fetches game files for `/api/play/file/…` from the files host. To run the built site with the Functions (file streaming from a local R2, the saves API on a local D1), use `npx wrangler pages dev github_pages_dist` after a build.
+
 ---
 
 ## Build & Deployment
@@ -135,6 +147,8 @@ fangame-archive/
 | `.github/workflows/backfill_reviews.yml` | Manual one-shot (`workflow_dispatch`): loads the full scraped-review corpus into D1 |
 
 > **Reviews are dual-stored.** `temp/reviews_scraped.json` feeds the rating **averages** in `games.json`; the detail drawer renders review **text from D1**. The regular deploy syncs only each run's *new* reviews into D1 — the **backfill workflow** is what loads the historical corpus (e.g. to seed an empty D1). See [§8.7](project_architecture.md#87-reviews-dual-store-model--d1-sync-sync_reviews_to_d1py).
+
+The deploy fetches gm-recomp's player bundle from its latest release (`gm-recomp-player.tar.gz`); a local build takes it from `GMR_BUNDLE` or `public/play/gmr`.
 
 Apply D1 schema changes explicitly (not part of deploy):
 ```bash

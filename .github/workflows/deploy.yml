@@ -62,6 +62,22 @@ jobs:
         # wrangler (used by the deploy step) come from the pinned devDependencies.
         run: npm ci
 
+      - name: Fetch the Browser Player (gm-recomp)
+        # /play/ runs games on gm-recomp's player bundle (README, "Play in the browser"),
+        # published as a release asset of github.com/KurathSec/gm-recomp. The build
+        # (inside the scraper step) copies it into the site; without it the site still
+        # deploys and /play/ reports that it cannot start games.
+        env:
+          GMR_PLAYER_URL: https://github.com/KurathSec/gm-recomp/releases/latest/download/gm-recomp-player.tar.gz
+        run: |
+          tmp=$(mktemp -d)
+          if curl -fsSL "$GMR_PLAYER_URL" -o "$tmp/player.tar.gz" && mkdir "$tmp/gmr" && tar -xzf "$tmp/player.tar.gz" -C "$tmp/gmr"; then
+            rm -rf public/play/gmr && mv "$tmp/gmr" public/play/gmr
+            echo "browser player $(cat public/play/gmr/VERSION 2>/dev/null)"
+          else
+            echo "::warning::browser player bundle unavailable; /play/ will not start games"
+          fi
+
       - name: Install Engine Recognition Tools
         # Used by pipelines/engine_recognition.py (invoked inside the scraper step):
         # 7zz extracts game archives (7zip-rar adds the RAR codec; if it is ever

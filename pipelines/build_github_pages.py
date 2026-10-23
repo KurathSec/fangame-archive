@@ -234,10 +234,34 @@ def main():
         os.path.join(SRC_DIR, "src", "collections.jsx"),
         os.path.join(DIST_DIR, "src", "collections.jsx")
     )
+    shutil.copy(
+        os.path.join(SRC_DIR, "src", "play.jsx"),
+        os.path.join(DIST_DIR, "src", "play.jsx")
+    )
     if os.path.exists(os.path.join(SRC_DIR, "public", "favicon.ico")):
         shutil.copy(
             os.path.join(SRC_DIR, "public", "favicon.ico"),
             os.path.join(DIST_DIR, "favicon.ico")
+        )
+
+    # The browser player (/play/, see README "Play in the browser"): its page, and
+    # gm-recomp's player bundle, from GMR_BUNDLE or public/play/gmr (the deploy workflow
+    # downloads it there). The page must be cross-origin isolated (also set by
+    # functions/_middleware.js).
+    play_src = os.path.join(SRC_DIR, "public", "play")
+    play_out = os.path.join(DIST_DIR, "play")
+    shutil.copytree(play_src, play_out, ignore=shutil.ignore_patterns("gmr"))
+    gmr_bundle = os.environ.get("GMR_BUNDLE") or os.path.join(play_src, "gmr")
+    if os.path.isdir(gmr_bundle):
+        shutil.copytree(gmr_bundle, os.path.join(play_out, "gmr"))
+        print(f"  Browser player bundle from {gmr_bundle}")
+    else:
+        print("WARNING: no browser player bundle (GMR_BUNDLE / public/play/gmr); /play/ will not start games")
+    with open(os.path.join(DIST_DIR, "_headers"), "w", encoding="utf-8") as f_headers:
+        f_headers.write(
+            "/play/*\n"
+            "  Cross-Origin-Opener-Policy: same-origin\n"
+            "  Cross-Origin-Embedder-Policy: credentialless\n"
         )
 
     # 4. Modify components.jsx (remove tabs, add CDN helper)

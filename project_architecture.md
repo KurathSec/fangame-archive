@@ -183,6 +183,7 @@ Canonical DDL lives in `database/schema.sql` and is applied with
 | `comments` | Native + imported game reviews |
 | `game_submissions` | User-submitted game suggestions pending merge |
 | `user_favorites` | Per-user favorited games — the "main" saves bucket (Collections feature) |
+| `game_saves` | Per-user save files of games played in the browser (§5.8) |
 | `collections` | User-created named lists + one level of folders; visibility (private/unlisted/public) + moderation state for the public library |
 | `collection_items` | Membership join — a game can belong to many collections (many-to-many) |
 | `audit_log` | Moderation/admin action audit trail |
@@ -236,6 +237,11 @@ Canonical DDL lives in `database/schema.sql` and is applied with
 - `game_id` (`INTEGER NOT NULL`): favorited sequential game ID.
 - `created_at` (`INTEGER NOT NULL`): epoch ms when favorited.
 - `UNIQUE (user_id, game_id)`: makes `INSERT OR IGNORE` idempotent; indexed on `user_id`.
+
+**`game_saves`** — save files of games played in the browser (§5.8), kept in a signed-in player's account (migration `0008_game_saves.sql`).
+- `user_id` (`TEXT NOT NULL`), `game_id` (`INTEGER NOT NULL`): `PRIMARY KEY (user_id, game_id)` — one row per game per account.
+- `data` (`TEXT NOT NULL`): the player's exported saves, JSON `{format: "gmrecomp-saves", version, game, files: [{path, mtime, data: base64 | null}]}`; ≤ 1.5 MB (a D1 row stays under 2 MB).
+- `size` (`INTEGER NOT NULL`), `updated_at` (`INTEGER NOT NULL`, epoch ms; indexed with `user_id`). At most 2000 games per account.
 
 **`collections`** — user-created named collections (Collections v2). `user_favorites` stays the untouched "main" bucket; these sit on top. A node is a **folder** (holds sub-collections, no games) or a **list** (holds games, no children), determined dynamically; nesting depth is capped at 1.
 - `id` (`INTEGER PRIMARY KEY AUTOINCREMENT`): collection ID.
@@ -326,7 +332,8 @@ Every request passes through the global middleware, which:
    - Fetches and **caches the JWKS for 10 minutes**, imports the matching `kid` as an `RSASSA-PKCS1-v1_5 / SHA-256` key via WebCrypto, verifies the signature, and checks `exp`/`nbf`.
 3. **Resolves the profile** with `getClerkUserProfile(userId, env.CLERK_SECRET_KEY, env.ARCHIVE_KV)` — KV-cached (1 h) Clerk Backend API (`api.clerk.com/v1/users/{id}`) lookup; `/api/me` forces `bypassCache` so profile edits propagate instantly.
 4. **Provisions the user just-in-time** in D1 (`INSERT … role='user', status='active'` if absent) and re-syncs `display_name`/`avatar_url` on change. The resolved record is attached as `context.data.user` for downstream handlers.
-5. **Enforces moderation + write-auth**: `banned`/`muted` users are blocked from non-GET writes (403); any `/api/*` write without a verified user is rejected (401).
+5. **Enforces moderation + write-auth**: `banned`/`muted` users are blocked from non-GET writes (403) — except that a muted user may still write their game saves (`/api/saves/*`); any `/api/*` write (not GET/HEAD/OPTIONS) without a verified user is rejected (401).
+6. **Isolates the browser player**: responses under `/play` get `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` (§5.8; also in the build's `_headers`).
 
 > **Operational note:** if `CLERK_PUBLISHABLE_KEY`/`CLERK_SECRET_KEY` hold dev values (or the project was not redeployed after setting them), verification fails silently → `context.data.user` is `null` → `/api/me` returns `user: null` and write endpoints return 401, even though the client UI shows the user as logged in.
 
@@ -362,6 +369,9 @@ All handlers run on the Workers runtime as Pages Functions. Responses use the `j
 | `/api/search` | GET | none | Public bot/keyword search; see §4.2. |
 | `/api/random` | GET | none | Public — returns random game(s); `?count=` (1–50, default 1); not cached. See §4.2. |
 | `/api/clerk-js` | GET | none | Inert legacy proxy for clerk-js (no longer the primary load path; see §3.2). |
+| `/api/play/file/Game/<name>` | GET/HEAD | none | The browser player's game download (§5.8): streams the R2 object `Game/<name>` from the `ARCHIVE_FILES` binding on this origin (the files host sends no CORS headers). Only keys under `Game/`. |
+| `/api/saves` | GET | required | The caller's games with browser-play saves `{game_id, size, updated_at}`, newest first (the Playing panel, §5.8). |
+| `/api/saves/:gameId` | GET/PUT/DELETE | required | One game's saves in the caller's account: `{save: {data, updated_at} \| null}` · replace with the player's exported JSON (≤ 1.5 MB, 413 above; ≤ 2000 games) → `{updated_at}` · delete. No Turnstile or quota: private data, written as the game saves. |
 
 ### 4.1 Write pipeline (comments & submissions)
 
@@ -483,6 +493,14 @@ On first paint the `view`/`activeGame` initializers read `?game` **before** the 
 
 Sidebar navigation goes through `goToView(v)`. **"Show in Browse Games"** (`showCollectionInBrowse`) parks the collection entry, then calls `goToView('explorer')`; when it leaves the shared page it first **pushes** a URL without `?collection`/`?game` (closing any open drawer), so Back returns to the collection page. From the public library it is a plain view switch.
 
+### 5.8 Browser play (`src/play.jsx`, `public/play/`)
+GameMaker 8 and GameMaker: Studio games hosted on the archive's CDN can be played in the browser. The games run on **gm-recomp** (github.com/KurathSec/gm-recomp), which recompiles the original exe (and the GameMaker runner in it) to WebAssembly; its player bundle (`web/tools/bundle.sh` there) is served at `/play/gmr/`.
+- **Who can play** — `playability(game)` in `play.jsx`: engine `GameMaker 8` or `GameMaker: Studio` (§8.8), a working `download_url` on the archive's own CDN (`flags.local`), and ≤ 512 MB (the archive is unpacked in browser memory). Everything else shows a disabled *Currently unavailable to play in browser* with the reason. The Explorer's *Playable in browser* flag uses the same test.
+- **Drawer** — `PlayRow` sits under Download: *Play in browser* (a same-tab link to `/play/?id=<id>`; it first leaves `{title, url, engine, size}` in `localStorage['fa.play.<id>']`, else the page asks `/api/search?id=`) and a *Mods* toggle listing the mods the engine takes, stored as `localStorage['gmr.mods.fa-<id>']` — gm-recomp's own format, which the player reads. Studio games built with YYC take only Debug mode; the player leaves the others out.
+- **Player page** (`public/play/index.html`, `play.mjs`, plain ES modules, own 8-locale strings) — cross-origin isolated (COOP `same-origin` + COEP `credentialless`, which still lets it load Clerk and the fonts). It downloads the game through `/api/play/file/…` with progress, imports it into the browser's IndexedDB once (key `fa-<id>`; re-imported when the catalog's file path or size changes), then starts gm-recomp's `player.mjs`. **F4** toggles the browser's full screen (it never reaches the game, whose own switch only resizes its window there); **Keys** remaps keys outside the game (gm-recomp `keymap.mjs`, per game or for every game); the game ending (**Esc** in most fangames) flushes the saves and goes back (`history.back()` when it came from the archive, else `/?game=<id>`).
+- **Saves** — always in IndexedDB; for a signed-in player (Clerk loaded on the page) also in `game_saves` via `/api/saves/:id`. Before the game starts the account's copy replaces the browser's when it is newer than what this browser last took or sent (`localStorage['fa.saves.<id>'] = {remote, dirty}`; if both changed, the player chooses). Every save the game writes is sent 1.5 s later and on leaving the page.
+- **Playing panel** — the Explorer's left column (`PlayingPanel`): games played here (`localStorage['fa.playing']`, written by the player page) merged with those that have saves in the account (`GET /api/saves`), newest first, each with its first screenshot (no screenshot → title only). × hides one (`fa.playing.hidden`) until it is played again. The filter pane moved behind the toolbar's **Filters** button (a slide-over on every width; the button counts the filters in effect). Phones (≤ 768 px) keep the filters slide-over and hide the Playing column.
+
 ---
 
 ## 6. Anti-Abuse & Moderation
@@ -556,6 +574,7 @@ Run: `python pipelines/build_github_pages.py`. **Requires esbuild** (pinned in `
 3. Apply the textual transforms (storage size, screenshot CDN helper, NAV) to the dist `src/*.jsx`.
 4. **Precompile** every dist `src/*.jsx` → `.js` with esbuild (classic JSX runtime, `--minify-whitespace --minify-syntax`, no bundling).
 5. Rewrite `index.html`: inject config + `?v=` cache-busters, swap React dev→**production**, **drop Babel**, point the (now `defer`) module scripts at the precompiled `.js`, and add `<link rel="preload">` for the three chunks.
+6. Copy the browser player (§5.8): `public/play/` → `play/`, and gm-recomp's player bundle from `GMR_BUNDLE` or `public/play/gmr` → `play/gmr/` (a warning, not a failure, when absent); write `_headers` with the `/play/*` isolation headers.
 
 > Dev is unaffected: `public/index.html` and `src/*.jsx` keep the Babel + dev-React path for `dev_server.py`.
 
@@ -641,7 +660,7 @@ Detects each game's engine from its distributed archive/exe and writes the clean
 - **`sync_and_deploy.bat`** — `sync_db_r2 download` → `scrape_and_migrate_new_games` → `ingest_local_folder_games` → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `wrangler pages deploy`.
 
 ### 9.2 Cloud (`.github/workflows/deploy.yml`)
-On push to `main` (matching paths) or every 6 h: set up Python 3.10 (pip cache) + Node 20 (npm cache) → `pip install -r requirements.txt` → **`npm ci`** (provides esbuild for the build + wrangler for deploy) → apt-install the engine-recognition tools (`7zip`, `7zip-rar`, `upx-ucl`; §8.8) → `sync_db_r2 download` → `merge_approved_submissions` → `apply_game_ops` → `scrape_and_migrate_new_games` (which runs the engine hooks §8.8 and invokes `build_github_pages.py`, hence the esbuild dependency) → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `npx wrangler pages deploy`. The **scraper step must receive `CLOUDFLARE_API_TOKEN`** (in addition to the R2 keys) so the in-pipeline D1 review sync (§8.7) can authenticate; without it the scrape still succeeds but new reviews never reach D1. A workflow-level **`concurrency` guard** (`group: fangame-archive-deploy`, `cancel-in-progress: false`) serializes the cron and push runs so they cannot race on the R2 master / collide the version counter (§8.5, §10).
+On push to `main` (matching paths) or every 6 h: set up Python 3.10 (pip cache) + Node 20 (npm cache) → `pip install -r requirements.txt` → **`npm ci`** (provides esbuild for the build + wrangler for deploy) → fetch gm-recomp's player bundle (release asset `gm-recomp-player.tar.gz` → `public/play/gmr`; §5.8 — a warning if unavailable) → apt-install the engine-recognition tools (`7zip`, `7zip-rar`, `upx-ucl`; §8.8) → `sync_db_r2 download` → `merge_approved_submissions` → `apply_game_ops` → `scrape_and_migrate_new_games` (which runs the engine hooks §8.8 and invokes `build_github_pages.py`, hence the esbuild dependency) → `sync_screenshots_to_r2` → `sync_db_r2 upload` → `npx wrangler pages deploy`. The **scraper step must receive `CLOUDFLARE_API_TOKEN`** (in addition to the R2 keys) so the in-pipeline D1 review sync (§8.7) can authenticate; without it the scrape still succeeds but new reviews never reach D1. A workflow-level **`concurrency` guard** (`group: fangame-archive-deploy`, `cancel-in-progress: false`) serializes the cron and push runs so they cannot race on the R2 master / collide the version counter (§8.5, §10).
 
 ### 9.3 D1 migrations
 Apply schema changes to the live DB explicitly (not part of the deploy):

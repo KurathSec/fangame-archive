@@ -55,6 +55,7 @@ def slim_game(seq_id, game):
         "difficulty": difficulty,
         "rating_count": rating_count,
         "file_size": game.get("file_size", 0) or 0,
+        "engine": game.get("engine"),
     }
 
 def run_audit():
@@ -205,7 +206,14 @@ class RefactoredHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             local_path = os.path.join(local_path, word)
         return local_path
 
+    extensions_map = {**http.server.SimpleHTTPRequestHandler.extensions_map, '.mjs': 'text/javascript', '.wasm': 'application/wasm'}
+
     def end_headers(self):
+        # The browser player (/play/) needs cross-origin isolation, as in production
+        # (functions/_middleware.js, the build's _headers).
+        if self.path == '/play' or self.path.startswith('/play/'):
+            self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
+            self.send_header('Cross-Origin-Embedder-Policy', 'credentialless')
         self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
         self.send_header('Pragma', 'no-cache')
         self.send_header('Expires', '0')
@@ -273,6 +281,28 @@ class RefactoredHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps(res).encode('utf-8'))
             except Exception as e:
                 self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+        elif self.path.startswith('/api/play/file/'):
+            # The browser player's game files (functions/api/play/file/[[path]].js streams
+            # them from R2 in production): fetched from the files host here.
+            key = self.path.split('?', 1)[0][len('/api/play/file/'):]
+            if not key.startswith('Game/') or '..' in key.split('/'):
+                self.send_error(404)
+                return
+            try:
+                req = urllib.request.Request('https://file.fangame-archive.com/' + key, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=60) as res:
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/octet-stream')
+                    if res.headers.get('Content-Length'):
+                        self.send_header('Content-Length', res.headers['Content-Length'])
+                    self.end_headers()
+                    while True:
+                        chunk = res.read(1 << 16)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+            except Exception as e:
+                self.send_error(502, str(e))
         elif self.path.startswith('/api/clerk-js'):
             self.send_response(200)
             self.send_header('Content-Type', 'application/javascript;charset=utf-8')

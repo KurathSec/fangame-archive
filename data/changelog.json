@@ -1,5 +1,32 @@
 [
   {
+    "ver": "2026.017",
+    "date": "2026-10-23",
+    "note": "Play GameMaker games right in the browser",
+    "changes": [
+      [
+        "Added",
+        "Play in browser: GameMaker 8 and GameMaker: Studio games hosted on the archive have a new button under Download. The game runs from its own original files, recompiled for the browser by gm-recomp — nothing to install. Esc (which quits most fangames) brings you back here, and F4 switches to full screen."
+      ],
+      [
+        "Added",
+        "Mods beside the Play button, chosen per game: Debug mode, GodMode, CrimsonKid, DotKid and DbgHelper."
+      ],
+      [
+        "Added",
+        "Keys: while playing, remap any key (say, A and D for left and right) for one game or for all of them. The game itself is not changed."
+      ],
+      [
+        "Added",
+        "Your saves stay in the browser, and in your account when you are signed in, so you can carry on from another computer."
+      ],
+      [
+        "Added",
+        "Browse Games shows the games you are playing on the left, with their screenshots, and gains a Playable in browser filter. The filters now open from the Filters button."
+      ]
+    ]
+  },
+  {
     "ver": "2026.016",
     "date": "2026-10-13",
     "note": "Filter Browse Games by collection, and open any public collection straight in the catalog",

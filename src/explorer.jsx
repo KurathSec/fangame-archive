@@ -229,7 +229,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
     if (auth === 'out') setColFilters((fs) => (fs.some((f) => f.kind !== 'public') ? fs.filter((f) => f.kind === 'public') : fs));
   }, [auth]);
 
-  const [flags,  setFlags]    = React.useState({ local: false, shots: false, missing: false });
+  const [flags,  setFlags]    = React.useState({ playable: false, local: false, shots: false, missing: false });
   const [sort,   setSort]     = React.useState('id');
   const [desc,   setDesc]     = React.useState(true);
   const [page,   setPage]     = React.useState(1);
@@ -244,6 +244,12 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
     }
   };
   const [filtersOpen, setFiltersOpen] = React.useState(false);
+  // The filters open from the toolbar; its button counts the ones in effect.
+  const activeFilters =
+    (rating[0] !== 0 || rating[1] !== 10 ? 1 : 0) +
+    (diff[0] !== 0 || diff[1] !== 100 ? 1 : 0) +
+    tags.size + engines.size + dateRanges.length + colFilters.length +
+    Object.values(flags).filter(Boolean).length;
 
   const PAGE_SIZE = 100;
   const gridWrapRef = React.useRef(null);
@@ -251,13 +257,14 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
   const view = 'list';
 
   const flagCounts = React.useMemo(() => {
-    let local = 0, shots = 0, missing = 0;
+    let local = 0, shots = 0, missing = 0, playable = 0;
     window.DATA.GAMES.forEach(g => {
       if (g.flags.local) local++;
       if (g.flags.shots) shots++;
       if (g.flags.missing) missing++;
+      if (window.playability(g).ok) playable++;
     });
-    return { local, shots, missing };
+    return { local, shots, missing, playable };
   }, []);
 
   const toggleTag = (t) => {
@@ -275,6 +282,8 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
   };
 
   const toggleFlag = (k) => setFlags((f) => ({ ...f, [k]: !f[k] }));
+  // (the Playing panel's empty state)
+  const showPlayable = () => { setFlags((f) => ({ ...f, playable: true })); setPage(1); };
 
   // Engine buckets (single value per game). null engine => Unknown sentinel.
   const engineList = React.useMemo(() => {
@@ -422,6 +431,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
       if (colAnd.length && !colAnd.every((ids) => ids.has(g.id))) return false;
       if (colNot.length && colNot.some((ids) => ids.has(g.id))) return false;
 
+      if (flags.playable  && !window.playability(g).ok) return false;
       if (flags.local     && !g.flags.local) return false;
       if (flags.shots     && !g.flags.shots) return false;
       if (flags.missing   && !g.flags.missing) return false;
@@ -612,11 +622,14 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
         </button>
 
         <button
-          className={`iconbtn mobile-filter-btn${filtersOpen ? ' active' : ''}`}
+          className={`filter-btn${filtersOpen ? ' active' : ''}${activeFilters ? ' has' : ''}`}
           onClick={() => setFiltersOpen(!filtersOpen)}
           title={window.t('toggle_filters')}
+          aria-expanded={filtersOpen}
         >
           {window.ic.list}
+          <span>{window.t('play.filters_btn')}</span>
+          {activeFilters > 0 && <span className="filter-btn-count tnum">{activeFilters}</span>}
         </button>
 
         <div className="tb-spacer" />
@@ -626,8 +639,9 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
       </div>
 
       <div className="content">
-        {filtersOpen && <div className="filterpane-scrim-mobile" onClick={() => setFiltersOpen(false)} />}
-        <aside className={`filterpane${filtersOpen ? ' mobile-open' : ''}`}>
+        <window.PlayingPanel onOpenGame={onOpenGame} auth={auth} onShowPlayable={showPlayable} />
+        {filtersOpen && <div className="filterpane-scrim filterpane-scrim-mobile" onClick={() => setFiltersOpen(false)} />}
+        <aside className={`filterpane${filtersOpen ? ' open mobile-open' : ''}`}>
           <div className="fp-section">
             <h4>{window.t('rating')} <span className="reset" onClick={() => setRating([0, 10])}>{window.t('reset')}</span></h4>
             <DualRange min={0} max={10} step={0.1} value={rating} onChange={setRating} format={(v) => v.toFixed(1)} />
@@ -769,6 +783,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth }) {
             <h4>{window.t('archive_flags')}</h4>
             <div className="checklist">
               {[
+                ['playable',  window.t('play.filter'),            flagCounts.playable.toLocaleString()],
                 ['local',     window.t('archived_locally'),       flagCounts.local.toLocaleString()],
                 ['shots',     window.t('has_screenshots'),        flagCounts.shots.toLocaleString()],
                 ['missing',   window.t('missing_assets_flag'),         flagCounts.missing.toLocaleString()],
