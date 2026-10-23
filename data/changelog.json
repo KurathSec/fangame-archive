@@ -1,5 +1,20 @@
 [
   {
+    "ver": "2026.032",
+    "date": "2026-10-24",
+    "note": "More games start in the browser",
+    "changes": [
+      [
+        "Added",
+        "GameMaker: Studio games uploaded as their installer (setup .exe) can be played in the browser."
+      ],
+      [
+        "Fixed",
+        "Many GameMaker 8.0 games that stopped with \"Failed to load the game data. File seems corrupted.\" now start."
+      ]
+    ]
+  },
+  {
     "ver": "2026.031",
     "date": "2026-10-24",
     "note": "More games start in the browser",
