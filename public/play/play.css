@@ -95,3 +95,11 @@ dialog p { margin: 0; color: var(--muted); }
 .km-buttons .primary { background: var(--accent); border-color: var(--accent); color: white; }
 .dlg-list { display: flex; flex-direction: column; gap: 8px; }
 .dlg-list > div { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+
+/* which saves: the account's or this browser's (play.mjs chooseSaves) */
+.choose-list { display: flex; flex-direction: column; gap: 8px; }
+.choose-opt {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; text-align: left;
+}
+.choose-opt span { color: var(--muted); font-size: 12px; }
+.choose-opt:hover { border-color: var(--accent); }

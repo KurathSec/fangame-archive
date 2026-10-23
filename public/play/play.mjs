@@ -27,7 +27,8 @@ const TEXT = {
     err_title: 'This game could not start in the browser', err_nogame: 'There is no such game.', err_engine: 'The browser player does not run {engine} games.',
     err_stopped: 'The game stopped unexpectedly.', err_storage: 'This browser could not keep the game ({error}).',
     btn_download: 'Download instead', btn_back: 'Back', btn_retry: 'Try again', btn_details: 'Details',
-    conflict: 'Your account has newer saves of this game from another browser. Use them?\n(Cancel keeps the saves in this browser and puts them in your account.)',
+    choose_title: 'Which saves?', choose_about: 'This browser and your account have different saves of this game. Play with which one? The other is replaced.',
+    choose_cloud: 'Your account\'s saves', choose_local: 'This browser\'s saves', choose_when: 'Last saved {when}',
     saves_title: 'Saves', saves_about: 'Saves are kept in this browser, and in your account when you are signed in.', saves_export: 'Export…', saves_import: 'Import…',
     saves_delete: 'Delete all saves', saves_close: 'Close', saves_none: 'This game has no saves yet.', saves_confirm_delete: 'Delete every save of this game (here and in your account) and restart it?',
     saves_confirm_import: 'Replace this game\'s saves with {file} and restart it?', saves_bad: 'Could not import: {error}',
@@ -44,7 +45,8 @@ const TEXT = {
     err_title: '这个游戏无法在浏览器中启动', err_nogame: '没有这个游戏。', err_engine: '浏览器游玩不支持 {engine} 游戏。',
     err_stopped: '游戏意外停止了。', err_storage: '本浏览器无法保存游戏（{error}）。',
     btn_download: '改为下载', btn_back: '返回', btn_retry: '重试', btn_details: '详细信息',
-    conflict: '你的账户里有这个游戏来自其他浏览器的更新存档。要使用它们吗？\n（取消则保留本浏览器的存档，并上传到账户。）',
+    choose_title: '使用哪份存档？', choose_about: '本浏览器和你的账户中有这个游戏的不同存档。要用哪一份来玩？另一份会被替换。',
+    choose_cloud: '账户中的存档', choose_local: '本浏览器的存档', choose_when: '最后保存于 {when}',
     saves_title: '存档', saves_about: '存档保存在本浏览器中；登录后也会保存在你的账户中。', saves_export: '导出…', saves_import: '导入…',
     saves_delete: '删除全部存档', saves_close: '关闭', saves_none: '这个游戏还没有存档。', saves_confirm_delete: '删除这个游戏的所有存档（本浏览器和账户中）并重新开始？',
     saves_confirm_import: '用 {file} 替换这个游戏的存档并重新开始？', saves_bad: '无法导入：{error}',
@@ -61,7 +63,8 @@ const TEXT = {
     err_title: '這個遊戲無法在瀏覽器中啟動', err_nogame: '沒有這個遊戲。', err_engine: '瀏覽器遊玩不支援 {engine} 遊戲。',
     err_stopped: '遊戲意外停止了。', err_storage: '本瀏覽器無法保存遊戲（{error}）。',
     btn_download: '改為下載', btn_back: '返回', btn_retry: '重試', btn_details: '詳細資訊',
-    conflict: '你的帳戶裡有這個遊戲來自其他瀏覽器的較新存檔。要使用它們嗎？\n（取消則保留本瀏覽器的存檔，並上傳到帳戶。）',
+    choose_title: '使用哪份存檔？', choose_about: '此瀏覽器和你的帳戶中有這個遊戲的不同存檔。要用哪一份來玩？另一份會被取代。',
+    choose_cloud: '帳戶中的存檔', choose_local: '此瀏覽器的存檔', choose_when: '最後儲存於 {when}',
     saves_title: '存檔', saves_about: '存檔保存在本瀏覽器中；登入後也會保存在你的帳戶中。', saves_export: '匯出…', saves_import: '匯入…',
     saves_delete: '刪除全部存檔', saves_close: '關閉', saves_none: '這個遊戲還沒有存檔。', saves_confirm_delete: '刪除這個遊戲的所有存檔（本瀏覽器和帳戶中）並重新開始？',
     saves_confirm_import: '用 {file} 取代這個遊戲的存檔並重新開始？', saves_bad: '無法匯入：{error}',
@@ -78,7 +81,8 @@ const TEXT = {
     err_title: 'このゲームはブラウザで起動できませんでした', err_nogame: 'そのゲームはありません。', err_engine: 'ブラウザ版は {engine} のゲームに対応していません。',
     err_stopped: 'ゲームが予期せず停止しました。', err_storage: 'このブラウザにゲームを保存できませんでした（{error}）。',
     btn_download: '代わりにダウンロード', btn_back: '戻る', btn_retry: '再試行', btn_details: '詳細',
-    conflict: 'アカウントに、別のブラウザで保存したこのゲームの新しいセーブがあります。使いますか？\n（キャンセルするとこのブラウザのセーブを残し、アカウントに保存します。）',
+    choose_title: 'どちらのセーブを使いますか？', choose_about: 'このブラウザとアカウントに、このゲームの異なるセーブがあります。どちらで遊びますか？もう一方は置き換えられます。',
+    choose_cloud: 'アカウントのセーブ', choose_local: 'このブラウザのセーブ', choose_when: '最終保存 {when}',
     saves_title: 'セーブ', saves_about: 'セーブはこのブラウザに、ログイン中はアカウントにも保存されます。', saves_export: '書き出し…', saves_import: '読み込み…',
     saves_delete: 'すべてのセーブを削除', saves_close: '閉じる', saves_none: 'このゲームのセーブはまだありません。', saves_confirm_delete: 'このゲームのセーブをすべて（このブラウザとアカウントから）削除して再起動しますか？',
     saves_confirm_import: 'このゲームのセーブを {file} で置き換えて再起動しますか？', saves_bad: '読み込めませんでした: {error}',
@@ -95,7 +99,8 @@ const TEXT = {
     err_title: '이 게임은 브라우저에서 시작할 수 없습니다', err_nogame: '그런 게임이 없습니다.', err_engine: '브라우저 플레이는 {engine} 게임을 지원하지 않습니다.',
     err_stopped: '게임이 예기치 않게 멈췄습니다.', err_storage: '이 브라우저에 게임을 보관할 수 없습니다({error}).',
     btn_download: '대신 다운로드', btn_back: '뒤로', btn_retry: '다시 시도', btn_details: '자세히',
-    conflict: '계정에 다른 브라우저에서 저장한 이 게임의 더 새로운 세이브가 있습니다. 사용할까요?\n(취소하면 이 브라우저의 세이브를 유지하고 계정에 저장합니다.)',
+    choose_title: '어느 세이브를 사용할까요?', choose_about: '이 브라우저와 계정에 이 게임의 서로 다른 세이브가 있습니다. 어느 쪽으로 플레이할까요? 다른 쪽은 대체됩니다.',
+    choose_cloud: '계정의 세이브', choose_local: '이 브라우저의 세이브', choose_when: '마지막 저장 {when}',
     saves_title: '세이브', saves_about: '세이브는 이 브라우저에, 로그인했다면 계정에도 보관됩니다.', saves_export: '내보내기…', saves_import: '가져오기…',
     saves_delete: '모든 세이브 삭제', saves_close: '닫기', saves_none: '이 게임에는 아직 세이브가 없습니다.', saves_confirm_delete: '이 게임의 모든 세이브를 (이 브라우저와 계정에서) 삭제하고 다시 시작할까요?',
     saves_confirm_import: '이 게임의 세이브를 {file}(으)로 바꾸고 다시 시작할까요?', saves_bad: '가져오지 못했습니다: {error}',
@@ -112,7 +117,8 @@ const TEXT = {
     err_title: 'Эту игру не удалось запустить в браузере', err_nogame: 'Такой игры нет.', err_engine: 'Браузерный плеер не запускает игры на {engine}.',
     err_stopped: 'Игра неожиданно остановилась.', err_storage: 'Этот браузер не смог сохранить игру ({error}).',
     btn_download: 'Скачать', btn_back: 'Назад', btn_retry: 'Повторить', btn_details: 'Подробности',
-    conflict: 'В вашем аккаунте есть более новые сохранения этой игры из другого браузера. Использовать их?\n(Отмена оставит сохранения этого браузера и отправит их в аккаунт.)',
+    choose_title: 'Какие сохранения?', choose_about: 'В этом браузере и в вашем аккаунте разные сохранения этой игры. С какими играть? Другие будут заменены.',
+    choose_cloud: 'Сохранения аккаунта', choose_local: 'Сохранения этого браузера', choose_when: 'Сохранено {when}',
     saves_title: 'Сохранения', saves_about: 'Сохранения хранятся в этом браузере, а после входа — и в аккаунте.', saves_export: 'Экспорт…', saves_import: 'Импорт…',
     saves_delete: 'Удалить все сохранения', saves_close: 'Закрыть', saves_none: 'У этой игры пока нет сохранений.', saves_confirm_delete: 'Удалить все сохранения этой игры (здесь и в аккаунте) и перезапустить её?',
     saves_confirm_import: 'Заменить сохранения этой игры файлом {file} и перезапустить её?', saves_bad: 'Не удалось импортировать: {error}',
@@ -129,7 +135,8 @@ const TEXT = {
     err_title: 'Ce jeu n\'a pas pu démarrer dans le navigateur', err_nogame: 'Ce jeu n\'existe pas.', err_engine: 'Le lecteur du navigateur ne lance pas les jeux {engine}.',
     err_stopped: 'Le jeu s\'est arrêté de façon inattendue.', err_storage: 'Ce navigateur n\'a pas pu garder le jeu ({error}).',
     btn_download: 'Télécharger plutôt', btn_back: 'Retour', btn_retry: 'Réessayer', btn_details: 'Détails',
-    conflict: 'Votre compte a des sauvegardes plus récentes de ce jeu venant d\'un autre navigateur. Les utiliser ?\n(Annuler garde les sauvegardes de ce navigateur et les envoie dans votre compte.)',
+    choose_title: 'Quelles sauvegardes ?', choose_about: 'Ce navigateur et votre compte ont des sauvegardes différentes de ce jeu. Avec lesquelles jouer ? Les autres seront remplacées.',
+    choose_cloud: 'Sauvegardes du compte', choose_local: 'Sauvegardes de ce navigateur', choose_when: 'Enregistré le {when}',
     saves_title: 'Sauvegardes', saves_about: 'Les sauvegardes sont gardées dans ce navigateur, et dans votre compte si vous êtes connecté.', saves_export: 'Exporter…', saves_import: 'Importer…',
     saves_delete: 'Supprimer toutes les sauvegardes', saves_close: 'Fermer', saves_none: 'Ce jeu n\'a pas encore de sauvegarde.', saves_confirm_delete: 'Supprimer toutes les sauvegardes de ce jeu (ici et dans votre compte) et le redémarrer ?',
     saves_confirm_import: 'Remplacer les sauvegardes de ce jeu par {file} et le redémarrer ?', saves_bad: 'Import impossible : {error}',
@@ -146,7 +153,8 @@ const TEXT = {
     err_title: 'Dieses Spiel konnte im Browser nicht starten', err_nogame: 'Dieses Spiel gibt es nicht.', err_engine: 'Der Browser-Player startet keine {engine}-Spiele.',
     err_stopped: 'Das Spiel wurde unerwartet beendet.', err_storage: 'Dieser Browser konnte das Spiel nicht speichern ({error}).',
     btn_download: 'Stattdessen herunterladen', btn_back: 'Zurück', btn_retry: 'Erneut versuchen', btn_details: 'Details',
-    conflict: 'Dein Konto hat neuere Spielstände dieses Spiels aus einem anderen Browser. Diese verwenden?\n(Abbrechen behält die Spielstände dieses Browsers und speichert sie im Konto.)',
+    choose_title: 'Welche Spielstände?', choose_about: 'Dieser Browser und dein Konto haben verschiedene Spielstände dieses Spiels. Mit welchen spielen? Die anderen werden ersetzt.',
+    choose_cloud: 'Spielstände im Konto', choose_local: 'Spielstände in diesem Browser', choose_when: 'Zuletzt gespeichert {when}',
     saves_title: 'Spielstände', saves_about: 'Spielstände werden in diesem Browser gespeichert und, wenn du angemeldet bist, auch in deinem Konto.', saves_export: 'Exportieren…', saves_import: 'Importieren…',
     saves_delete: 'Alle Spielstände löschen', saves_close: 'Schließen', saves_none: 'Dieses Spiel hat noch keine Spielstände.', saves_confirm_delete: 'Alle Spielstände dieses Spiels (hier und im Konto) löschen und neu starten?',
     saves_confirm_import: 'Die Spielstände dieses Spiels durch {file} ersetzen und neu starten?', saves_bad: 'Import nicht möglich: {error}',
@@ -386,7 +394,12 @@ const sync = {
     if (!r.ok || data.success === false) throw new Error(data.error || `HTTP ${r.status}`);
     return data;
   },
-  /** Before the game starts: takes the account's saves when they are newer. */
+  /**
+   * Before the game starts: the account's saves against this browser's. When both have saves
+   * and they differ, the player chooses if this browser never synced with the account or both
+   * changed since they last did; otherwise the side that changed wins (the account's when only
+   * it did, this browser's when only it did: it goes up).
+   */
   async pull() {
     if (!this.clerk) {
       this.show('', t('sync_signin'), `/?game=${id}`);
@@ -395,24 +408,37 @@ const sync = {
     status(t('step_saves'), { progress: null });
     const { save } = await this.api('GET');
     const local = await loadSaves(this.db, slug);
-    if (save && save.updated_at > (this.state.remote || 0)) {
-      const hasLocal = local.some((s) => s.data);
-      if (!(this.state.dirty && hasLocal) || confirm(t('conflict'))) {
-        await deleteSaves(this.db, slug);
-        await storeSaves(this.db, slug, parseSaves(save.data, slug));
-        this.state = { remote: save.updated_at, dirty: false };
-        this.keep();
-      }
-    } else if (!save && local.some((s) => s.data)) {
+    const hasLocal = local.some((s) => s.data);
+    if (save) {
+      const cloud = parseSaves(save.data, slug);
+      const remote = this.state.remote || 0;
+      if (!hasLocal || sameSaves(local, cloud)) {
+        if (hasLocal) this.state = { ...this.state, remote: save.updated_at, dirty: false };
+        else await this.take(save, cloud);
+      } else if (remote === 0 || (save.updated_at > remote && this.state.dirty)) {
+        const localAt = this.state.localAt || Math.max(0, ...local.map((s) => s.mtime || 0));
+        if ((await chooseSaves(save.updated_at, localAt)) === 'cloud') await this.take(save, cloud);
+        else this.state.dirty = true;
+      } else if (save.updated_at > remote) await this.take(save, cloud);
+      this.keep();
+    } else if (hasLocal) {
       // saves from before signing in
       this.state.dirty = true;
     }
     this.show('ok', t('sync_ok'));
     if (this.state.dirty) this.schedule(0);
   },
+  /** The account's saves replace this browser's. */
+  async take(save, cloud) {
+    await deleteSaves(this.db, slug);
+    await storeSaves(this.db, slug, cloud);
+    this.state = { remote: save.updated_at, dirty: false };
+    this.keep();
+  },
   /** Saves changed (the game wrote them): into the account shortly. */
   changed() {
     this.state.dirty = true;
+    this.state.localAt = Date.now();
     this.keep();
     if (this.clerk) this.schedule(1500);
   },
@@ -429,7 +455,7 @@ const sync = {
       try {
         const text = exportSaves(slug, await loadSaves(this.db, slug));
         const { updated_at } = await this.api('PUT', text);
-        this.state = { remote: updated_at, dirty: false };
+        this.state = { remote: updated_at, dirty: false, localAt: this.state.localAt };
         this.keep();
         this.show('ok', t('sync_ok'));
       } catch (e) {
@@ -549,6 +575,55 @@ function start(game) {
   };
   $('saves').disabled = false;
   $('saves').onclick = () => savesDialog(game);
+}
+
+// ---- choosing saves -----------------------------------------------------------------------
+
+/** The same saved files (paths and contents; their times aside). */
+function sameSaves(a, b) {
+  const files = (list) => {
+    const m = new Map();
+    for (const s of list) if (s.data) m.set(s.path.toLowerCase(), s.data);
+    return m;
+  };
+  const x = files(a);
+  const y = files(b);
+  if (x.size !== y.size) return false;
+  for (const [p, d] of x) {
+    const e = y.get(p);
+    if (!e || e.length !== d.length) return false;
+    for (let i = 0; i < d.length; i++) if (d[i] !== e[i]) return false;
+  }
+  return true;
+}
+
+/** Asks which saves to play with: 'cloud' or 'local'. */
+function chooseSaves(cloudAt, localAt) {
+  return new Promise((resolve) => {
+    const dlg = $('choosedlg');
+    dlg.replaceChildren();
+    const form = document.createElement('form');
+    form.method = 'dialog';
+    const el = (tag, text) => Object.assign(document.createElement(tag), { textContent: text });
+    const when = (ms) => (ms > 0 ? new Date(ms).toLocaleString(lang) : '—');
+    const option = (value, label, at) => {
+      const b = document.createElement('button');
+      b.type = 'submit';
+      b.value = value;
+      b.className = 'choose-opt';
+      b.append(el('b', label), el('span', t('choose_when', { when: when(at) })));
+      return b;
+    };
+    const list = document.createElement('div');
+    list.className = 'choose-list';
+    list.append(option('cloud', t('choose_cloud'), cloudAt), option('local', t('choose_local'), localAt));
+    form.append(el('h2', t('choose_title')), el('p', t('choose_about')), list);
+    dlg.append(form);
+    // a choice is needed: Escape does not close it
+    dlg.oncancel = (ev) => ev.preventDefault();
+    dlg.onclose = () => resolve(dlg.returnValue === 'local' ? 'local' : 'cloud');
+    dlg.showModal();
+  });
 }
 
 // ---- saves dialog -------------------------------------------------------------------------

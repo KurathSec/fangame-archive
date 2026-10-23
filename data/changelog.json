@@ -1,5 +1,24 @@
 [
   {
+    "ver": "2026.020",
+    "date": "2026-10-23",
+    "note": "Choose between account and browser saves; Windows display fix",
+    "changes": [
+      [
+        "Added",
+        "When your account and this browser have different saves of a game — because this browser never synced with the account, or both changed since — the player asks which saves to play with, showing when each was last saved. Before, saves made in a browser before it was signed in could be replaced by the account's without asking."
+      ],
+      [
+        "Fixed",
+        "In Chrome and Edge on Windows the screen sometimes flashed a frame from a moment before (the game itself was where it should be)."
+      ],
+      [
+        "Fixed",
+        "Games that open GameMaker's own message, question or text boxes no longer freeze in the browser: the box is shown by the browser."
+      ]
+    ]
+  },
+  {
     "ver": "2026.019",
     "date": "2026-10-23",
     "note": "Local games, Play on collections, more playable games",
