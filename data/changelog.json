@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.027",
+    "date": "2026-10-24",
+    "note": "Browser play for selected accounts",
+    "changes": [
+      [
+        "Changed",
+        "Playing games in the browser is now open to selected accounts only. Other visitors no longer see the Play in browser button, the Playable in browser filter, Playing or Settings; downloads work as before. Games already kept in this browser stay listed under Local games so they can be deleted."
+      ]
+    ]
+  },
+  {
     "ver": "2026.026",
     "date": "2026-10-23",
     "note": "Settings: choose which gameplay mods you see",

@@ -47,7 +47,7 @@ export async function onRequest(context) {
 
       try {
         const user = await env.DB.prepare(
-          "SELECT role, status, display_name, avatar_url FROM users WHERE id = ?"
+          "SELECT role, status, display_name, avatar_url, play_access FROM users WHERE id = ?"
         ).bind(userId).first();
 
         const now = Date.now();
@@ -62,7 +62,8 @@ export async function onRequest(context) {
             role: "user",
             status: "active",
             display_name: profile.display_name,
-            avatar_url: profile.avatar_url
+            avatar_url: profile.avatar_url,
+            play_access: false
           };
         } else {
           // Check if account is banned or muted
@@ -91,7 +92,9 @@ export async function onRequest(context) {
             role: user.role,
             status: user.status,
             display_name: profile.display_name,
-            avatar_url: profile.avatar_url
+            avatar_url: profile.avatar_url,
+            // browser play: whitelisted accounts (admin app › Users) and administrators
+            play_access: user.play_access === 1 || user.role === "admin"
           };
         }
       } catch (err) {

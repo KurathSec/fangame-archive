@@ -36,7 +36,7 @@ The catalog is split into **minified** chunks under Cloudflare Pages' 25 MB per-
 * **Detail drawer** — metadata (author, game engine, size), screenshots, and live reviews fetched on demand, with Markdown + click-to-reveal spoilers. Engines are auto-detected from the game files by the CI pipeline (GameMaker 8 / Studio / Studio 2, MMF2, Unity, and more) and are also filterable.
 * **Accounts & reviews** — Clerk-backed login; submit reviews (optional rating/difficulty, custom tags) and suggest new games, all gated by Turnstile and daily quotas, then moderated. Game submissions can attach the actual files instead of links — direct upload of the archive (≤ 500 MB, presigned PUT straight to R2) and screenshots (≤ 8 MB), staged in a capped 5 GB pool until review.
 * **Collections** — cloud-synced favorites (the "main" bucket) plus named **collections**: build lists and one level of folders, save a game to several at once via a per-game menu, and rename/describe them. Share a collection by instant link (blank/preset name, no description) or submit it to the **moderated Public Collections library**; public collections lock their name/description. Shared pages open fast (`?collection=<token>`) even for signed-out visitors.
-* **Play in the browser** — GameMaker 8 and GameMaker: Studio games hosted on the archive run in the browser from their original files ([gm-recomp](https://github.com/KurathSec/gm-recomp) recompiles them to WebAssembly): a *Play in browser* button under Download, mods beside it, key remapping, F4 for full screen, Esc back to the archive, and saves kept in the player's account when signed in. *My Content › Playing* lists the games being played with their screenshots, and Browse Games filters by *Playable in browser*.
+* **Play in the browser** (for whitelisted accounts, granted in the admin app) — GameMaker 8 and GameMaker: Studio games hosted on the archive run in the browser from their original files ([gm-recomp](https://github.com/KurathSec/gm-recomp) recompiles them to WebAssembly): a *Play in browser* button under Download, mods beside it, key remapping, F4 for full screen, Esc back to the archive, and saves kept in the player's account when signed in. *My Content › Playing* lists the games being played with their screenshots, and Browse Games filters by *Playable in browser*.
 * **Internationalization** — 8 languages (`en`, `zh-CN`, `zh-TW`, `ja`, `ko`, `ru`, `fr`, `de`) with live switching.
 * **Public API** — `/api/search?q=` / `?id=` (keyword/ID, edge-cached) and `/api/random?count=&tag=` (random games, uncached); both return rating, difficulty, review count, file size, tags, and download URL.
 
@@ -131,7 +131,7 @@ fangame-archive/
 web/tools/bundle.sh /path/to/bundle            # in gm-recomp (see its README)
 ln -s /path/to/bundle public/play/gmr          # here
 ```
-`dev_server.py` sends the page's isolation headers and fetches game files for `/api/play/file/…` from the files host. To run the built site with the Functions (file streaming from a local R2, the saves API on a local D1), use `npx wrangler pages dev github_pages_dist` after a build.
+`dev_server.py` sends the page's isolation headers and fetches game files for `/api/play/file/…` from the files host (without the production check that the signed-in account may play; the page itself still wants a signed-in account whose `/api/me` reports `play_access`). To run the built site with the Functions (file streaming from a local R2, the saves API on a local D1), use `npx wrangler pages dev github_pages_dist` after a build.
 
 ---
 

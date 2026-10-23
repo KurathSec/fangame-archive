@@ -13,8 +13,10 @@ const PLAY_ENGINES = { 'GameMaker 8': 'gm8', 'GameMaker: Studio': 'gms', 'GameMa
 // The whole archive is unpacked in the browser's memory.
 const PLAY_MAX_BYTES = 512 * 1024 * 1024;
 
-/** {ok: true, kind: 'gm8'|'gms'|'gms2'} or {ok: false, reason: 'engine'|'link'|'host'|'size'}. */
+/** {ok: true, kind: 'gm8'|'gms'|'gms2'} or {ok: false, reason: 'access'|'engine'|'link'|'host'|'size'}. */
 function playability(game) {
+  // only for whitelisted accounts (src/app.jsx PLAY_ACCESS); for the others nothing shows
+  if (!window.PLAY_ACCESS) return { ok: false, reason: 'access' };
   const kind = game && PLAY_ENGINES[game.engine];
   if (!kind) return { ok: false, reason: 'engine' };
   if (!game.url || (game.flags && game.flags.broken)) return { ok: false, reason: 'link' };
@@ -148,6 +150,7 @@ function PlayRow({ game, auth }) {
     setOpen(false);
   }, [game.id]);
 
+  if (p.reason === 'access') return null;
   if (!p.ok) {
     return (
       <section className="drawer-sec play-sec">

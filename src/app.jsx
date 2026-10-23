@@ -97,6 +97,19 @@ function App() {
       return cached && cached.auth ? cached.auth : 'out';
     } catch (e) { return 'out'; }
   });
+  // Browser play is open to whitelisted accounts only (/api/me play_access; the admin app
+  // grants it): everything about it stays hidden for everyone else (window.PLAY_ACCESS,
+  // read by src/play.jsx and the sidebar).
+  const [playAccess, setPlayAccess] = React.useState(() => {
+    try {
+      const cached = JSON.parse(localStorage.getItem('archive_auth_cache') || 'null');
+      return !!(cached && cached.playAccess);
+    } catch (e) { return false; }
+  });
+  window.PLAY_ACCESS = playAccess;
+  React.useEffect(() => {
+    if (!playAccess && (view === 'playing' || view === 'settings')) setView('explorer');
+  }, [playAccess, view]);
   const [identity, setIdentity] = React.useState(() => {
     try {
       const cached = JSON.parse(localStorage.getItem('archive_auth_cache') || 'null');
@@ -144,8 +157,9 @@ function App() {
                 };
                 setAuth(resolvedAuth);
                 setIdentity(resolvedIdentity);
+                setPlayAccess(!!data.user.play_access);
                 try {
-                  localStorage.setItem('archive_auth_cache', JSON.stringify({ auth: resolvedAuth, identity: resolvedIdentity }));
+                  localStorage.setItem('archive_auth_cache', JSON.stringify({ auth: resolvedAuth, identity: resolvedIdentity, playAccess: !!data.user.play_access }));
                 } catch (e) {}
               }
             }
@@ -156,6 +170,7 @@ function App() {
         } else {
           setAuth('out');
           setIdentity(null);
+          setPlayAccess(false);
           try { localStorage.removeItem('archive_auth_cache'); } catch (e) {}
           if (active) {
             setView(current => {

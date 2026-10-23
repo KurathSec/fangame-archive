@@ -283,7 +283,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse
     (rating[0] !== 0 || rating[1] !== 10 ? 1 : 0) +
     (diff[0] !== 0 || diff[1] !== 100 ? 1 : 0) +
     tags.size + engines.size + dateRanges.length + colFilters.length +
-    Object.values(flags).filter(Boolean).length;
+    Object.entries(flags).filter(([k, on]) => on && (k !== 'playable' || window.PLAY_ACCESS)).length;
 
   const PAGE_SIZE = 100;
   const gridWrapRef = React.useRef(null);
@@ -299,7 +299,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse
       if (window.playability(g).ok) playable++;
     });
     return { local, shots, missing, playable };
-  }, []);
+  }, [!!window.PLAY_ACCESS]);
 
   const toggleTag = (t) => {
     const nextTags = new Map(tags);
@@ -463,7 +463,8 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse
       if (colAnd.length && !colAnd.every((ids) => ids.has(g.id))) return false;
       if (colNot.length && colNot.some((ids) => ids.has(g.id))) return false;
 
-      if (flags.playable  && !window.playability(g).ok) return false;
+      // (the Playable filter is offered with browser play only: src/app.jsx PLAY_ACCESS)
+      if (flags.playable  && window.PLAY_ACCESS && !window.playability(g).ok) return false;
       if (flags.local     && !g.flags.local) return false;
       if (flags.shots     && !g.flags.shots) return false;
       if (flags.missing   && !g.flags.missing) return false;
@@ -517,7 +518,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse
       }
       return desc ? -comparison : comparison;
     });
-  }, [baseGames, playedAt, searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, colFilters, colSets, flags, sort, desc]);
+  }, [baseGames, playedAt, searchTitle, searchCreator, rating, diff, tags, engines, dateRanges, colFilters, colSets, flags, sort, desc, !!window.PLAY_ACCESS]);
 
   // A re-resolved collection set (the viewer edited a list while browsing) can
   // change the results without a filter change, so it doesn't reset the page;
@@ -844,7 +845,7 @@ function Explorer({ tweaks, setTweak, onOpenGame, activeId, auth, mode = 'browse
                 ['local',     window.t('archived_locally'),       flagCounts.local.toLocaleString()],
                 ['shots',     window.t('has_screenshots'),        flagCounts.shots.toLocaleString()],
                 ['missing',   window.t('missing_assets_flag'),         flagCounts.missing.toLocaleString()],
-              ].map(([k, label, ct]) => (
+              ].filter(([k]) => k !== 'playable' || window.PLAY_ACCESS).map(([k, label, ct]) => (
                 <label key={k} className={'check' + (flags[k] ? ' on' : '')} onClick={() => toggleFlag(k)}>
                   <span className="box" />
                   <span>{label}</span>

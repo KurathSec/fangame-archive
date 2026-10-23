@@ -1,8 +1,11 @@
 // The archive's browser player: /play/?id=<game id>. The games run on gm-recomp
 // (https://github.com/KurathSec/gm-recomp), whose player bundle is served at /play/gmr/
 // (see README, "Play in the browser"). This page:
+//  - starts only for a signed-in account allowed to play in the browser (users.play_access,
+//    granted in the admin app; reported by /api/me);
 //  - downloads the game from this origin (/api/play/file/…: the files host sends no
-//    CORS headers) and imports it into this browser once, keyed by the catalog id;
+//    CORS headers; it serves those accounts alone) and imports it into this browser once,
+//    keyed by the catalog id;
 //  - applies the mods chosen in the game's drawer (src/play.jsx) and the player's key map;
 //  - keeps the game's saves in the player's account when they are signed in
 //    (/api/saves/:id), and in this browser either way;
@@ -26,7 +29,7 @@ const TEXT = {
     sync_signin: 'Sign in to keep saves in your account', sync_ok: 'Saves kept in your account', sync_saving: 'Saving to your account…',
     sync_error: 'Saves not in your account: {error}', sync_local: 'Saves kept in this browser',
     err_title: 'This game could not start in the browser', err_nogame: 'There is no such game.', err_engine: 'The browser player does not run {engine} games.',
-    err_stopped: 'The game stopped unexpectedly.', err_storage: 'This browser could not keep the game ({error}).',
+    err_stopped: 'The game stopped unexpectedly.', err_storage: 'This browser could not keep the game ({error}).', err_signin: 'Sign in to the archive to play in the browser.', err_access: 'Playing in the browser is open to selected accounts only.',
     btn_download: 'Download instead', btn_back: 'Back', btn_retry: 'Try again', btn_details: 'Details',
     choose_title: 'Which saves?', choose_about: 'This browser and your account have different saves of this game. Play with which one? The other is replaced.',
     choose_cloud: 'Your account\'s saves', choose_local: 'This browser\'s saves', choose_when: 'Last saved {when}',
@@ -45,7 +48,7 @@ const TEXT = {
     sync_signin: '登录后可把存档保存在账户中', sync_ok: '存档已保存在你的账户中', sync_saving: '正在保存到账户…',
     sync_error: '存档未能保存到账户：{error}', sync_local: '存档保存在本浏览器中',
     err_title: '这个游戏无法在浏览器中启动', err_nogame: '没有这个游戏。', err_engine: '浏览器游玩不支持 {engine} 游戏。',
-    err_stopped: '游戏意外停止了。', err_storage: '本浏览器无法保存游戏（{error}）。',
+    err_stopped: '游戏意外停止了。', err_storage: '本浏览器无法保存游戏（{error}）。', err_signin: '请先登录档案馆再在浏览器中游玩。', err_access: '浏览器游玩仅对指定账户开放。',
     btn_download: '改为下载', btn_back: '返回', btn_retry: '重试', btn_details: '详细信息',
     choose_title: '使用哪份存档？', choose_about: '本浏览器和你的账户中有这个游戏的不同存档。要用哪一份来玩？另一份会被替换。',
     choose_cloud: '账户中的存档', choose_local: '本浏览器的存档', choose_when: '最后保存于 {when}',
@@ -64,7 +67,7 @@ const TEXT = {
     sync_signin: '登入後可把存檔保存在帳戶中', sync_ok: '存檔已保存在你的帳戶中', sync_saving: '正在保存到帳戶…',
     sync_error: '存檔未能保存到帳戶：{error}', sync_local: '存檔保存在本瀏覽器中',
     err_title: '這個遊戲無法在瀏覽器中啟動', err_nogame: '沒有這個遊戲。', err_engine: '瀏覽器遊玩不支援 {engine} 遊戲。',
-    err_stopped: '遊戲意外停止了。', err_storage: '本瀏覽器無法保存遊戲（{error}）。',
+    err_stopped: '遊戲意外停止了。', err_storage: '本瀏覽器無法保存遊戲（{error}）。', err_signin: '請先登入檔案館再在瀏覽器中遊玩。', err_access: '瀏覽器遊玩僅對指定帳戶開放。',
     btn_download: '改為下載', btn_back: '返回', btn_retry: '重試', btn_details: '詳細資訊',
     choose_title: '使用哪份存檔？', choose_about: '此瀏覽器和你的帳戶中有這個遊戲的不同存檔。要用哪一份來玩？另一份會被取代。',
     choose_cloud: '帳戶中的存檔', choose_local: '此瀏覽器的存檔', choose_when: '最後儲存於 {when}',
@@ -83,7 +86,7 @@ const TEXT = {
     sync_signin: 'ログインするとセーブをアカウントに保存できます', sync_ok: 'セーブはアカウントに保存されています', sync_saving: 'アカウントに保存中…',
     sync_error: 'セーブをアカウントに保存できません: {error}', sync_local: 'セーブはこのブラウザに保存されています',
     err_title: 'このゲームはブラウザで起動できませんでした', err_nogame: 'そのゲームはありません。', err_engine: 'ブラウザ版は {engine} のゲームに対応していません。',
-    err_stopped: 'ゲームが予期せず停止しました。', err_storage: 'このブラウザにゲームを保存できませんでした（{error}）。',
+    err_stopped: 'ゲームが予期せず停止しました。', err_storage: 'このブラウザにゲームを保存できませんでした（{error}）。', err_signin: 'ブラウザでプレイするにはアーカイブにサインインしてください。', err_access: 'ブラウザ版は指定のアカウントのみ利用できます。',
     btn_download: '代わりにダウンロード', btn_back: '戻る', btn_retry: '再試行', btn_details: '詳細',
     choose_title: 'どちらのセーブを使いますか？', choose_about: 'このブラウザとアカウントに、このゲームの異なるセーブがあります。どちらで遊びますか？もう一方は置き換えられます。',
     choose_cloud: 'アカウントのセーブ', choose_local: 'このブラウザのセーブ', choose_when: '最終保存 {when}',
@@ -102,7 +105,7 @@ const TEXT = {
     sync_signin: '로그인하면 세이브를 계정에 보관할 수 있습니다', sync_ok: '세이브가 계정에 보관되어 있습니다', sync_saving: '계정에 저장하는 중…',
     sync_error: '세이브를 계정에 저장하지 못했습니다: {error}', sync_local: '세이브가 이 브라우저에 보관되어 있습니다',
     err_title: '이 게임은 브라우저에서 시작할 수 없습니다', err_nogame: '그런 게임이 없습니다.', err_engine: '브라우저 플레이는 {engine} 게임을 지원하지 않습니다.',
-    err_stopped: '게임이 예기치 않게 멈췄습니다.', err_storage: '이 브라우저에 게임을 보관할 수 없습니다({error}).',
+    err_stopped: '게임이 예기치 않게 멈췄습니다.', err_storage: '이 브라우저에 게임을 보관할 수 없습니다({error}).', err_signin: '브라우저에서 플레이하려면 아카이브에 로그인하세요.', err_access: '브라우저 플레이는 지정된 계정에만 열려 있습니다.',
     btn_download: '대신 다운로드', btn_back: '뒤로', btn_retry: '다시 시도', btn_details: '자세히',
     choose_title: '어느 세이브를 사용할까요?', choose_about: '이 브라우저와 계정에 이 게임의 서로 다른 세이브가 있습니다. 어느 쪽으로 플레이할까요? 다른 쪽은 대체됩니다.',
     choose_cloud: '계정의 세이브', choose_local: '이 브라우저의 세이브', choose_when: '마지막 저장 {when}',
@@ -121,7 +124,7 @@ const TEXT = {
     sync_signin: 'Войдите, чтобы хранить сохранения в аккаунте', sync_ok: 'Сохранения хранятся в аккаунте', sync_saving: 'Сохраняем в аккаунт…',
     sync_error: 'Сохранения не попали в аккаунт: {error}', sync_local: 'Сохранения хранятся в этом браузере',
     err_title: 'Эту игру не удалось запустить в браузере', err_nogame: 'Такой игры нет.', err_engine: 'Браузерный плеер не запускает игры на {engine}.',
-    err_stopped: 'Игра неожиданно остановилась.', err_storage: 'Этот браузер не смог сохранить игру ({error}).',
+    err_stopped: 'Игра неожиданно остановилась.', err_storage: 'Этот браузер не смог сохранить игру ({error}).', err_signin: 'Войдите в архив, чтобы играть в браузере.', err_access: 'Игра в браузере доступна только избранным аккаунтам.',
     btn_download: 'Скачать', btn_back: 'Назад', btn_retry: 'Повторить', btn_details: 'Подробности',
     choose_title: 'Какие сохранения?', choose_about: 'В этом браузере и в вашем аккаунте разные сохранения этой игры. С какими играть? Другие будут заменены.',
     choose_cloud: 'Сохранения аккаунта', choose_local: 'Сохранения этого браузера', choose_when: 'Сохранено {when}',
@@ -140,7 +143,7 @@ const TEXT = {
     sync_signin: 'Connectez-vous pour garder vos sauvegardes dans votre compte', sync_ok: 'Sauvegardes gardées dans votre compte', sync_saving: 'Envoi vers votre compte…',
     sync_error: 'Sauvegardes absentes du compte : {error}', sync_local: 'Sauvegardes gardées dans ce navigateur',
     err_title: 'Ce jeu n\'a pas pu démarrer dans le navigateur', err_nogame: 'Ce jeu n\'existe pas.', err_engine: 'Le lecteur du navigateur ne lance pas les jeux {engine}.',
-    err_stopped: 'Le jeu s\'est arrêté de façon inattendue.', err_storage: 'Ce navigateur n\'a pas pu garder le jeu ({error}).',
+    err_stopped: 'Le jeu s\'est arrêté de façon inattendue.', err_storage: 'Ce navigateur n\'a pas pu garder le jeu ({error}).', err_signin: 'Connectez-vous à l\'archive pour jouer dans le navigateur.', err_access: 'Le jeu dans le navigateur est réservé à certains comptes.',
     btn_download: 'Télécharger plutôt', btn_back: 'Retour', btn_retry: 'Réessayer', btn_details: 'Détails',
     choose_title: 'Quelles sauvegardes ?', choose_about: 'Ce navigateur et votre compte ont des sauvegardes différentes de ce jeu. Avec lesquelles jouer ? Les autres seront remplacées.',
     choose_cloud: 'Sauvegardes du compte', choose_local: 'Sauvegardes de ce navigateur', choose_when: 'Enregistré le {when}',
@@ -159,7 +162,7 @@ const TEXT = {
     sync_signin: 'Melde dich an, um Spielstände im Konto zu behalten', sync_ok: 'Spielstände im Konto gespeichert', sync_saving: 'Wird im Konto gespeichert…',
     sync_error: 'Spielstände nicht im Konto: {error}', sync_local: 'Spielstände in diesem Browser gespeichert',
     err_title: 'Dieses Spiel konnte im Browser nicht starten', err_nogame: 'Dieses Spiel gibt es nicht.', err_engine: 'Der Browser-Player startet keine {engine}-Spiele.',
-    err_stopped: 'Das Spiel wurde unerwartet beendet.', err_storage: 'Dieser Browser konnte das Spiel nicht speichern ({error}).',
+    err_stopped: 'Das Spiel wurde unerwartet beendet.', err_storage: 'Dieser Browser konnte das Spiel nicht speichern ({error}).', err_signin: 'Melde dich im Archiv an, um im Browser zu spielen.', err_access: 'Spielen im Browser ist nur für ausgewählte Konten freigegeben.',
     btn_download: 'Stattdessen herunterladen', btn_back: 'Zurück', btn_retry: 'Erneut versuchen', btn_details: 'Details',
     choose_title: 'Welche Spielstände?', choose_about: 'Dieser Browser und dein Konto haben verschiedene Spielstände dieses Spiels. Mit welchen spielen? Die anderen werden ersetzt.',
     choose_cloud: 'Spielstände im Konto', choose_local: 'Spielstände in diesem Browser', choose_when: 'Zuletzt gespeichert {when}',
@@ -284,8 +287,8 @@ function fileUrl(url) {
   return `/api/play/file${u.pathname}`;
 }
 
-async function download(url, size) {
-  const r = await fetch(fileUrl(url));
+async function download(url, size, token) {
+  const r = await fetch(fileUrl(url), { headers: { Authorization: `Bearer ${token}` } });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const total = Number(r.headers.get('content-length')) || size || 0;
   const reader = r.body.getReader();
@@ -310,8 +313,8 @@ async function download(url, size) {
 
 const runnable = (e) => e && (e.kind === 'gm80' || e.kind === 'gm81' || e.kind === 'gms');
 
-/** The game, imported into this browser (once per catalog file). */
-async function ensureImported(db, game) {
+/** The game, imported into this browser (once per catalog file); `token` is the account's. */
+async function ensureImported(db, game, token) {
   const key = new URL(game.url).pathname;
   const kept = await loadGame(db, slug).catch(() => null);
   if (kept?.manifest?.source_key === key && kept.manifest.source_size === game.size) {
@@ -319,7 +322,7 @@ async function ensureImported(db, game) {
     noteLocal(kept.files);
     return kept.manifest;
   }
-  const bytes = await download(game.url, game.size);
+  const bytes = await download(game.url, game.size, token);
   status(t('step_import'), { progress: null });
   const name = decodeURIComponent(key.split('/').pop() || 'game.zip');
   const { manifest, files } = await importArchive(bytes, name, (text) => status(t('step_import'), { progress: null, detail: text }));
@@ -346,6 +349,22 @@ function noteLocal(files) {
   const meta = store.get('fa.local', {});
   meta[id] = { bytes, at: Date.now() };
   store.set('fa.local', meta);
+}
+
+/**
+ * Browser play is open to whitelisted accounts only (users.play_access, granted in the admin
+ * app; the game files are served to them alone): the signed-in account's token when it may
+ * play, else the reason it may not (an error shown).
+ */
+async function playToken(clerk) {
+  if (!clerk) throw Object.assign(new Error(t('err_signin')), { shown: true });
+  const token = await clerk.session.getToken();
+  const r = await fetch('/api/me', { headers: { Authorization: `Bearer ${token}` } });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  if (!data.user) throw Object.assign(new Error(t('err_signin')), { shown: true });
+  if (!data.user.play_access) throw Object.assign(new Error(t('err_access')), { shown: true });
+  return token;
 }
 
 // ---- account saves ------------------------------------------------------------------------
@@ -496,10 +515,11 @@ async function main() {
   if (!self.crossOriginIsolated) return fail('cross-origin isolation is off (COOP/COEP headers)');
   status(t('step_info'), { title: t('loading'), progress: null });
   const clerk = loadClerk();
+  const access = clerk.then(playToken);
+  access.catch(() => {});
   // The account's saves are asked for while the game downloads and imports, so they are
   // usually there by the time it can start.
-  const remote = clerk.then((c) => {
-    if (!c) return null;
+  const remote = access.then(() => clerk).then((c) => {
     sync.clerk = c;
     return sync.api('GET');
   });
@@ -512,12 +532,13 @@ async function main() {
     document.title = `${game.title} — Fangame Archive`;
     status(t('step_info'), { title: game.title, progress: null });
     if (game.engine && !PLAYABLE[game.engine]) return fail(t('err_engine', { engine: game.engine }), game);
+    // (also a game this browser kept: it does not start for an account without access)
+    const token = await access;
     const db = await openSaves();
     sync.db = db;
-    await ensureImported(db, game);
+    await ensureImported(db, game, token);
     sync.clerk = await clerk;
     await sync.pull(remote).catch((e) => sync.show('error', t('sync_error', { error: e.message ?? e })));
-    if (!sync.clerk) sync.show('', t('sync_signin'), `/?game=${id}`);
   } catch (e) {
     logLines.push(String(e?.stack ?? e));
     return fail(e.shown ? e.message : `${e.message ?? e}`, game);

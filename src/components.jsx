@@ -173,7 +173,8 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth,
     { k: 'updates',     label: "Update Log",                  icon: ic.log,      count: null },
     { k: 'contact',     label: window.t('about_contact'),   icon: ic.mail,     count: null },
     { k: 'localgames',  label: window.t('play.local_games'), icon: ic.hdd,     count: localCount || null }
-  ];
+  ].filter((n) => n.k !== 'localgames' || window.PLAY_ACCESS || localCount > 0);
+  // (Local games also without access while games are kept, so they can be deleted)
 
   // My Content › Playing: the games played in the browser (src/play.jsx)
   const playingCount = window.usePlaying ? window.usePlaying(auth).length : 0;
@@ -184,7 +185,7 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth,
     { k: 'submit',      label: window.t('submit_game'),       icon: window.ic2.upload, count: null },
     { k: 'mycontent',   label: window.t('my_content'),        icon: window.ic2.inbox,  count: null },
     { k: 'settings',    label: window.t('nav.settings'),      icon: window.ic2.gear,   count: null }
-  ];
+  ].filter((n) => window.PLAY_ACCESS || (n.k !== 'playing' && n.k !== 'settings'));
 
   return (
     <aside className="sb">

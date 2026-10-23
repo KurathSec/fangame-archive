@@ -3,6 +3,8 @@
 // CORS headers, and the player's page is cross-origin isolated, so it cannot fetch them
 // from there.
 //   GET /api/play/file/Game/<name>  (the download URL's path)
+// Only for a signed-in account allowed to play in the browser (users.play_access, set in
+// the admin app): the play page sends its Clerk token.
 
 const PREFIX = "/api/play/file/";
 
@@ -21,6 +23,10 @@ function objectKey(request) {
 }
 
 async function serve(context, head) {
+  const user = context.data && context.data.user;
+  if (!user || !user.play_access || user.status === "banned") {
+    return new Response("Browser play is open to selected accounts only.", { status: 403, headers: { "Cache-Control": "no-store" } });
+  }
   const key = objectKey(context.request);
   if (!key) return new Response("Not found", { status: 404 });
   const object = head ? await context.env.ARCHIVE_FILES.head(key) : await context.env.ARCHIVE_FILES.get(key);
@@ -30,7 +36,8 @@ async function serve(context, head) {
   headers.set("Content-Type", "application/octet-stream");
   headers.set("Content-Length", String(object.size));
   headers.set("ETag", object.httpEtag);
-  headers.set("Cache-Control", "public, max-age=86400");
+  // (per account: no shared cache may keep it)
+  headers.set("Cache-Control", "private, max-age=86400");
   headers.set("Cross-Origin-Resource-Policy", "same-origin");
   return new Response(head ? null : object.body, { headers });
 }
