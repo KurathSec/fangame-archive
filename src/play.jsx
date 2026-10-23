@@ -1,18 +1,19 @@
 // Playing games in the browser. The player itself is a separate page, /play/?id=<id>
 // (public/play/, on gm-recomp); this file is the catalog's side of it:
-//  - which games can be played (`playability`): GameMaker 8 and GameMaker: Studio games
-//    hosted on the archive's own CDN, up to PLAY_MAX_BYTES;
+//  - which games can be played (`playability`): GameMaker 8, GameMaker: Studio and
+//    GameMaker: Studio 2 games hosted on the archive's own CDN, up to PLAY_MAX_BYTES;
 //  - the drawer's Play row (`PlayRow`), with the mods to apply, stored where the player
 //    reads them (localStorage `gmr.mods.fa-<id>`, gm-recomp's format);
 //  - My Content › Playing (`usePlaying`, `PlayingGrid`; an Explorer in 'playing' mode):
 //    the games played here (localStorage `fa.playing`, written by the player) and, when
 //    signed in, those with saves in the account (/api/saves).
 
-const PLAY_ENGINES = { 'GameMaker 8': 'gm8', 'GameMaker: Studio': 'gms' };
+// (GameMaker: Studio 2 takes no mods: gm-recomp's mods read no GMS2 bytecode yet)
+const PLAY_ENGINES = { 'GameMaker 8': 'gm8', 'GameMaker: Studio': 'gms', 'GameMaker: Studio 2': 'gms2' };
 // The whole archive is unpacked in the browser's memory.
 const PLAY_MAX_BYTES = 512 * 1024 * 1024;
 
-/** {ok: true, kind: 'gm8'|'gms'} or {ok: false, reason: 'engine'|'link'|'host'|'size'}. */
+/** {ok: true, kind: 'gm8'|'gms'|'gms2'} or {ok: false, reason: 'engine'|'link'|'host'|'size'}. */
 function playability(game) {
   const kind = game && PLAY_ENGINES[game.engine];
   if (!kind) return { ok: false, reason: 'engine' };
@@ -140,18 +141,22 @@ function PlayRow({ game }) {
     );
   }
   const onCount = PLAY_MODS.filter((m) => m.engines.includes(p.kind) && choices[m.id] && choices[m.id].on).length;
+  // (none for GameMaker: Studio 2 yet)
+  const hasMods = PLAY_MODS.some((m) => m.engines.includes(p.kind));
   return (
     <section className="drawer-sec play-sec">
       <div className="play-row">
         <a className="launch-btn play-btn" href={playUrl(game)} onClick={() => handOff(game)}>
           {playIcons.play} {window.t('play.button')}
         </a>
-        <button className={'roll-again-btn play-mods-btn' + (open ? ' open' : '') + (onCount ? ' active' : '')}
-                onClick={() => setOpen(!open)} aria-expanded={open}>
-          {playIcons.mods} {window.t('play.mods')}{onCount ? ' · ' + onCount : ''}
-        </button>
+        {hasMods && (
+          <button className={'roll-again-btn play-mods-btn' + (open ? ' open' : '') + (onCount ? ' active' : '')}
+                  onClick={() => setOpen(!open)} aria-expanded={open}>
+            {playIcons.mods} {window.t('play.mods')}{onCount ? ' · ' + onCount : ''}
+          </button>
+        )}
       </div>
-      {open && <PlayMods game={game} kind={p.kind} choices={choices} setChoices={setChoices} />}
+      {open && hasMods && <PlayMods game={game} kind={p.kind} choices={choices} setChoices={setChoices} />}
     </section>
   );
 }

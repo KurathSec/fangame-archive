@@ -2711,7 +2711,7 @@ window.TRANSLATIONS = {
 Object.assign(window.TRANSLATIONS.en, {
   "play.button": "Play in browser",
   "play.unavailable": "Currently unavailable to play in browser",
-  "play.why.engine": "Only GameMaker 8 and GameMaker: Studio games run in the browser for now.",
+  "play.why.engine": "Only GameMaker 8, GameMaker: Studio and GameMaker: Studio 2 games run in the browser for now.",
   "play.why.host": "Only games hosted on the archive itself can be played in the browser.",
   "play.why.size": "This game is too large to play in the browser.",
   "play.why.link": "There is no working copy of this game.",
@@ -2757,7 +2757,7 @@ Object.assign(window.TRANSLATIONS.en, {
 Object.assign(window.TRANSLATIONS["zh-CN"], {
   "play.button": "在浏览器中游玩",
   "play.unavailable": "暂时无法在浏览器中游玩",
-  "play.why.engine": "目前只有 GameMaker 8 和 GameMaker: Studio 游戏能在浏览器中运行。",
+  "play.why.engine": "目前只有 GameMaker 8、GameMaker: Studio 和 GameMaker: Studio 2 游戏能在浏览器中运行。",
   "play.why.host": "只有存放在本 Archive 上的游戏才能在浏览器中游玩。",
   "play.why.size": "这个游戏太大，无法在浏览器中游玩。",
   "play.why.link": "这个游戏没有可用的副本。",
@@ -2799,7 +2799,7 @@ Object.assign(window.TRANSLATIONS["zh-CN"], {
 Object.assign(window.TRANSLATIONS["zh-TW"], {
   "play.button": "在瀏覽器中遊玩",
   "play.unavailable": "暫時無法在瀏覽器中遊玩",
-  "play.why.engine": "目前只有 GameMaker 8 和 GameMaker: Studio 遊戲能在瀏覽器中執行。",
+  "play.why.engine": "目前只有 GameMaker 8、GameMaker: Studio 和 GameMaker: Studio 2 遊戲能在瀏覽器中執行。",
   "play.why.host": "只有存放在本 Archive 上的遊戲才能在瀏覽器中遊玩。",
   "play.why.size": "這個遊戲太大，無法在瀏覽器中遊玩。",
   "play.why.link": "這個遊戲沒有可用的副本。",
@@ -2841,7 +2841,7 @@ Object.assign(window.TRANSLATIONS["zh-TW"], {
 Object.assign(window.TRANSLATIONS.ja, {
   "play.button": "ブラウザでプレイ",
   "play.unavailable": "現在ブラウザではプレイできません",
-  "play.why.engine": "今のところブラウザで動くのは GameMaker 8 と GameMaker: Studio のゲームだけです。",
+  "play.why.engine": "今のところブラウザで動くのは GameMaker 8、GameMaker: Studio、GameMaker: Studio 2 のゲームだけです。",
   "play.why.host": "ブラウザでプレイできるのは Archive 上にあるゲームだけです。",
   "play.why.size": "このゲームは大きすぎてブラウザではプレイできません。",
   "play.why.link": "このゲームの有効なコピーがありません。",
@@ -2883,7 +2883,7 @@ Object.assign(window.TRANSLATIONS.ja, {
 Object.assign(window.TRANSLATIONS.ko, {
   "play.button": "브라우저에서 플레이",
   "play.unavailable": "현재 브라우저에서 플레이할 수 없습니다",
-  "play.why.engine": "지금은 GameMaker 8과 GameMaker: Studio 게임만 브라우저에서 실행됩니다.",
+  "play.why.engine": "지금은 GameMaker 8, GameMaker: Studio, GameMaker: Studio 2 게임만 브라우저에서 실행됩니다.",
   "play.why.host": "Archive에 보관된 게임만 브라우저에서 플레이할 수 있습니다.",
   "play.why.size": "이 게임은 너무 커서 브라우저에서 플레이할 수 없습니다.",
   "play.why.link": "이 게임의 사용 가능한 사본이 없습니다.",
@@ -2925,7 +2925,7 @@ Object.assign(window.TRANSLATIONS.ko, {
 Object.assign(window.TRANSLATIONS.ru, {
   "play.button": "Играть в браузере",
   "play.unavailable": "Сейчас нельзя играть в браузере",
-  "play.why.engine": "Пока в браузере работают только игры на GameMaker 8 и GameMaker: Studio.",
+  "play.why.engine": "Пока в браузере работают только игры на GameMaker 8, GameMaker: Studio и GameMaker: Studio 2.",
   "play.why.host": "В браузере можно играть только в игры, хранящиеся в самом Archive.",
   "play.why.size": "Эта игра слишком велика для браузера.",
   "play.why.link": "Нет рабочей копии этой игры.",
@@ -2967,7 +2967,7 @@ Object.assign(window.TRANSLATIONS.ru, {
 Object.assign(window.TRANSLATIONS.fr, {
   "play.button": "Jouer dans le navigateur",
   "play.unavailable": "Actuellement indisponible dans le navigateur",
-  "play.why.engine": "Pour l'instant, seuls les jeux GameMaker 8 et GameMaker: Studio tournent dans le navigateur.",
+  "play.why.engine": "Pour l'instant, seuls les jeux GameMaker 8, GameMaker: Studio et GameMaker: Studio 2 tournent dans le navigateur.",
   "play.why.host": "Seuls les jeux hébergés par l'Archive elle-même se jouent dans le navigateur.",
   "play.why.size": "Ce jeu est trop gros pour être joué dans le navigateur.",
   "play.why.link": "Il n'existe aucune copie fonctionnelle de ce jeu.",
@@ -3009,7 +3009,7 @@ Object.assign(window.TRANSLATIONS.fr, {
 Object.assign(window.TRANSLATIONS.de, {
   "play.button": "Im Browser spielen",
   "play.unavailable": "Derzeit nicht im Browser spielbar",
-  "play.why.engine": "Im Browser laufen vorerst nur Spiele mit GameMaker 8 und GameMaker: Studio.",
+  "play.why.engine": "Im Browser laufen vorerst nur Spiele mit GameMaker 8, GameMaker: Studio und GameMaker: Studio 2.",
   "play.why.host": "Im Browser spielbar sind nur Spiele, die das Archive selbst bereitstellt.",
   "play.why.size": "Dieses Spiel ist zu groß für den Browser.",
   "play.why.link": "Von diesem Spiel gibt es keine funktionierende Kopie.",

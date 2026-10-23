@@ -300,7 +300,7 @@ async function download(url, size) {
   return bytes;
 }
 
-const runnable = (e) => e && (e.kind === 'gm80' || e.kind === 'gm81' || (e.kind === 'gms' && (e.version?.[0] ?? 1) < 2));
+const runnable = (e) => e && (e.kind === 'gm80' || e.kind === 'gm81' || e.kind === 'gms');
 
 /** The game, imported into this browser (once per catalog file). */
 async function ensureImported(db, game) {
@@ -316,7 +316,7 @@ async function ensureImported(db, game) {
   const name = decodeURIComponent(key.split('/').pop() || 'game.zip');
   const { manifest, files } = await importArchive(bytes, name, (text) => status(t('step_import'), { progress: null, detail: text }));
   if (!runnable(manifest.engine)) {
-    const e = manifest.engine?.kind === 'gms' ? 'GameMaker Studio 2' : (manifest.engine?.kind ?? '?');
+    const e = manifest.engine?.kind ?? '?';
     throw Object.assign(new Error(t('err_engine', { engine: e })), { shown: true });
   }
   manifest.slug = slug;
