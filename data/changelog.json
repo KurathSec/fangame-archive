@@ -1,5 +1,24 @@
 [
   {
+    "ver": "2026.033",
+    "date": "2026-10-24",
+    "note": "More games start in the browser",
+    "changes": [
+      [
+        "Fixed",
+        "Games using the FoxWriting extension, games whose sound DLL is packed with Petite, and games using BASS or the Faucet Networking extension no longer stop at the start."
+      ],
+      [
+        "Fixed",
+        "Games whose sound loader expects the \".\" folder entry no longer report \"Sound does not exist\"."
+      ],
+      [
+        "Fixed",
+        "A game whose exe was damaged by the Neshta virus (and then partly cleaned) is put back together when it is opened in the browser."
+      ]
+    ]
+  },
+  {
     "ver": "2026.032",
     "date": "2026-10-24",
     "note": "More games start in the browser",
