@@ -1,5 +1,20 @@
 [
   {
+    "ver": "2026.030",
+    "date": "2026-10-24",
+    "note": "More games start in the browser",
+    "changes": [
+      [
+        "Fixed",
+        "Games built on a common GameMaker 8 engine no longer stop in the difficulty menu (they find their saves folder again)."
+      ],
+      [
+        "Fixed",
+        "Games whose extensions bring a newer Windows runtime, GameMaker Studio 2 games that stopped at the start, and games with a Discord status extension now start."
+      ]
+    ]
+  },
+  {
     "ver": "2026.029",
     "date": "2026-10-24",
     "note": "More games start in the browser",
