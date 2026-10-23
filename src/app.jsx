@@ -159,7 +159,7 @@ function App() {
           try { localStorage.removeItem('archive_auth_cache'); } catch (e) {}
           if (active) {
             setView(current => {
-              if (current === 'collections' || current === 'playing') return 'explorer';
+              if (current === 'collections' || current === 'playing' || current === 'settings') return 'explorer';
               return current;
             });
           }
@@ -340,6 +340,7 @@ function App() {
         {view === 'updates'     && <window.UpdateLogView />}
         {view === 'contact'     && <window.ContactView />}
         {view === 'localgames'  && <window.LocalGamesView onOpenGame={openGame} />}
+        {view === 'settings'    && <window.SettingsView auth={auth} />}
         {view === 'submit'      && <window.SubmitGameView auth={auth} identity={identity} onOpenLogin={handleOpenLogin} />}
         {view === 'mycontent'   && <window.MyContentView auth={auth} identity={identity} onOpenLogin={handleOpenLogin} />}
         {view === 'collections' && <window.CollectionsView auth={auth} onOpenGame={openGame} onView={setView} onOpenLogin={handleOpenLogin} />}
