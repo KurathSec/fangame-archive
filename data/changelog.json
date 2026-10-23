@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.025",
+    "date": "2026-10-23",
+    "note": "Keyboard back after a game's message box",
+    "changes": [
+      [
+        "Fixed",
+        "A GameMaker 8 game that showed a message or asked for text no longer stops responding to the keyboard afterwards, and a second box in a row is shown instead of closing by itself."
+      ]
+    ]
+  },
+  {
     "ver": "2026.024",
     "date": "2026-10-23",
     "note": "More games start in the browser",
