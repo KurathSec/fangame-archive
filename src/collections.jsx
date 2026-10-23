@@ -234,7 +234,10 @@ function FavCard({ game, auth, onOpen }) {
         <span className="fav-card-fav"><FavoriteButton gameId={game.id} auth={auth} variant="card" /></span>
       </div>
       <div className="fav-card-body">
-        <div className="fav-card-title">{game.title}</div>
+        <div className="fav-card-title-row">
+          <div className="fav-card-title">{game.title}</div>
+          {window.PlayButton && <window.PlayButton game={game} />}
+        </div>
         <div className="fav-card-creator">{t('card.by', 'by')} {game.creator}</div>
         <div className="fav-card-metrics">
           <span className="metric rating">{window.ic.star}<span className="tnum">{game.rating ? game.rating.toFixed(1) : 'N/A'}</span></span>

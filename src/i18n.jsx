@@ -2743,7 +2743,16 @@ Object.assign(window.TRANSLATIONS.en, {
   "play.playing_empty": "Games you play in the browser show up here.",
   "play.show_playable": "Show playable games",
   "play.remove": "Remove from Playing",
-  "play.sort_played": "Last played"
+  "play.sort_played": "Last played",
+  "play.local_games": "Local games",
+  "play.local_sub": "Games you play in the browser are kept here so they start without downloading again. Delete the ones you no longer play to free space; their saves stay.",
+  "play.local_empty": "No games are stored in this browser.",
+  "play.local_delete": "Delete",
+  "play.local_delete_all": "Delete all",
+  "play.local_confirm_all": "Delete every game stored in this browser? Their saves stay.",
+  "play.local_used": "This site uses {used} of this browser's storage (up to {quota}).",
+  "play.local_deleted": "Deleted from this browser",
+  "play.local_size": "Size"
 });
 Object.assign(window.TRANSLATIONS["zh-CN"], {
   "play.button": "在浏览器中游玩",
@@ -2776,7 +2785,16 @@ Object.assign(window.TRANSLATIONS["zh-CN"], {
   "play.playing_empty": "在浏览器中玩过的游戏会显示在这里。",
   "play.show_playable": "显示可游玩的游戏",
   "play.remove": "从“正在玩”中移除",
-  "play.sort_played": "最近游玩"
+  "play.sort_played": "最近游玩",
+  "play.local_games": "本地游戏",
+  "play.local_sub": "在浏览器中玩过的游戏会保存在这里，下次启动不用重新下载。不再玩的可以删除来释放空间，存档会保留。",
+  "play.local_empty": "本浏览器中没有保存游戏。",
+  "play.local_delete": "删除",
+  "play.local_delete_all": "全部删除",
+  "play.local_confirm_all": "删除本浏览器中保存的所有游戏？存档会保留。",
+  "play.local_used": "本站占用了本浏览器 {used} 的存储空间（上限 {quota}）。",
+  "play.local_deleted": "已从本浏览器删除",
+  "play.local_size": "大小"
 });
 Object.assign(window.TRANSLATIONS["zh-TW"], {
   "play.button": "在瀏覽器中遊玩",
@@ -2809,7 +2827,16 @@ Object.assign(window.TRANSLATIONS["zh-TW"], {
   "play.playing_empty": "在瀏覽器中玩過的遊戲會顯示在這裡。",
   "play.show_playable": "顯示可遊玩的遊戲",
   "play.remove": "從「正在玩」中移除",
-  "play.sort_played": "最近遊玩"
+  "play.sort_played": "最近遊玩",
+  "play.local_games": "本機遊戲",
+  "play.local_sub": "在瀏覽器中玩過的遊戲會保存在這裡，下次啟動不必重新下載。不再玩的可以刪除以釋放空間，存檔會保留。",
+  "play.local_empty": "此瀏覽器中沒有保存遊戲。",
+  "play.local_delete": "刪除",
+  "play.local_delete_all": "全部刪除",
+  "play.local_confirm_all": "刪除此瀏覽器中保存的所有遊戲？存檔會保留。",
+  "play.local_used": "本站佔用了此瀏覽器 {used} 的儲存空間（上限 {quota}）。",
+  "play.local_deleted": "已從此瀏覽器刪除",
+  "play.local_size": "大小"
 });
 Object.assign(window.TRANSLATIONS.ja, {
   "play.button": "ブラウザでプレイ",
@@ -2842,7 +2869,16 @@ Object.assign(window.TRANSLATIONS.ja, {
   "play.playing_empty": "ブラウザでプレイしたゲームがここに表示されます。",
   "play.show_playable": "プレイ可能なゲームを表示",
   "play.remove": "「プレイ中」から外す",
-  "play.sort_played": "最近プレイ"
+  "play.sort_played": "最近プレイ",
+  "play.local_games": "ローカルのゲーム",
+  "play.local_sub": "ブラウザで遊んだゲームはここに保存され、次回は再ダウンロードせずに起動します。遊ばなくなったゲームは削除して容量を空けられます。セーブデータは残ります。",
+  "play.local_empty": "このブラウザに保存されたゲームはありません。",
+  "play.local_delete": "削除",
+  "play.local_delete_all": "すべて削除",
+  "play.local_confirm_all": "このブラウザに保存されたゲームをすべて削除しますか？セーブデータは残ります。",
+  "play.local_used": "このサイトはこのブラウザの容量を {used} 使用しています（上限 {quota}）。",
+  "play.local_deleted": "このブラウザから削除しました",
+  "play.local_size": "サイズ"
 });
 Object.assign(window.TRANSLATIONS.ko, {
   "play.button": "브라우저에서 플레이",
@@ -2875,7 +2911,16 @@ Object.assign(window.TRANSLATIONS.ko, {
   "play.playing_empty": "브라우저에서 플레이한 게임이 여기에 표시됩니다.",
   "play.show_playable": "플레이 가능한 게임 보기",
   "play.remove": "플레이 중에서 제거",
-  "play.sort_played": "최근 플레이"
+  "play.sort_played": "최근 플레이",
+  "play.local_games": "로컬 게임",
+  "play.local_sub": "브라우저에서 플레이한 게임은 여기에 보관되어 다음에 다시 다운로드하지 않고 시작합니다. 더 이상 플레이하지 않는 게임은 삭제해 공간을 확보하세요. 세이브는 유지됩니다.",
+  "play.local_empty": "이 브라우저에 저장된 게임이 없습니다.",
+  "play.local_delete": "삭제",
+  "play.local_delete_all": "모두 삭제",
+  "play.local_confirm_all": "이 브라우저에 저장된 모든 게임을 삭제할까요? 세이브는 유지됩니다.",
+  "play.local_used": "이 사이트가 이 브라우저 저장 공간을 {used} 사용 중입니다 (최대 {quota}).",
+  "play.local_deleted": "이 브라우저에서 삭제됨",
+  "play.local_size": "크기"
 });
 Object.assign(window.TRANSLATIONS.ru, {
   "play.button": "Играть в браузере",
@@ -2908,7 +2953,16 @@ Object.assign(window.TRANSLATIONS.ru, {
   "play.playing_empty": "Здесь появятся игры, в которые вы играли в браузере.",
   "play.show_playable": "Показать игры для браузера",
   "play.remove": "Убрать из «Играю»",
-  "play.sort_played": "Недавно сыгранные"
+  "play.sort_played": "Недавно сыгранные",
+  "play.local_games": "Локальные игры",
+  "play.local_sub": "Игры, в которые вы играли в браузере, хранятся здесь и запускаются без повторной загрузки. Удалите те, в которые больше не играете, чтобы освободить место; сохранения останутся.",
+  "play.local_empty": "В этом браузере нет сохранённых игр.",
+  "play.local_delete": "Удалить",
+  "play.local_delete_all": "Удалить все",
+  "play.local_confirm_all": "Удалить все игры, сохранённые в этом браузере? Сохранения останутся.",
+  "play.local_used": "Сайт занимает {used} хранилища этого браузера (максимум {quota}).",
+  "play.local_deleted": "Удалено из этого браузера",
+  "play.local_size": "Размер"
 });
 Object.assign(window.TRANSLATIONS.fr, {
   "play.button": "Jouer dans le navigateur",
@@ -2941,7 +2995,16 @@ Object.assign(window.TRANSLATIONS.fr, {
   "play.playing_empty": "Les jeux auxquels vous jouez dans le navigateur apparaissent ici.",
   "play.show_playable": "Afficher les jeux jouables",
   "play.remove": "Retirer de « En cours »",
-  "play.sort_played": "Joué récemment"
+  "play.sort_played": "Joué récemment",
+  "play.local_games": "Jeux locaux",
+  "play.local_sub": "Les jeux joués dans le navigateur sont gardés ici pour démarrer sans nouveau téléchargement. Supprimez ceux auxquels vous ne jouez plus pour libérer de l'espace ; leurs sauvegardes restent.",
+  "play.local_empty": "Aucun jeu n'est stocké dans ce navigateur.",
+  "play.local_delete": "Supprimer",
+  "play.local_delete_all": "Tout supprimer",
+  "play.local_confirm_all": "Supprimer tous les jeux stockés dans ce navigateur ? Leurs sauvegardes restent.",
+  "play.local_used": "Ce site utilise {used} du stockage de ce navigateur (jusqu'à {quota}).",
+  "play.local_deleted": "Supprimé de ce navigateur",
+  "play.local_size": "Taille"
 });
 Object.assign(window.TRANSLATIONS.de, {
   "play.button": "Im Browser spielen",
@@ -2974,7 +3037,16 @@ Object.assign(window.TRANSLATIONS.de, {
   "play.playing_empty": "Spiele, die du im Browser spielst, erscheinen hier.",
   "play.show_playable": "Spielbare Spiele zeigen",
   "play.remove": "Aus „Wird gespielt“ entfernen",
-  "play.sort_played": "Zuletzt gespielt"
+  "play.sort_played": "Zuletzt gespielt",
+  "play.local_games": "Lokale Spiele",
+  "play.local_sub": "Im Browser gespielte Spiele werden hier aufbewahrt und starten ohne erneuten Download. Löschen Sie die, die Sie nicht mehr spielen, um Platz zu schaffen; ihre Spielstände bleiben.",
+  "play.local_empty": "In diesem Browser sind keine Spiele gespeichert.",
+  "play.local_delete": "Löschen",
+  "play.local_delete_all": "Alle löschen",
+  "play.local_confirm_all": "Alle in diesem Browser gespeicherten Spiele löschen? Ihre Spielstände bleiben.",
+  "play.local_used": "Diese Seite belegt {used} des Browser-Speichers (bis zu {quota}).",
+  "play.local_deleted": "Aus diesem Browser gelöscht",
+  "play.local_size": "Größe"
 });
 
 // Get default language (always English unless manually overridden by user)

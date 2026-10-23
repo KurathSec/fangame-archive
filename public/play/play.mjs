@@ -300,6 +300,7 @@ async function ensureImported(db, game) {
   const kept = await loadGame(db, slug).catch(() => null);
   if (kept?.manifest?.source_key === key && kept.manifest.source_size === game.size) {
     status(t('step_cached'), { progress: null });
+    noteLocal(kept.files);
     return kept.manifest;
   }
   const bytes = await download(game.url, game.size);
@@ -319,7 +320,16 @@ async function ensureImported(db, game) {
   } catch (e) {
     throw Object.assign(new Error(t('err_storage', { error: e.message ?? e })), { shown: true });
   }
+  noteLocal(files);
   return manifest;
+}
+
+/** The archive's Local games list (src/play.jsx): this game's stored size, played now. */
+function noteLocal(files) {
+  const bytes = (files ?? []).reduce((n, f) => n + (f?.[1]?.byteLength ?? 0), 0);
+  const meta = store.get('fa.local', {});
+  meta[id] = { bytes, at: Date.now() };
+  store.set('fa.local', meta);
 }
 
 // ---- account saves ------------------------------------------------------------------------

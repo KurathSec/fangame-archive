@@ -1,5 +1,28 @@
 [
   {
+    "ver": "2026.019",
+    "date": "2026-10-23",
+    "note": "Local games, Play on collections, more playable games",
+    "changes": [
+      [
+        "Added",
+        "Library › Local games: the games you played in the browser are kept in this browser so they start without downloading again. See how much space each takes, and delete the ones you no longer play (their saves stay)."
+      ],
+      [
+        "Added",
+        "Collection pages (My Collections, Public Collections and shared collections) have a Play button beside each game that runs in the browser."
+      ],
+      [
+        "Fixed",
+        "Games made with GameMaker 8.2's extensions (gm82core, gm82net, gm82joy, gm82snd with FMOD) now start in the browser, and so do games that crashed before their first frame on Delphi's string routines."
+      ],
+      [
+        "Fixed",
+        "A game shipped as both a Direct3D 8 and a Direct3D 9 build starts its Direct3D 8 build in the browser, and the engine of an archive with several game exes is now recognized."
+      ]
+    ]
+  },
+  {
     "ver": "2026.018",
     "date": "2026-10-23",
     "note": "Playing moves to My Content",

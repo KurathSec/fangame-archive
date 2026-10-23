@@ -162,13 +162,17 @@ function BrandMark() {
 // ── Sidebar ─────────────────────────────────────────────────────────────────
 
 function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth, identity, onLogout }) {
+  // Library › Local games: the games the player keeps in this browser (src/play.jsx)
+  const localIds = window.useLocalGames ? window.useLocalGames() : null;
+  const localCount = localIds ? localIds.length : 0;
   const BASE_NAV = [
     { k: 'explorer',    label: window.t('browse_games'),      icon: ic.archive,  count: gameCount },
     { k: 'publib',      label: window.t('nav.public_collections'), icon: window.ic2.shield, count: null },
     { k: 'donation',    label: window.t('donation_support'), icon: ic.heart,    count: null },
     { k: 'links',       label: window.t('community_links'),   icon: ic.ext,      count: null },
     { k: 'updates',     label: "Update Log",                  icon: ic.log,      count: null },
-    { k: 'contact',     label: window.t('about_contact'),   icon: ic.mail,     count: null }
+    { k: 'contact',     label: window.t('about_contact'),   icon: ic.mail,     count: null },
+    { k: 'localgames',  label: window.t('play.local_games'), icon: ic.hdd,     count: localCount || null }
   ];
 
   // My Content › Playing: the games played in the browser (src/play.jsx)

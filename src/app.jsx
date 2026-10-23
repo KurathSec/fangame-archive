@@ -31,9 +31,12 @@ function App() {
       const q = new URLSearchParams(window.location.search);
       // A shared-collection link (?collection=<token>) opens the read-only page.
       if (q.get('collection')) return 'shared';
-      // A deep link (?game=<id>) opens inside the catalog — or on the Playing page when
-      // this tab was there (coming back from /play/, src/play.jsx).
-      if (q.get('game')) return sessionStorage.getItem('archive_view') === 'playing' ? 'playing' : 'explorer';
+      // A deep link (?game=<id>) opens inside the catalog — or on the Playing or Local
+      // games page when this tab was there (coming back from /play/, src/play.jsx).
+      if (q.get('game')) {
+        const back = sessionStorage.getItem('archive_view');
+        return back === 'playing' || back === 'localgames' ? back : 'explorer';
+      }
     } catch (e) {}
     // The shared page only exists with a ?collection token; restoring it from
     // the session without one (e.g. reopening the bare site in the same tab
@@ -294,7 +297,7 @@ function App() {
       setCollectionToken(null);
       try { const u = new URL(window.location.href); if (u.searchParams.has('collection')) { u.searchParams.delete('collection'); window.history.replaceState({}, '', u); } } catch (e) {}
     }
-    if (v !== 'explorer' && v !== 'collections' && v !== 'playing') { setActiveGame(null); syncGameUrl(null, { replace: true }); }
+    if (v !== 'explorer' && v !== 'collections' && v !== 'playing' && v !== 'localgames') { setActiveGame(null); syncGameUrl(null, { replace: true }); }
   };
 
   // "Show in Browse Games" on a public/shared collection: park the collection as
@@ -331,12 +334,13 @@ function App() {
         {view === 'links'       && <window.LinksView />}
         {view === 'updates'     && <window.UpdateLogView />}
         {view === 'contact'     && <window.ContactView />}
+        {view === 'localgames'  && <window.LocalGamesView onOpenGame={openGame} />}
         {view === 'submit'      && <window.SubmitGameView auth={auth} identity={identity} onOpenLogin={handleOpenLogin} />}
         {view === 'mycontent'   && <window.MyContentView auth={auth} identity={identity} onOpenLogin={handleOpenLogin} />}
         {view === 'collections' && <window.CollectionsView auth={auth} onOpenGame={openGame} onView={setView} onOpenLogin={handleOpenLogin} />}
         {view === 'publib'      && <window.PublicLibraryView auth={auth} onView={setView} onShowInBrowse={showCollectionInBrowse} />}
         {view === 'shared'      && <window.SharedCollectionView token={collectionToken} onOpenGame={openGame} onView={setView} onShowInBrowse={showCollectionInBrowse} />}
-        {activeGame && (view === 'explorer' || view === 'collections' || view === 'shared' || view === 'publib' || view === 'playing') && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} auth={auth} identity={identity} />}
+        {activeGame && (view === 'explorer' || view === 'collections' || view === 'shared' || view === 'publib' || view === 'playing' || view === 'localgames') && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} auth={auth} identity={identity} />}
       </main>
 
       <window.Toasts items={toasts} />

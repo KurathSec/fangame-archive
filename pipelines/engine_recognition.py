@@ -154,6 +154,12 @@ def save_state(state, path=STATE_PATH):
 ENVIRONMENT_ERRORS = {"missing_7z", "missing_upx"}
 
 
+# Recorded with each attempt. A failure with an error in RETRY_ON_UPGRADE from an older
+# recognizer is attempted once more by the sweep (v2: archives with several exes).
+RECOGNIZER_VERSION = 2
+RETRY_ON_UPGRADE = {"archive_exe_count"}
+
+
 def record_attempt(state, game_id, result, source):
     status = result.get("status", "failed")
     if status == "failed" and result.get("error") in ENVIRONMENT_ERRORS:
@@ -165,7 +171,13 @@ def record_attempt(state, game_id, result, source):
         "error": result.get("error", ""),
         "source": source,
         "ts": int(time.time()),
+        "v": RECOGNIZER_VERSION,
     }
+
+
+def retry_after_upgrade(entry):
+    """A recorded failure the current recognizer may get right."""
+    return entry.get("error") in RETRY_ON_UPGRADE and entry.get("v", 1) < RECOGNIZER_VERSION
 
 
 # ── Filesystem helpers ───────────────────────────────────────────────────────
@@ -1102,8 +1114,54 @@ def recognize_source_file(source, working_dir):
     prepared = prepare_game_exe(source, working_dir)
     exe_path = prepared.path
     error = prepared.error
+    if error == "archive_exe_count":
+        main_version, error = recognize_several_exes(working_dir)
+    else:
+        main_version, error = recognize_exe(exe_path, error)
 
-    if exe_path is not None:
+    if main_version in ("", "unknown") and error:
+        # No exe (or unusable exe): try GameMaker project / APK fallbacks.
+        if error == "no_exe":
+            project_version = detect_gamemaker_project([working_dir])
+            if project_version:
+                main_version = "project"
+                error = ""
+            elif detect_apk_file([working_dir]) is not None:
+                main_version = "Android"
+                error = ""
+
+    recognized = main_version not in ("", "unknown", "GMS")
+    engine = map_engine(main_version) if recognized else None
+
+    return {
+        "status": "success" if (recognized and engine and not error) else "failed",
+        "main_version": main_version if recognized else (main_version or ""),
+        "engine": engine if (recognized and not error) else None,
+        "error": error,
+    }
+
+
+def recognize_several_exes(working_dir):
+    """An archive with several exes (a game shipped as Direct3D 8 and 9 builds, with a
+    settings tool, ...): the engine its recognized exes agree on. Exes no detector knows
+    are left out; recognized exes of different engines fail as before."""
+    versions = set()
+    for exe in find_exes(working_dir):
+        if exe.name.lower().startswith("unins"):
+            continue
+        version, error = recognize_exe(exe, "")
+        if version not in ("", "unknown", "GMS") and not error:
+            versions.add(version)
+    engines = {map_engine(v) for v in versions}
+    if len(engines) == 1 and None not in engines:
+        # same engine, possibly different signatures (GMS1 and GMS2 map apart): any one
+        return sorted(versions)[0], ""
+    return "unknown", "archive_exe_count"
+
+
+def recognize_exe(exe_path, error):
+    """The engine signature of one exe: (main_version, error)."""
+    if exe_path is not None and not error:
         exe_path, error = unpack_upx_if_needed(exe_path)
 
     main_version = ""
@@ -1141,27 +1199,7 @@ def recognize_source_file(source, working_dir):
         generation, error = detect_gms_generation(exe_path)
         if generation:
             main_version = generation  # "GMS1" | "GMS2"
-
-    if main_version in ("", "unknown") and error:
-        # No exe (or unusable exe): try GameMaker project / APK fallbacks.
-        if error == "no_exe":
-            project_version = detect_gamemaker_project([working_dir])
-            if project_version:
-                main_version = "project"
-                error = ""
-            elif detect_apk_file([working_dir]) is not None:
-                main_version = "Android"
-                error = ""
-
-    recognized = main_version not in ("", "unknown", "GMS")
-    engine = map_engine(main_version) if recognized else None
-
-    return {
-        "status": "success" if (recognized and engine and not error) else "failed",
-        "main_version": main_version if recognized else (main_version or ""),
-        "engine": engine if (recognized and not error) else None,
-        "error": error,
-    }
+    return main_version, error
 
 
 def recognize_for_catalog(source, work_root, game_id, log=print):
@@ -1211,7 +1249,7 @@ def sweep_backlog(games, state, r2_client, work_root,
         # game still lacks `engine` means the games.json carrying the label
         # never reached R2 (partial upload) — re-attempt so it self-heals;
         # "deferred" entries (transient/tooling errors) are retried by design.
-        if entry and entry.get("status") == "failed":
+        if entry and entry.get("status") == "failed" and not retry_after_upgrade(entry):
             continue
         key = r2_key_from_download_url(game.get("download_url") or "")
         if not key:

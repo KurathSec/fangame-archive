@@ -271,7 +271,187 @@ function PlayingGrid({ games, playedAt, total, activeId, onOpenGame }) {
   );
 }
 
+/** A small Play button beside a game's name (collection cards); nothing when it cannot run. */
+function PlayButton({ game }) {
+  if (!playability(game).ok) return null;
+  return (
+    <a className="card-play" href={playUrl(game)} title={window.t('play.button')} aria-label={window.t('play.button')}
+       onClick={(ev) => { ev.stopPropagation(); handOff(game); }}>{playIcons.play}</a>
+  );
+}
+
+// ── Local games ─────────────────────────────────────────────────────────────
+// The games the player keeps in this browser: gm-recomp's IndexedDB `gmrecomp` (its
+// web/src/saves.mjs), store `games` keyed by slug (`fa-<id>` here), with the translation
+// profile under the same key in `profiles`. Sizes come from localStorage `fa.local`
+// ({id: {bytes, at}}), which the player writes when it stores a game: reading a game's
+// record for its size would load all of its files.
+
+function idbDone(req) {
+  return new Promise((resolve, reject) => { req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
+}
+
+function openPlayerDb() {
+  // no version: the player's (it creates the stores); a missing database has none
+  return new Promise((resolve, reject) => {
+    const r = indexedDB.open('gmrecomp');
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+/** The ids of the games stored in this browser. */
+async function listLocalGames() {
+  const db = await openPlayerDb();
+  try {
+    if (!db.objectStoreNames.contains('games')) return [];
+    const keys = await idbDone(db.transaction('games').objectStore('games').getAllKeys());
+    return keys.filter((k) => typeof k === 'string' && k.startsWith('fa-')).map((k) => Number(k.slice(3))).filter((n) => Number.isFinite(n));
+  } finally {
+    db.close();
+  }
+}
+
+/** Deletes games' files and translation profiles from this browser (their saves stay). */
+async function deleteLocalGames(ids) {
+  const db = await openPlayerDb();
+  try {
+    const stores = ['games', 'profiles'].filter((n) => db.objectStoreNames.contains(n));
+    if (stores.length) {
+      const tx = db.transaction(stores, 'readwrite');
+      for (const id of ids) for (const n of stores) tx.objectStore(n).delete('fa-' + id);
+      await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error); });
+    }
+  } finally {
+    db.close();
+  }
+  const meta = playStore.get('fa.local', {});
+  for (const id of ids) delete meta[id];
+  playStore.set('fa.local', meta);
+  window.dispatchEvent(new Event('fa-local-changed'));
+}
+
+/** The stored games' ids (null while reading), kept current as the player stores or this page deletes. */
+function useLocalGames() {
+  const [ids, setIds] = React.useState(null);
+  React.useEffect(() => {
+    let live = true;
+    const read = () => listLocalGames().then((v) => live && setIds(v)).catch(() => live && setIds([]));
+    read();
+    const onStorage = (ev) => { if (!ev.key || ev.key === 'fa.local') read(); };
+    window.addEventListener('fa-local-changed', read);
+    window.addEventListener('focus', read);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      live = false;
+      window.removeEventListener('fa-local-changed', read);
+      window.removeEventListener('focus', read);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+  return ids;
+}
+
+function formatBytes(n) {
+  if (!(n > 0)) return '—';
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i >= 2 ? n.toFixed(1) : Math.round(n)) + ' ' + u[i];
+}
+
+/** Library › Local games: the games stored in this browser, to delete one by one or all. */
+function LocalGamesView({ onOpenGame }) {
+  const ids = useLocalGames();
+  const [estimate, setEstimate] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  React.useEffect(() => {
+    if (navigator.storage && navigator.storage.estimate) navigator.storage.estimate().then(setEstimate).catch(() => {});
+  }, [ids && ids.length]);
+  const meta = playStore.get('fa.local', {});
+  const byId = React.useMemo(() => {
+    const m = new Map();
+    (window.DATA.GAMES || []).forEach((g) => m.set(g.id, g));
+    return m;
+  }, []);
+  const rows = (ids || [])
+    .map((id) => ({ id, game: byId.get(id), bytes: meta[id] && meta[id].bytes, at: meta[id] && meta[id].at }))
+    .sort((a, b) => (b.at || 0) - (a.at || 0));
+  const remove = async (list) => {
+    setBusy(true);
+    try {
+      await deleteLocalGames(list);
+      window.pushToast && window.pushToast(window.t('play.local_deleted'), '', 'success');
+    } catch (e) {
+      window.pushToast && window.pushToast(String(e && e.message || e), '', 'error');
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
+      <div className="topbar">
+        <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title={window.t('close_menu_title')}>{window.ic.menu}</button>
+        <span className="crumb"><b>{window.t('library')}</b><span>/</span>{window.t('play.local_games')}</span>
+      </div>
+      <div className="collview">
+        <div className="collview-inner">
+          <div className="coll-head">
+            <h1 className="coll-title">
+              <span className="coll-title-star">{window.ic.hdd}</span>
+              {window.t('play.local_games')}
+              {rows.length > 0 && <span className="coll-count tnum">{rows.length}</span>}
+            </h1>
+            <p className="coll-sub">{window.t('play.local_sub')}</p>
+            {estimate && estimate.usage > 0 && (
+              <p className="local-usage">{window.t('play.local_used', { used: formatBytes(estimate.usage), quota: formatBytes(estimate.quota) })}</p>
+            )}
+          </div>
+          {ids === null ? null : rows.length === 0 ? (
+            <div className="playing-empty">
+              <div className="playing-empty-icon">{window.ic.hdd}</div>
+              <div>{window.t('play.local_empty')}</div>
+            </div>
+          ) : (
+            <>
+              <div className="local-tools">
+                <button className="local-del-all" disabled={busy}
+                        onClick={() => { if (window.confirm(window.t('play.local_confirm_all'))) remove(rows.map((r) => r.id)); }}>
+                  {window.ic.x} {window.t('play.local_delete_all')}
+                </button>
+              </div>
+              <div className="local-list">
+                {rows.map(({ id, game, bytes, at }) => {
+                  const shot = game && (window.DATA.SCREENSHOTS[id] || [])[0];
+                  return (
+                    <div key={id} className="local-row">
+                      <button className="local-main" onClick={() => game && onOpenGame && onOpenGame(game)} disabled={!game}>
+                        {shot ? <img className="local-shot" src={getShotUrl(shot.image_path)} alt="" loading="lazy" /> : <span className="local-shot local-shot-empty">{window.ic.hdd}</span>}
+                        <span className="local-meta">
+                          <span className="local-title">{game ? game.title : '#' + id}</span>
+                          <span className="local-sub">{[game && game.creator, at && playedWhen(at)].filter(Boolean).join(' · ')}</span>
+                        </span>
+                      </button>
+                      <span className="local-size tnum" title={window.t('play.local_size')}>{formatBytes(bytes)}</span>
+                      {game && playability(game).ok && (
+                        <a className="playing-play" href={playUrl(game)} title={window.t('play.button')} onClick={() => handOff(game)}>{playIcons.play}</a>
+                      )}
+                      <button className="local-del" disabled={busy} title={window.t('play.local_delete')} onClick={() => remove([id])}>
+                        {window.ic.x} <span>{window.t('play.local_delete')}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // the sidebar's icon for My Content › Playing
 window.ic2 = Object.assign(window.ic2 || {}, { play: playIcons.play });
 
-Object.assign(window, { playability, PlayRow, PlayingGrid, usePlaying });
+Object.assign(window, { playability, PlayRow, PlayingGrid, usePlaying, PlayButton, LocalGamesView, useLocalGames });
