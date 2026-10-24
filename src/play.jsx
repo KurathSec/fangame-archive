@@ -8,7 +8,7 @@
 //    the games played here (localStorage `fa.playing`, written by the player) and, when
 //    signed in, those with saves in the account (/api/saves).
 
-// (GameMaker: Studio 2 takes no mods: gm-recomp's mods read no GMS2 bytecode yet)
+// (GameMaker: Studio 2 takes Save states only: gm-recomp's file mods read no GMS2 bytecode yet)
 const PLAY_ENGINES = { 'GameMaker 8': 'gm8', 'GameMaker: Studio': 'gms', 'GameMaker: Studio 2': 'gms2' };
 // The whole archive is unpacked in the browser's memory.
 const PLAY_MAX_BYTES = 512 * 1024 * 1024;
@@ -46,9 +46,12 @@ function handOff(game) {
 
 // ── Mods ────────────────────────────────────────────────────────────────────
 // gm-recomp's mods (crates/gmmod) that work without anything else to run; `engines`
-// limits a mod or an option to GameMaker 8 ('gm8') or GameMaker: Studio ('gms'). A
-// Studio game compiled with YYC takes only Debug mode: the player leaves the others out.
+// limits a mod or an option to GameMaker 8 ('gm8'), GameMaker: Studio ('gms') or Studio 2
+// ('gms2'). A Studio game compiled with YYC takes only Debug mode and Save states: the
+// player leaves the others out.
 const PLAY_MODS = [
+  // done by the player page, not in the game's files: every engine takes it
+  { id: 'SaveStates', engines: ['gm8', 'gms', 'gms2'], options: [] },
   { id: 'debug', engines: ['gms'], options: [{ key: 'noDeath', type: 'bool', def: false }] },
   { id: 'GodMode', engines: ['gm8', 'gms'], options: [] },
   { id: 'CrimsonKid', engines: ['gm8', 'gms'], options: [{ key: 'BowImageSpeed', type: 'number', def: 0.2, step: 0.05 }] },
@@ -146,7 +149,7 @@ function PlayRow({ game }) {
     );
   }
   const onCount = PLAY_MODS.filter((m) => m.engines.includes(p.kind) && choices[m.id] && choices[m.id].on).length;
-  // (none for GameMaker: Studio 2 yet)
+  // (GameMaker: Studio 2: Save states only)
   const hasMods = PLAY_MODS.some((m) => m.engines.includes(p.kind));
   return (
     <section className="drawer-sec play-sec">

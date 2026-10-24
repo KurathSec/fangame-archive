@@ -109,3 +109,35 @@ dialog p { margin: 0; color: var(--muted); }
 }
 .choose-opt span { color: var(--muted); font-size: 12px; }
 .choose-opt:hover { border-color: var(--accent); }
+
+/* save states (gm-recomp's statepanel.mjs, the Save states mod) */
+.st-panel {
+  position: absolute; top: 12px; right: 12px; z-index: 5; width: min(420px, calc(100% - 24px)); max-height: calc(100% - 24px);
+  display: flex; flex-direction: column; gap: 8px; padding: 12px; color: var(--text); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+.st-head { display: flex; align-items: center; justify-content: space-between; }
+.st-title { font-weight: 600; font-size: 15px; }
+.st-close { padding: 0 8px; font-size: 16px; line-height: 1.4; }
+.st-about { color: var(--muted); font-size: 12px; }
+.st-keys { display: flex; gap: 14px; flex-wrap: wrap; }
+.st-key { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+.st-key button { padding: 1px 8px; min-width: 44px; }
+.st-listen { border-color: var(--accent) !important; color: var(--accent-text) !important; }
+.st-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; min-height: 0; }
+.st-row { display: grid; grid-template-columns: 80px 1fr auto; gap: 10px; align-items: center; padding: 4px; border: 1px solid transparent; border-radius: var(--radius); cursor: pointer; }
+.st-row:hover { background: var(--panel-2); }
+.st-chosen { border-color: var(--accent); }
+.st-pic { width: 80px; height: 60px; background: #000; border-radius: 4px; overflow: hidden; display: grid; place-items: center; }
+.st-pic img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+.st-name { font-weight: 600; }
+.st-when { color: var(--muted); font-size: 12px; }
+.st-empty .st-name { color: var(--muted); font-weight: 400; }
+.st-empty .st-pic { background: transparent; border: 1px dashed var(--border-strong); }
+.st-btns { display: flex; gap: 4px; }
+.st-btns button { padding: 2px 8px; font-size: 12px; }
+.st-notice {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 6; padding: 5px 12px; border-radius: 6px;
+  background: rgba(20, 20, 24, 0.88); color: #e4e4e7; pointer-events: none;
+}
+.st-notice.st-error { color: #ff9b8f; }
