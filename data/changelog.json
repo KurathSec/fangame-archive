@@ -1,5 +1,20 @@
 [
   {
+    "ver": "2026.034",
+    "date": "2026-10-24",
+    "note": "More games start in the browser",
+    "changes": [
+      [
+        "Fixed",
+        "Games made with GameMaker 8.2's DirectX 9 extension, older games made with GameMaker 6 and 7, and games whose extensions use MFC now start."
+      ],
+      [
+        "Fixed",
+        "Games uploaded as zip files compressed with Deflate64 can be opened."
+      ]
+    ]
+  },
+  {
     "ver": "2026.033",
     "date": "2026-10-24",
     "note": "More games start in the browser",
