@@ -1,5 +1,28 @@
 [
   {
+    "ver": "2026.035",
+    "date": "2026-10-24",
+    "note": "GameMaker 8 games start again",
+    "changes": [
+      [
+        "Fixed",
+        "GameMaker 8 games stopped before their first screen since this morning's update; they start again."
+      ],
+      [
+        "Fixed",
+        "More games start: games that unpack their sound library and ask for a restart, games with .NET extensions, very large games, and games whose sound engine froze after a few hundred frames."
+      ],
+      [
+        "Fixed",
+        "The game information shown at the start, name and password boxes, and the high score table appear as dialogs instead of freezing the game."
+      ],
+      [
+        "Fixed",
+        "More damaged or unusual zip uploads can be opened."
+      ]
+    ]
+  },
+  {
     "ver": "2026.034",
     "date": "2026-10-24",
     "note": "More games start in the browser",
