@@ -242,7 +242,7 @@ Canonical DDL lives in `database/schema.sql` and is applied with
 **`game_saves`** — save files of games played in the browser (§5.8), kept in a signed-in player's account (migration `0008_game_saves.sql`).
 - `user_id` (`TEXT NOT NULL`), `game_id` (`INTEGER NOT NULL`): `PRIMARY KEY (user_id, game_id)` — one row per game per account.
 - `data` (`TEXT NOT NULL`): the player's exported saves, JSON `{format: "gmrecomp-saves", version, game, files: [{path, mtime, data: base64 | null}]}`; ≤ 1.5 MB (a D1 row stays under 2 MB).
-- `size` (`INTEGER NOT NULL`), `updated_at` (`INTEGER NOT NULL`, epoch ms; indexed with `user_id`). At most 2000 games per account.
+- `size` (`INTEGER NOT NULL`), `updated_at` (`INTEGER NOT NULL`, epoch ms; indexed with `user_id`). At most 30000 games per account.
 
 **`collections`** — user-created named collections (Collections v2). `user_favorites` stays the untouched "main" bucket; these sit on top. A node is a **folder** (holds sub-collections, no games) or a **list** (holds games, no children), determined dynamically; nesting depth is capped at 1.
 - `id` (`INTEGER PRIMARY KEY AUTOINCREMENT`): collection ID.
@@ -372,7 +372,7 @@ All handlers run on the Workers runtime as Pages Functions. Responses use the `j
 | `/api/clerk-js` | GET | none | Inert legacy proxy for clerk-js (no longer the primary load path; see §3.2). |
 | `/api/play/file/Game/<name>` | GET/HEAD | Clerk JWT, play access | The browser player's game download (§5.8): streams the R2 object `Game/<name>` from the `ARCHIVE_FILES` binding on this origin (the files host sends no CORS headers). Only keys under `Game/`; 403 unless the signed-in account has `play_access` (not banned). `Cache-Control: private`. |
 | `/api/saves` | GET | required | The caller's games with browser-play saves `{game_id, size, updated_at}`, newest first (the Playing panel, §5.8). |
-| `/api/saves/:gameId` | GET/PUT/DELETE | required | One game's saves in the caller's account: `{save: {data, updated_at} \| null}` · replace with the player's exported JSON (≤ 1.5 MB, 413 above; ≤ 2000 games) → `{updated_at}` · delete. No Turnstile or quota: private data, written as the game saves. |
+| `/api/saves/:gameId` | GET/PUT/DELETE | required | One game's saves in the caller's account: `{save: {data, updated_at} \| null}` · replace with the player's exported JSON (≤ 1.5 MB, 413 above; ≤ 30000 games) → `{updated_at}` · delete. No Turnstile or quota: private data, written as the game saves. |
 
 ### 4.1 Write pipeline (comments & submissions)
 

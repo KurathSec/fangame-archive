@@ -8,7 +8,7 @@ import { jsonResponse, errorResponse } from "../_lib/http.js";
 // D1 keeps a row under 2 MB; base64 makes the JSON a third larger than the files.
 const MAX_BYTES = 1500000;
 // games with saves per account
-const MAX_GAMES = 2000;
+const MAX_GAMES = 30000;
 const NO_STORE = { "Cache-Control": "no-store" };
 
 function gameId(context) {
