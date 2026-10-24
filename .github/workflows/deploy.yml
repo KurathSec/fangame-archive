@@ -34,6 +34,11 @@ jobs:
   sync-and-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # Delicious Fruit is moving to a new site (2026-10-24): every old page now
+    # answers 200 with a placeholder. Until the scraper is ported, the scraper and
+    # the screenshot sync send DF no requests at all. Set to 'on' to resume.
+    env:
+      DF_SYNC: 'off'
 
     steps:
       - name: Checkout Repository

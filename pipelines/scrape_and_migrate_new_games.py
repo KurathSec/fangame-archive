@@ -103,6 +103,11 @@ def normalize_str(s):
 
 # ── 🌐 DELICIOUS FRUIT SCRAPER ────────────────────────────────────────────────
 DF_LIST_ATTEMPTS = 3
+# DF_SYNC=off (set in deploy.yml) sends no request to delicious-fruit.com: no
+# review feed, game list, details/review pages, release-date queries or ghost
+# sweep. The rest of the run carries on. Off since 2026-10-24, while DF moves
+# to a new site whose old pages all answer 200 with a placeholder page.
+DF_SYNC = os.environ.get("DF_SYNC", "on").strip().lower() != "off"
 
 
 def df_entry_gone(df_id):
@@ -889,8 +894,12 @@ def main():
         log(f"[WARNING] Engine recognition unavailable: {e}")
     
     # 2C. Scrape latest reviews and merge them
-    log("Scraping latest 120 reviews from Delicious Fruit reviews feed...")
-    latest_reviews = scrape_latest_reviews(limit=120)
+    if DF_SYNC:
+        log("Scraping latest 120 reviews from Delicious Fruit reviews feed...")
+        latest_reviews = scrape_latest_reviews(limit=120)
+    else:
+        log("DF_SYNC=off: no Delicious Fruit requests this run (reviews, list, release dates, ghost sweep).")
+        latest_reviews = []
     
     scraped_reviews = []
     if os.path.exists(REVIEWS_JSON):
@@ -1091,7 +1100,7 @@ def main():
             title_to_seq_ids[t_norm].append(seq_id)
             
     # 3. Scrape the full list from Delicious Fruit
-    scraped_games = scrape_full_list()
+    scraped_games = scrape_full_list() if DF_SYNC else []
     if scraped_games is None:
         log("[WARNING] Scraped games list is empty or unreachable. Skipping Delicious Fruit ingestion.")
         scraped_games = []
@@ -1784,7 +1793,7 @@ def main():
             rd_orig = str(rd_val[0]) if isinstance(rd_val, list) and rd_val else ""
             if rd_orig.isdigit():
                 rd_targets[rd_orig] = rd_seq
-        if rd_targets:
+        if rd_targets and DF_SYNC:
             rd_today = datetime.date.today()
             rd_window = fetch_df_ids_in_window(rd_today - datetime.timedelta(days=90), rd_today)
             if rd_window is None:

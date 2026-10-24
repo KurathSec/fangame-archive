@@ -26,20 +26,27 @@ BUCKET_NAME = "fangame-screenshots"
 
 INDEX_URL = "https://delicious-fruit.com/ratings/screenshots/"
 LOCAL_DIR = "ratings/screenshots"
+# PNG, JPEG, GIF, BMP, WebP (RIFF....WEBP is checked below).
+IMAGE_MAGIC = (b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"BM", b"RIFF")
 
 def download_and_upload_single(filename, r2_client, headers):
     url = INDEX_URL + filename
     local_path = os.path.join(LOCAL_DIR, filename)
     r2_key = f"ratings/screenshots/{filename}"
-    
+
     # 1. Download screenshot file
     try:
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as response:
-            with open(local_path, "wb") as f:
-                f.write(response.read())
+            data = response.read()
     except Exception as e:
         return filename, False, f"Download failed: {e}"
+    # DF's new site answers 200 with an HTML placeholder for every old URL;
+    # uploading that would hide the screenshot as "present" in R2 for good.
+    if not data.startswith(IMAGE_MAGIC) or (data.startswith(b"RIFF") and data[8:12] != b"WEBP"):
+        return filename, False, "Download failed: response is not an image"
+    with open(local_path, "wb") as f:
+        f.write(data)
         
     # 2. Upload to Cloudflare R2
     try:
@@ -60,6 +67,11 @@ def download_and_upload_single(filename, r2_client, headers):
         return filename, False, f"R2 upload failed: {e}"
 
 def main():
+    # Same switch as the scraper (deploy.yml): no Delicious Fruit requests at all.
+    if os.environ.get("DF_SYNC", "on").strip().lower() == "off":
+        print("DF_SYNC=off: skipping the screenshot sync (it downloads from Delicious Fruit).")
+        return
+
     print("==============================================")
     print("    STARTING INCREMENTAL SCREENSHOT SYNC")
     print("==============================================")
