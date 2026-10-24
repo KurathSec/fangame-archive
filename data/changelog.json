@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.036",
+    "date": "2026-10-24",
+    "note": "Save states in the browser player",
+    "changes": [
+      [
+        "Added",
+        "Save states mod for browser play (every engine): F7 saves the whole game at that moment, F8 goes back to it exactly. Up to 10 per game, kept in this browser only; the States button on the player lists them, and the keys can be changed there."
+      ]
+    ]
+  },
+  {
     "ver": "2026.035",
     "date": "2026-10-24",
     "note": "GameMaker 8 games start again",
