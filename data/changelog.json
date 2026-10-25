@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.041",
+    "date": "2026-10-25",
+    "note": "Clearer loading errors",
+    "changes": [
+      [
+        "Changed",
+        "When the game list fails to load, the loading screen says which file failed and why (a dropped connection, the server's answer, or a file cut short) and offers a Retry button."
+      ]
+    ]
+  },
+  {
     "ver": "2026.040",
     "date": "2026-10-25",
     "note": "Faster save states in big games",

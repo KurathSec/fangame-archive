@@ -433,19 +433,37 @@ function DatabaseLoader({ error, statusText, loadedBytes, totalBytes }) {
         
         {error ? (
           <div style={{ color: '#ef4444', fontSize: '13px', lineHeight: '1.5' }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>Error: {error}</div>
-            <div style={{
-              color: '#a1a1aa',
-              fontSize: '11.5px',
-              textAlign: 'left',
-              background: 'rgba(0,0,0,0.25)',
-              padding: '12px',
-              borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.06)'
-            }}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" style={{ width: 14, height: 14, display: 'inline-block', verticalAlign: 'text-bottom', marginRight: 6, color: 'oklch(0.75 0.14 109)' }}><path d="M5.5 11.5h5M6.5 13h3M8 2.5a4.5 4.5 0 0 1 4.5 4.5c0 1.6-.8 3-2.1 3.8-.4.3-.4.8-.4 1.2H6c0-.4 0-.9-.4-1.2A4.5 4.5 0 0 1 8 2.5z"/></svg> <b>Tip:</b> If opening this file directly via <code>file:///</code>, browser CORS blocks database files. 
-              Please run the server with <code>py dev_server.py</code> and open <a href="http://localhost:8000/" style={{ color: 'oklch(0.72 0.15 152)', textDecoration: 'underline' }}>http://localhost:8000/</a> in your browser.
-            </div>
+            <div style={{ fontWeight: 'bold', marginBottom: '12px' }}>{error}</div>
+            <div style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '16px' }}>{window.t('load_err_hint')}</div>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{
+                padding: '8px 22px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#fafaf9',
+                background: 'oklch(0.56 0.13 152)',
+                border: '1px solid oklch(0.72 0.15 152)',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >{window.t('load_retry')}</button>
+            {window.location.protocol === 'file:' && (
+              <div style={{
+                color: '#a1a1aa',
+                fontSize: '11.5px',
+                textAlign: 'left',
+                background: 'rgba(0,0,0,0.25)',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.06)',
+                marginTop: '16px'
+              }}>
+                <b>Tip:</b> If opening this file directly via <code>file:///</code>, browser CORS blocks database files.
+                Please run the server with <code>py dev_server.py</code> and open <a href="http://localhost:8000/" style={{ color: 'oklch(0.72 0.15 152)', textDecoration: 'underline' }}>http://localhost:8000/</a> in your browser.
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -765,17 +783,29 @@ function RootApp() {
           
           const cacheBuster = window.DATABASE_VERSION ? `?v=${window.DATABASE_VERSION}` : '';
           
+          // A failure names the file and how it failed: the connection, the server's
+          // answer, or a file cut short.
           const fetchAndParse = async (url, label) => {
-            const res = await fetch(url + cacheBuster);
-            if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${label}`);
-            return res.json();
+            const file = window.t(label);
+            let res;
+            try {
+              res = await fetch(url + cacheBuster);
+            } catch (e) {
+              throw new Error(window.t('load_err_network', { file, error: e.message }));
+            }
+            if (!res.ok) throw new Error(window.t('load_err_http', { file, status: res.status }));
+            try {
+              return await res.json();
+            } catch (e) {
+              throw new Error(window.t('load_err_body', { file, error: e.message }));
+            }
           };
 
           const [part1, part2, part3, profiles] = await Promise.all([
-            fetchAndParse(parts[0], 'part 1'),
-            fetchAndParse(parts[1], 'part 2'),
-            fetchAndParse(parts[2], 'part 3'),
-            fetchAndParse(profilesUrl, 'profiles')
+            fetchAndParse(parts[0], 'load_file_part1'),
+            fetchAndParse(parts[1], 'load_file_part2'),
+            fetchAndParse(parts[2], 'load_file_part3'),
+            fetchAndParse(profilesUrl, 'load_file_profiles')
           ]);
 
           setStatusText(window.t('merging_db'));
