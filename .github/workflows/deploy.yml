@@ -107,6 +107,12 @@ jobs:
       - name: Backfill Release Dates (idempotent)
         run: python pipelines/backfill_release_dates.py --apply --ci
 
+      # Stamps auto-captured cover screenshots from data/cover_screenshots.json
+      # onto games that have none (the images are already in R2, uploaded from
+      # the capture machine). No-ops with zero assignments; needs no secrets.
+      - name: Backfill Cover Screenshots (idempotent)
+        run: python pipelines/backfill_cover_screenshots.py --apply --ci
+
       # Stamps `source` ({type: df|wiki, id}) from database/seq_to_orig_map.json
       # onto games missing it, so the drawer and the public API can link back to
       # the upstream entry. The scraper stamps new games inline, so after the

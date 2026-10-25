@@ -88,15 +88,9 @@ pipelines/archive/
 # ==========================================
 # 8. Work in Progress (local-only, not shipped)
 # ==========================================
-# Cover-screenshot capture. capture_cover_screenshots.py drives Wine/Xvfb/bwrap
-# on the capture machine and cannot run in CI; backfill_cover_screenshots.py is
-# its CI half, and cover_screenshots_ci_step.yml.local holds the deploy.yml step
-# that would invoke it. Un-ignore all four together when the feature ships —
-# committing the workflow step alone breaks the deploy job.
-pipelines/capture_cover_screenshots.py
-pipelines/backfill_cover_screenshots.py
+# The old holding pen of the cover-screenshot deploy step (the step is in
+# deploy.yml since covers shipped, 2026-10-25).
 pipelines/cover_screenshots_ci_step.yml.local
-data/cover_screenshots.json
 
 # The browser player bundle (gm-recomp web/tools/bundle.sh), copied in by the build
 /public/play/gmr
