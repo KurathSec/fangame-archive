@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.042",
+    "date": "2026-10-25",
+    "note": "My Collections after a page load",
+    "changes": [
+      [
+        "Fixed",
+        "My Collections showed only one game (and your collections failed to load) when the page opened straight onto it, for example coming back from browser play or reloading there; it now waits for sign-in to finish and shows everything."
+      ]
+    ]
+  },
+  {
     "ver": "2026.041",
     "date": "2026-10-25",
     "note": "Clearer loading errors",
