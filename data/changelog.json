@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.038",
+    "date": "2026-10-25",
+    "note": "GameMaker 8.2 games with FMOD run smoothly",
+    "changes": [
+      [
+        "Fixed",
+        "GameMaker 8.2 games that play sound through FMOD (for example 100 Floor Medley) no longer freeze for half a second every few seconds, and their music and sound effects play instead of staying silent."
+      ]
+    ]
+  },
+  {
     "ver": "2026.037",
     "date": "2026-10-25",
     "note": "More games start in the browser player",
