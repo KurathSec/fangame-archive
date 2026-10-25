@@ -1,5 +1,20 @@
 [
   {
+    "ver": "2026.037",
+    "date": "2026-10-25",
+    "note": "More games start in the browser player",
+    "changes": [
+      [
+        "Fixed",
+        "More games start: games that ship their own system DLLs or Direct3D wrappers (dgVoodoo, ReShade), self-decrypting protected GameMaker 6/7 games, games packed as a zip inside a zip, and Studio games that crashed when a save file was missing."
+      ],
+      [
+        "Fixed",
+        "Sound effects stored as ADPCM WAV files play instead of staying silent."
+      ]
+    ]
+  },
+  {
     "ver": "2026.036",
     "date": "2026-10-24",
     "note": "Save states in the browser player",
