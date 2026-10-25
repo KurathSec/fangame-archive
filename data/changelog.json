@@ -1,5 +1,20 @@
 [
   {
+    "ver": "2026.039",
+    "date": "2026-10-25",
+    "note": "Fast GameMaker Studio 2 games run at full speed",
+    "changes": [
+      [
+        "Fixed",
+        "GameMaker Studio 2 games made for 120 fps (OVERREV, the true 30 diff games and others) no longer drop to half speed after a room change."
+      ],
+      [
+        "Fixed",
+        "In Chrome, games faster than the screen's refresh rate (75 or 120 fps on a 60 Hz screen) run at their full speed instead of the screen's."
+      ]
+    ]
+  },
+  {
     "ver": "2026.038",
     "date": "2026-10-25",
     "note": "GameMaker 8.2 games with FMOD run smoothly",
