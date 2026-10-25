@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.040",
+    "date": "2026-10-25",
+    "note": "Faster save states in big games",
+    "changes": [
+      [
+        "Changed",
+        "Save states in big games: going back to the state you just saved or loaded takes about a fifth of a second instead of one to three seconds, saves after the first are quicker, and loading a state of a very large game after reopening it no longer fails."
+      ]
+    ]
+  },
+  {
     "ver": "2026.039",
     "date": "2026-10-25",
     "note": "Fast GameMaker Studio 2 games run at full speed",
