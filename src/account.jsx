@@ -64,8 +64,10 @@ function consumeQuota(key, max) {
 // Clerk bearer headers for the API calls below.
 async function apiAuthHeaders() {
   const headers = {};
-  if (typeof Clerk !== 'undefined' && Clerk.session) {
-    const token = await Clerk.session.getToken();
+  // (Clerk may still be loading right after a page load: src/collections.jsx clerkReady)
+  const clerk = window.clerkReady ? await window.clerkReady() : (typeof Clerk !== 'undefined' ? Clerk : null);
+  if (clerk && clerk.session) {
+    const token = await clerk.session.getToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
   }
   return headers;
@@ -576,13 +578,7 @@ function MyContentView({ auth, identity, onOpenLogin }) {
   const load = React.useCallback(async () => {
     setPhase('loading');
     try {
-      let headers = {};
-      if (typeof Clerk !== 'undefined' && Clerk.session) {
-        const token = await Clerk.session.getToken();
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-      }
+      const headers = await apiAuthHeaders();
 
       const [subsRes, cmtsRes] = await Promise.all([
         fetch('/api/me/submissions', { headers }),

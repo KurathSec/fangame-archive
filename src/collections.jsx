@@ -47,13 +47,33 @@ function favMockWrite(ids) {
   window.dispatchEvent(new CustomEvent('favorites:changed', { detail: ids.slice() }));
 }
 
+// Clerk once it has loaded, or null if it does not within `ms` (blocked, or a local copy
+// without it). The page loads Clerk in the background while the signed-in state comes
+// from a cache, so a request made right after a page load (coming back from /play/ to My
+// Collections) went out without the account's token: favorites then came from this
+// browser's stale copy, collections failed.
+function clerkReady(ms = 15000) {
+  if (typeof Clerk !== 'undefined' && Clerk.loaded) return Promise.resolve(Clerk);
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    const tick = () => {
+      if (typeof Clerk !== 'undefined' && Clerk.loaded) resolve(Clerk);
+      else if (Date.now() - t0 > ms) resolve(null);
+      else setTimeout(tick, 100);
+    };
+    tick();
+  });
+}
+window.clerkReady = clerkReady;
+
 const FavoritesAPI = {
   base() { return window.FAVORITES_API_BASE || ''; },
 
   async getHeaders() {
     const headers = {};
-    if (typeof Clerk !== 'undefined' && Clerk.session) {
-      const token = await Clerk.session.getToken();
+    const clerk = await clerkReady();
+    if (clerk && clerk.session) {
+      const token = await clerk.session.getToken();
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
@@ -69,7 +89,10 @@ const FavoritesAPI = {
       const res = await fetch((base || '') + '/api/favorites', { headers });
       if (!res.ok) throw new Error('GET /api/favorites -> ' + res.status);
       const data = await res.json();
-      return Array.isArray(data) ? data : (data.ids || []);
+      const ids = Array.isArray(data) ? data : (data.ids || []);
+      // (the copy add/remove start from, so the lists they broadcast are the account's)
+      try { localStorage.setItem(FAV_STORE_KEY, JSON.stringify(ids)); } catch (e) {}
+      return ids;
     }
     await favWait(FAV_NET_DELAY);
     return favMockRead();
@@ -367,8 +390,9 @@ const CollectionsAPI = {
   async getHeaders(json) {
     const headers = {};
     if (json) headers['Content-Type'] = 'application/json';
-    if (typeof Clerk !== 'undefined' && Clerk.session) {
-      const token = await Clerk.session.getToken();
+    const clerk = await clerkReady();
+    if (clerk && clerk.session) {
+      const token = await clerk.session.getToken();
       if (token) headers['Authorization'] = `Bearer ${token}`;
     }
     return headers;
