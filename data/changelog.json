@@ -1,5 +1,24 @@
 [
   {
+    "ver": "2026.043",
+    "date": "2026-10-27",
+    "note": "Instant save-state loads",
+    "changes": [
+      [
+        "Added",
+        "Save states: an \"instant load\" option. A second copy of the game waits at the state you last saved or loaded, so loading it switches over at once (it takes about twice the memory)."
+      ],
+      [
+        "Changed",
+        "Save states of big games no longer stutter: after a load the game's textures stay on the graphics card, and saving no longer stalls the game a few seconds later."
+      ],
+      [
+        "Changed",
+        "GameMaker 8 games handle text faster (startup and string-heavy games about 20% faster)."
+      ]
+    ]
+  },
+  {
     "ver": "2026.042",
     "date": "2026-10-25",
     "note": "My Collections after a page load",
