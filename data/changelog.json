@@ -1,5 +1,28 @@
 [
   {
+    "ver": "2026.044",
+    "date": "2026-10-27",
+    "note": "Default mods, faster save states",
+    "changes": [
+      [
+        "Added",
+        "Settings (in My Content): choose the mods that are on by default. A game whose mods you have not changed uses them."
+      ],
+      [
+        "Changed",
+        "Save states in big games save about twice as fast the first time and every time in instant-load mode, and loading no longer rebuilds the game's shaders."
+      ],
+      [
+        "Changed",
+        "A game you play again translates the code it needs ahead of time, as on its first start (fewer hitches)."
+      ],
+      [
+        "Fixed",
+        "Instant load: a key held while loading no longer keeps the character moving."
+      ]
+    ]
+  },
+  {
     "ver": "2026.043",
     "date": "2026-10-27",
     "note": "Instant save-state loads",
