@@ -183,8 +183,9 @@ function Sidebar({ view, onView, tweaks, setTweak, gameCount, storageSize, auth,
     { k: 'collections', label: window.t('nav.collections'),   icon: ic.star,           count: null },
     { k: 'playing',     label: window.t('play.playing'),      icon: window.ic2.play,   count: playingCount || null },
     { k: 'submit',      label: window.t('submit_game'),       icon: window.ic2.upload, count: null },
-    { k: 'mycontent',   label: window.t('my_content'),        icon: window.ic2.inbox,  count: null }
-  ].filter((n) => window.PLAY_ACCESS || n.k !== 'playing');
+    { k: 'mycontent',   label: window.t('my_content'),        icon: window.ic2.inbox,  count: null },
+    { k: 'settings',    label: window.t('nav.settings'),      icon: window.ic2.gear,   count: null }
+  ].filter((n) => window.PLAY_ACCESS || (n.k !== 'playing' && n.k !== 'settings'));
 
   return (
     <aside className="sb">

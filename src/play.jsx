@@ -69,55 +69,75 @@ const PLAY_MODS = [
 
 const modKey = (id) => 'gmr.mods.fa-' + id;
 
+// The mods on by default (My Content › Settings, SettingsView): a game whose own choices
+// were never set (its Mods button) starts from these. Kept in this browser; the play page
+// (public/play/play.mjs) reads the same key.
+const DEFAULT_MODS_KEY = 'fa.mods.defaults';
+const defaultMods = () => playStore.get(DEFAULT_MODS_KEY, {});
+/** A game's mod choices: its own, or the defaults while it has none. */
+const gameChoices = (id) => playStore.get(modKey(id), null) || defaultMods();
+
+const ENGINE_NAMES = { gm8: 'GameMaker 8', gms: 'GameMaker: Studio', gms2: 'GameMaker Studio 2' };
+
+/**
+ * Mods to turn on and set: those an engine `kind` takes (a game's), or all of them with
+ * the engines each works with (`kind` null: the defaults). `onChange` gets the new choices.
+ */
+function ModList({ kind, choices, onChange }) {
+  const mods = kind ? PLAY_MODS.filter((m) => m.engines.includes(kind)) : PLAY_MODS;
+  const toggle = (m) => {
+    const cur = choices[m.id] || {};
+    onChange({ ...choices, [m.id]: { ...cur, on: !cur.on } });
+  };
+  const setOption = (m, o, value) => {
+    const cur = choices[m.id] || {};
+    onChange({ ...choices, [m.id]: { ...cur, config: { ...(cur.config || {}), [o.key]: value } } });
+  };
+  return mods.map((m) => {
+    const c = choices[m.id] || {};
+    const opts = m.options.filter((o) => !kind || !o.engines || o.engines.includes(kind));
+    return (
+      <div key={m.id} className={'play-mod' + (c.on ? ' on' : '')}>
+        <label className="play-mod-head">
+          <input type="checkbox" checked={!!c.on} onChange={() => toggle(m)} />
+          <span className="play-mod-name">{window.t('play.mod.' + m.id)}</span>
+          {!kind && <span className="play-mod-engines">{m.engines.map((e) => ENGINE_NAMES[e]).join(' · ')}</span>}
+        </label>
+        <div className="play-mod-about">{window.t('play.mod.' + m.id + '.about')}</div>
+        {c.on && opts.length > 0 && (
+          <div className="play-mod-opts">
+            {opts.map((o) => {
+              const v = c.config && c.config[o.key] !== undefined ? c.config[o.key] : o.def;
+              return o.type === 'bool' ? (
+                <label key={o.key} className="play-opt">
+                  <input type="checkbox" checked={!!v} onChange={(e) => setOption(m, o, e.target.checked)} />
+                  <span>{window.t('play.opt.' + o.key)}</span>
+                </label>
+              ) : (
+                <label key={o.key} className="play-opt">
+                  <span>{window.t('play.opt.' + o.key)}</span>
+                  <input type="number" step={o.step} value={v}
+                         onChange={(e) => setOption(m, o, e.target.value === '' ? o.def : Number(e.target.value))} />
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  });
+}
+
 function PlayMods({ game, kind, choices, setChoices }) {
-  const mods = PLAY_MODS.filter((m) => m.engines.includes(kind));
+  // (a change makes them this game's own choices, the defaults no longer apply to it)
   const update = (next) => {
     setChoices(next);
     playStore.set(modKey(game.id), next);
   };
-  const toggle = (m) => {
-    const cur = choices[m.id] || {};
-    update({ ...choices, [m.id]: { ...cur, on: !cur.on } });
-  };
-  const setOption = (m, o, value) => {
-    const cur = choices[m.id] || {};
-    update({ ...choices, [m.id]: { ...cur, config: { ...(cur.config || {}), [o.key]: value } } });
-  };
   return (
     <div className="play-mods">
       <div className="play-mods-about">{window.t('play.mods_about')}</div>
-      {mods.map((m) => {
-        const c = choices[m.id] || {};
-        const opts = m.options.filter((o) => !o.engines || o.engines.includes(kind));
-        return (
-          <div key={m.id} className={'play-mod' + (c.on ? ' on' : '')}>
-            <label className="play-mod-head">
-              <input type="checkbox" checked={!!c.on} onChange={() => toggle(m)} />
-              <span className="play-mod-name">{window.t('play.mod.' + m.id)}</span>
-            </label>
-            <div className="play-mod-about">{window.t('play.mod.' + m.id + '.about')}</div>
-            {c.on && opts.length > 0 && (
-              <div className="play-mod-opts">
-                {opts.map((o) => {
-                  const v = c.config && c.config[o.key] !== undefined ? c.config[o.key] : o.def;
-                  return o.type === 'bool' ? (
-                    <label key={o.key} className="play-opt">
-                      <input type="checkbox" checked={!!v} onChange={(e) => setOption(m, o, e.target.checked)} />
-                      <span>{window.t('play.opt.' + o.key)}</span>
-                    </label>
-                  ) : (
-                    <label key={o.key} className="play-opt">
-                      <span>{window.t('play.opt.' + o.key)}</span>
-                      <input type="number" step={o.step} value={v}
-                             onChange={(e) => setOption(m, o, e.target.value === '' ? o.def : Number(e.target.value))} />
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      <ModList kind={kind} choices={choices} onChange={update} />
     </div>
   );
 }
@@ -131,9 +151,9 @@ const playIcons = {
 function PlayRow({ game }) {
   const p = playability(game);
   const [open, setOpen] = React.useState(false);
-  const [choices, setChoices] = React.useState(() => playStore.get(modKey(game.id), {}));
+  const [choices, setChoices] = React.useState(() => gameChoices(game.id));
   React.useEffect(() => {
-    setChoices(playStore.get(modKey(game.id), {}));
+    setChoices(gameChoices(game.id));
     setOpen(false);
   }, [game.id]);
 
@@ -373,6 +393,42 @@ function formatBytes(n) {
   return (i >= 2 ? n.toFixed(1) : Math.round(n)) + ' ' + u[i];
 }
 
+// ── Settings ────────────────────────────────────────────────────────────────
+// My Content › Settings (players with browser play): the mods on by default, for every
+// game whose own choices were never set.
+function SettingsView() {
+  const [choices, setChoices] = React.useState(defaultMods);
+  const update = (next) => {
+    setChoices(next);
+    playStore.set(DEFAULT_MODS_KEY, next);
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
+      <div className="topbar">
+        <button className="iconbtn mobile-menu-btn" onClick={() => window.toggleSidebar && window.toggleSidebar()} title={window.t('close_menu_title')}>{window.ic.menu}</button>
+        <span className="crumb"><b>{window.t('my_content')}</b><span>/</span>{window.t('nav.settings')}</span>
+      </div>
+      <div className="collview">
+        <div className="collview-inner">
+          <div className="coll-head">
+            <h1 className="coll-title">
+              <span className="coll-title-star">{window.ic2.gear}</span>
+              {window.t('nav.settings')}
+            </h1>
+          </div>
+          <section className="settings-sec">
+            <h2 className="settings-title">{window.t('settings.mods_title')}</h2>
+            <p className="coll-sub">{window.t('settings.mods_about')}</p>
+            <div className="play-mods settings-mods">
+              <ModList kind={null} choices={choices} onChange={update} />
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Library › Local games: the games stored in this browser, to delete one by one or all. */
 function LocalGamesView({ onOpenGame }) {
   const ids = useLocalGames();
@@ -467,4 +523,4 @@ function LocalGamesView({ onOpenGame }) {
 // the sidebar's icon for My Content › Playing
 window.ic2 = Object.assign(window.ic2 || {}, { play: playIcons.play });
 
-Object.assign(window, { playability, PlayRow, PlayingGrid, usePlaying, PlayButton, LocalGamesView, useLocalGames });
+Object.assign(window, { playability, PlayRow, PlayingGrid, usePlaying, PlayButton, LocalGamesView, useLocalGames, SettingsView });

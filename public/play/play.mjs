@@ -582,7 +582,9 @@ function start(game) {
   let started = false;
   // the Save states mod (chosen in the game's drawer): states kept in this browser, a panel
   // over the game (gm-recomp's statepanel.mjs)
-  const modChoices = loadChoices(slug);
+  // (a game whose own mod choices were never set starts from the defaults, the archive's
+  // My Content › Settings: src/play.jsx DEFAULT_MODS_KEY)
+  const modChoices = localStorage.getItem(`gmr.mods.${slug}`) === null ? store.get('fa.mods.defaults', {}) : loadChoices(slug);
   const saveStates = !!modChoices.SaveStates?.on;
   // (the Save states mod's instant load: a second copy of the game waits at the state)
   const instantLoad = saveStates && !!modChoices.SaveStates?.config?.instantLoad;
