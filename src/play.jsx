@@ -51,7 +51,7 @@ function handOff(game) {
 // player leaves the others out.
 const PLAY_MODS = [
   // done by the player page, not in the game's files: every engine takes it
-  { id: 'SaveStates', engines: ['gm8', 'gms', 'gms2'], options: [] },
+  { id: 'SaveStates', engines: ['gm8', 'gms', 'gms2'], options: [{ key: 'instantLoad', type: 'bool', def: false }] },
   { id: 'debug', engines: ['gms'], options: [{ key: 'noDeath', type: 'bool', def: false }] },
   { id: 'GodMode', engines: ['gm8', 'gms'], options: [] },
   { id: 'CrimsonKid', engines: ['gm8', 'gms'], options: [{ key: 'BowImageSpeed', type: 'number', def: 0.2, step: 0.05 }] },

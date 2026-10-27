@@ -584,6 +584,8 @@ function start(game) {
   // over the game (gm-recomp's statepanel.mjs)
   const modChoices = loadChoices(slug);
   const saveStates = !!modChoices.SaveStates?.on;
+  // (the Save states mod's instant load: a second copy of the game waits at the state)
+  const instantLoad = saveStates && !!modChoices.SaveStates?.config?.instantLoad;
   let statesUi = null;
   const player = playGame({
     game: slug,
@@ -591,6 +593,7 @@ function start(game) {
     canvas: screen,
     modChoices,
     saveStates,
+    instantLoad,
     onStateStored: (n, error) => statesUi?.stored(n, error),
     keymap: loadKeymap(slug).map,
     // F4 is the browser's full screen: a game's own switch only resizes its window here
