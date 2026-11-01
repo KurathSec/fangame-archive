@@ -228,9 +228,15 @@ function back() {
   if (same && history.length > 1) history.back();
   else location.href = `/?game=${id}`;
 }
+// The running game's saves, stored before leaving (a save made just before would otherwise
+// be lost: the player hands them over every half second)
+let flushGame = () => Promise.resolve();
 $('back').addEventListener('click', (e) => {
   e.preventDefault();
-  sync.flush().finally(back);
+  flushGame()
+    .catch(() => {})
+    .then(() => sync.flush())
+    .finally(back);
 });
 
 // ---- status panel -------------------------------------------------------------------------
@@ -623,6 +629,8 @@ function start(game) {
       }
     },
   });
+  // (an older player bundle has no flushSaves)
+  flushGame = () => player.flushSaves?.() ?? Promise.resolve();
   $('keys').disabled = false;
   $('keys').onclick = async () => {
     const labels = {
