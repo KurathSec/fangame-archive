@@ -40,7 +40,7 @@ const TEXT = {
     km_title: 'Keys', km_about: 'Keys you press here reach the game as other keys. The game itself is not changed.', km_game: 'Game key', km_yours: 'Your keys',
     km_add: 'Add', km_press: 'Press a key…', km_none: 'as it is', km_other: 'Another game key…', km_press_game: 'Press the game key…',
     km_this: 'This game only', km_all: 'Every game', km_reset: 'Reset', km_cancel: 'Cancel', km_save: 'Save',
-    states: 'States', st_title: 'Save states', st_about: 'Kept in this browser only. {save} saves to the chosen slot, {load} goes back to it.', st_slot: 'Slot {n}', st_empty: 'Empty', st_save: 'Save', st_load: 'Load', st_delete: 'Delete', st_close: 'Close', st_saveKey: 'Save key', st_loadKey: 'Load key', st_press: 'Press a key…', st_saving: 'Saving to slot {n}…', st_saved: 'Saved to slot {n}', st_loading: 'Loading slot {n}…', st_loaded: 'Loaded slot {n}', st_failed: 'Slot {n}: {error}', st_isEmpty: 'Slot {n} is empty', st_notStored: 'Slot {n} could not be kept: {error}',
+    st_storing: 'Storing the save state in this browser…', states: 'States', st_title: 'Save states', st_about: 'Kept in this browser only. {save} saves to the chosen slot, {load} goes back to it.', st_slot: 'Slot {n}', st_empty: 'Empty', st_save: 'Save', st_load: 'Load', st_delete: 'Delete', st_close: 'Close', st_saveKey: 'Save key', st_loadKey: 'Load key', st_press: 'Press a key…', st_saving: 'Saving to slot {n}…', st_saved: 'Saved to slot {n}', st_loading: 'Loading slot {n}…', st_loaded: 'Loaded slot {n}', st_failed: 'Slot {n}: {error}', st_isEmpty: 'Slot {n} is empty', st_notStored: 'Slot {n} could not be kept: {error}',
   },
   'zh-CN': {
     back: '← 返回 Archive', loading: '加载中…', step_info: '正在查找游戏…', step_cached: '正在载入本浏览器中保存的副本…',
@@ -60,7 +60,7 @@ const TEXT = {
     km_title: '按键', km_about: '在这里按下的键会以其他键的身份传给游戏。游戏本身不会被修改。', km_game: '游戏按键', km_yours: '你的按键',
     km_add: '添加', km_press: '请按一个键…', km_none: '不变', km_other: '其他游戏按键…', km_press_game: '请按要映射的游戏按键…',
     km_this: '仅这个游戏', km_all: '所有游戏', km_reset: '重置', km_cancel: '取消', km_save: '保存',
-    states: '即时存档', st_title: '即时存档', st_about: '只保存在本浏览器中。{save} 保存到选中的栏位，{load} 回到它。', st_slot: '栏位 {n}', st_empty: '空', st_save: '保存', st_load: '读取', st_delete: '删除', st_close: '关闭', st_saveKey: '保存键', st_loadKey: '读取键', st_press: '请按一个键…', st_saving: '正在保存到栏位 {n}…', st_saved: '已保存到栏位 {n}', st_loading: '正在读取栏位 {n}…', st_loaded: '已读取栏位 {n}', st_failed: '栏位 {n}：{error}', st_isEmpty: '栏位 {n} 是空的', st_notStored: '栏位 {n} 未能保存：{error}',
+    st_storing: '正在把即时存档保存到本浏览器…', states: '即时存档', st_title: '即时存档', st_about: '只保存在本浏览器中。{save} 保存到选中的栏位，{load} 回到它。', st_slot: '栏位 {n}', st_empty: '空', st_save: '保存', st_load: '读取', st_delete: '删除', st_close: '关闭', st_saveKey: '保存键', st_loadKey: '读取键', st_press: '请按一个键…', st_saving: '正在保存到栏位 {n}…', st_saved: '已保存到栏位 {n}', st_loading: '正在读取栏位 {n}…', st_loaded: '已读取栏位 {n}', st_failed: '栏位 {n}：{error}', st_isEmpty: '栏位 {n} 是空的', st_notStored: '栏位 {n} 未能保存：{error}',
   },
   'zh-TW': {
     back: '← 返回 Archive', loading: '載入中…', step_info: '正在查找遊戲…', step_cached: '正在載入本瀏覽器中保存的副本…',
@@ -80,7 +80,7 @@ const TEXT = {
     km_title: '按鍵', km_about: '在這裡按下的鍵會以其他鍵的身分傳給遊戲。遊戲本身不會被修改。', km_game: '遊戲按鍵', km_yours: '你的按鍵',
     km_add: '新增', km_press: '請按一個鍵…', km_none: '不變', km_other: '其他遊戲按鍵…', km_press_game: '請按要對應的遊戲按鍵…',
     km_this: '僅這個遊戲', km_all: '所有遊戲', km_reset: '重設', km_cancel: '取消', km_save: '保存',
-    states: '即時存檔', st_title: '即時存檔', st_about: '只保存在本瀏覽器中。{save} 保存到選中的欄位，{load} 回到它。', st_slot: '欄位 {n}', st_empty: '空', st_save: '保存', st_load: '讀取', st_delete: '刪除', st_close: '關閉', st_saveKey: '保存鍵', st_loadKey: '讀取鍵', st_press: '請按一個鍵…', st_saving: '正在保存到欄位 {n}…', st_saved: '已保存到欄位 {n}', st_loading: '正在讀取欄位 {n}…', st_loaded: '已讀取欄位 {n}', st_failed: '欄位 {n}：{error}', st_isEmpty: '欄位 {n} 是空的', st_notStored: '欄位 {n} 未能保存：{error}',
+    st_storing: '正在把即時存檔保存到本瀏覽器…', states: '即時存檔', st_title: '即時存檔', st_about: '只保存在本瀏覽器中。{save} 保存到選中的欄位，{load} 回到它。', st_slot: '欄位 {n}', st_empty: '空', st_save: '保存', st_load: '讀取', st_delete: '刪除', st_close: '關閉', st_saveKey: '保存鍵', st_loadKey: '讀取鍵', st_press: '請按一個鍵…', st_saving: '正在保存到欄位 {n}…', st_saved: '已保存到欄位 {n}', st_loading: '正在讀取欄位 {n}…', st_loaded: '已讀取欄位 {n}', st_failed: '欄位 {n}：{error}', st_isEmpty: '欄位 {n} 是空的', st_notStored: '欄位 {n} 未能保存：{error}',
   },
   ja: {
     back: '← Archive に戻る', loading: '読み込み中…', step_info: 'ゲームを探しています…', step_cached: 'このブラウザに保存したコピーを読み込んでいます…',
@@ -100,7 +100,7 @@ const TEXT = {
     km_title: 'キー', km_about: 'ここで押したキーは別のキーとしてゲームに届きます。ゲーム自体は変更されません。', km_game: 'ゲームのキー', km_yours: 'あなたのキー',
     km_add: '追加', km_press: 'キーを押してください…', km_none: 'そのまま', km_other: '別のゲームのキー…', km_press_game: 'ゲームのキーを押してください…',
     km_this: 'このゲームのみ', km_all: 'すべてのゲーム', km_reset: 'リセット', km_cancel: 'キャンセル', km_save: '保存',
-    states: 'ステート', st_title: 'ステートセーブ', st_about: 'このブラウザにだけ保存されます。{save} で選んだスロットに保存、{load} でそこへ戻ります。', st_slot: 'スロット {n}', st_empty: '空', st_save: '保存', st_load: '読込', st_delete: '削除', st_close: '閉じる', st_saveKey: '保存キー', st_loadKey: '読込キー', st_press: 'キーを押してください…', st_saving: 'スロット {n} に保存中…', st_saved: 'スロット {n} に保存しました', st_loading: 'スロット {n} を読込中…', st_loaded: 'スロット {n} を読み込みました', st_failed: 'スロット {n}：{error}', st_isEmpty: 'スロット {n} は空です', st_notStored: 'スロット {n} を保存できませんでした：{error}',
+    st_storing: 'ステートをこのブラウザに保存しています…', states: 'ステート', st_title: 'ステートセーブ', st_about: 'このブラウザにだけ保存されます。{save} で選んだスロットに保存、{load} でそこへ戻ります。', st_slot: 'スロット {n}', st_empty: '空', st_save: '保存', st_load: '読込', st_delete: '削除', st_close: '閉じる', st_saveKey: '保存キー', st_loadKey: '読込キー', st_press: 'キーを押してください…', st_saving: 'スロット {n} に保存中…', st_saved: 'スロット {n} に保存しました', st_loading: 'スロット {n} を読込中…', st_loaded: 'スロット {n} を読み込みました', st_failed: 'スロット {n}：{error}', st_isEmpty: 'スロット {n} は空です', st_notStored: 'スロット {n} を保存できませんでした：{error}',
   },
   ko: {
     back: '← Archive로 돌아가기', loading: '불러오는 중…', step_info: '게임을 찾는 중…', step_cached: '이 브라우저에 저장된 사본을 불러오는 중…',
@@ -120,7 +120,7 @@ const TEXT = {
     km_title: '키', km_about: '여기서 누른 키는 다른 키로 게임에 전달됩니다. 게임 자체는 바뀌지 않습니다.', km_game: '게임 키', km_yours: '내 키',
     km_add: '추가', km_press: '키를 누르세요…', km_none: '그대로', km_other: '다른 게임 키…', km_press_game: '게임 키를 누르세요…',
     km_this: '이 게임만', km_all: '모든 게임', km_reset: '초기화', km_cancel: '취소', km_save: '저장',
-    states: '스테이트', st_title: '세이브 스테이트', st_about: '이 브라우저에만 저장됩니다. {save}로 선택한 슬롯에 저장하고 {load}로 돌아갑니다.', st_slot: '슬롯 {n}', st_empty: '비어 있음', st_save: '저장', st_load: '불러오기', st_delete: '삭제', st_close: '닫기', st_saveKey: '저장 키', st_loadKey: '불러오기 키', st_press: '키를 누르세요…', st_saving: '슬롯 {n}에 저장 중…', st_saved: '슬롯 {n}에 저장했습니다', st_loading: '슬롯 {n} 불러오는 중…', st_loaded: '슬롯 {n}을(를) 불러왔습니다', st_failed: '슬롯 {n}: {error}', st_isEmpty: '슬롯 {n}이(가) 비어 있습니다', st_notStored: '슬롯 {n}을(를) 저장하지 못했습니다: {error}',
+    st_storing: '세이브 스테이트를 이 브라우저에 저장하는 중…', states: '스테이트', st_title: '세이브 스테이트', st_about: '이 브라우저에만 저장됩니다. {save}로 선택한 슬롯에 저장하고 {load}로 돌아갑니다.', st_slot: '슬롯 {n}', st_empty: '비어 있음', st_save: '저장', st_load: '불러오기', st_delete: '삭제', st_close: '닫기', st_saveKey: '저장 키', st_loadKey: '불러오기 키', st_press: '키를 누르세요…', st_saving: '슬롯 {n}에 저장 중…', st_saved: '슬롯 {n}에 저장했습니다', st_loading: '슬롯 {n} 불러오는 중…', st_loaded: '슬롯 {n}을(를) 불러왔습니다', st_failed: '슬롯 {n}: {error}', st_isEmpty: '슬롯 {n}이(가) 비어 있습니다', st_notStored: '슬롯 {n}을(를) 저장하지 못했습니다: {error}',
   },
   ru: {
     back: '← В Archive', loading: 'Загрузка…', step_info: 'Ищем игру…', step_cached: 'Загружаем копию из этого браузера…',
@@ -140,7 +140,7 @@ const TEXT = {
     km_title: 'Клавиши', km_about: 'Клавиши, которые вы нажимаете, доходят до игры как другие. Сама игра не меняется.', km_game: 'Клавиша игры', km_yours: 'Ваши клавиши',
     km_add: 'Добавить', km_press: 'Нажмите клавишу…', km_none: 'как есть', km_other: 'Другая клавиша игры…', km_press_game: 'Нажмите клавишу игры…',
     km_this: 'Только эта игра', km_all: 'Все игры', km_reset: 'Сбросить', km_cancel: 'Отмена', km_save: 'Сохранить',
-    states: 'Состояния', st_title: 'Сохранения состояния', st_about: 'Хранятся только в этом браузере. {save} сохраняет в выбранный слот, {load} возвращает к нему.', st_slot: 'Слот {n}', st_empty: 'Пусто', st_save: 'Сохранить', st_load: 'Загрузить', st_delete: 'Удалить', st_close: 'Закрыть', st_saveKey: 'Клавиша сохранения', st_loadKey: 'Клавиша загрузки', st_press: 'Нажмите клавишу…', st_saving: 'Сохранение в слот {n}…', st_saved: 'Сохранено в слот {n}', st_loading: 'Загрузка слота {n}…', st_loaded: 'Слот {n} загружен', st_failed: 'Слот {n}: {error}', st_isEmpty: 'Слот {n} пуст', st_notStored: 'Слот {n} не удалось сохранить: {error}',
+    st_storing: 'Сохраняем состояние в этом браузере…', states: 'Состояния', st_title: 'Сохранения состояния', st_about: 'Хранятся только в этом браузере. {save} сохраняет в выбранный слот, {load} возвращает к нему.', st_slot: 'Слот {n}', st_empty: 'Пусто', st_save: 'Сохранить', st_load: 'Загрузить', st_delete: 'Удалить', st_close: 'Закрыть', st_saveKey: 'Клавиша сохранения', st_loadKey: 'Клавиша загрузки', st_press: 'Нажмите клавишу…', st_saving: 'Сохранение в слот {n}…', st_saved: 'Сохранено в слот {n}', st_loading: 'Загрузка слота {n}…', st_loaded: 'Слот {n} загружен', st_failed: 'Слот {n}: {error}', st_isEmpty: 'Слот {n} пуст', st_notStored: 'Слот {n} не удалось сохранить: {error}',
   },
   fr: {
     back: '← Retour à l\'Archive', loading: 'Chargement…', step_info: 'Recherche du jeu…', step_cached: 'Chargement de la copie gardée dans ce navigateur…',
@@ -160,7 +160,7 @@ const TEXT = {
     km_title: 'Touches', km_about: 'Les touches que vous pressez ici arrivent au jeu comme d\'autres touches. Le jeu lui-même n\'est pas modifié.', km_game: 'Touche du jeu', km_yours: 'Vos touches',
     km_add: 'Ajouter', km_press: 'Appuyez sur une touche…', km_none: 'inchangée', km_other: 'Autre touche du jeu…', km_press_game: 'Appuyez sur la touche du jeu…',
     km_this: 'Ce jeu seulement', km_all: 'Tous les jeux', km_reset: 'Réinitialiser', km_cancel: 'Annuler', km_save: 'Enregistrer',
-    states: 'États', st_title: 'Sauvegardes d’état', st_about: 'Gardées dans ce navigateur seulement. {save} enregistre dans l’emplacement choisi, {load} y revient.', st_slot: 'Emplacement {n}', st_empty: 'Vide', st_save: 'Enregistrer', st_load: 'Charger', st_delete: 'Supprimer', st_close: 'Fermer', st_saveKey: 'Touche d’enregistrement', st_loadKey: 'Touche de chargement', st_press: 'Appuyez sur une touche…', st_saving: 'Enregistrement dans l’emplacement {n}…', st_saved: 'Enregistré dans l’emplacement {n}', st_loading: 'Chargement de l’emplacement {n}…', st_loaded: 'Emplacement {n} chargé', st_failed: 'Emplacement {n} : {error}', st_isEmpty: 'L’emplacement {n} est vide', st_notStored: 'L’emplacement {n} n’a pas pu être gardé : {error}',
+    st_storing: 'Enregistrement de l’état dans ce navigateur…', states: 'États', st_title: 'Sauvegardes d’état', st_about: 'Gardées dans ce navigateur seulement. {save} enregistre dans l’emplacement choisi, {load} y revient.', st_slot: 'Emplacement {n}', st_empty: 'Vide', st_save: 'Enregistrer', st_load: 'Charger', st_delete: 'Supprimer', st_close: 'Fermer', st_saveKey: 'Touche d’enregistrement', st_loadKey: 'Touche de chargement', st_press: 'Appuyez sur une touche…', st_saving: 'Enregistrement dans l’emplacement {n}…', st_saved: 'Enregistré dans l’emplacement {n}', st_loading: 'Chargement de l’emplacement {n}…', st_loaded: 'Emplacement {n} chargé', st_failed: 'Emplacement {n} : {error}', st_isEmpty: 'L’emplacement {n} est vide', st_notStored: 'L’emplacement {n} n’a pas pu être gardé : {error}',
   },
   de: {
     back: '← Zurück zum Archive', loading: 'Wird geladen…', step_info: 'Spiel wird gesucht…', step_cached: 'Die in diesem Browser gespeicherte Kopie wird geladen…',
@@ -180,7 +180,7 @@ const TEXT = {
     km_title: 'Tasten', km_about: 'Tasten, die du hier drückst, kommen beim Spiel als andere Tasten an. Das Spiel selbst wird nicht verändert.', km_game: 'Spieltaste', km_yours: 'Deine Tasten',
     km_add: 'Hinzufügen', km_press: 'Drücke eine Taste…', km_none: 'unverändert', km_other: 'Weitere Spieltaste…', km_press_game: 'Drücke die Spieltaste…',
     km_this: 'Nur dieses Spiel', km_all: 'Alle Spiele', km_reset: 'Zurücksetzen', km_cancel: 'Abbrechen', km_save: 'Speichern',
-    states: 'Zustände', st_title: 'Spielzustände', st_about: 'Nur in diesem Browser gespeichert. {save} speichert im gewählten Platz, {load} kehrt dorthin zurück.', st_slot: 'Platz {n}', st_empty: 'Leer', st_save: 'Speichern', st_load: 'Laden', st_delete: 'Löschen', st_close: 'Schließen', st_saveKey: 'Speichertaste', st_loadKey: 'Ladetaste', st_press: 'Drücke eine Taste…', st_saving: 'Speichere in Platz {n}…', st_saved: 'In Platz {n} gespeichert', st_loading: 'Lade Platz {n}…', st_loaded: 'Platz {n} geladen', st_failed: 'Platz {n}: {error}', st_isEmpty: 'Platz {n} ist leer', st_notStored: 'Platz {n} konnte nicht gespeichert werden: {error}',
+    st_storing: 'Spielzustand wird in diesem Browser gespeichert…', states: 'Zustände', st_title: 'Spielzustände', st_about: 'Nur in diesem Browser gespeichert. {save} speichert im gewählten Platz, {load} kehrt dorthin zurück.', st_slot: 'Platz {n}', st_empty: 'Leer', st_save: 'Speichern', st_load: 'Laden', st_delete: 'Löschen', st_close: 'Schließen', st_saveKey: 'Speichertaste', st_loadKey: 'Ladetaste', st_press: 'Drücke eine Taste…', st_saving: 'Speichere in Platz {n}…', st_saved: 'In Platz {n} gespeichert', st_loading: 'Lade Platz {n}…', st_loaded: 'Platz {n} geladen', st_failed: 'Platz {n}: {error}', st_isEmpty: 'Platz {n} ist leer', st_notStored: 'Platz {n} konnte nicht gespeichert werden: {error}',
   },
 };
 let lang = 'en';
@@ -629,8 +629,11 @@ function start(game) {
       }
     },
   });
-  // (an older player bundle has no flushSaves)
-  flushGame = () => player.flushSaves?.() ?? Promise.resolve();
+  // (an older player bundle has no flushSaves; a big save state takes seconds to store)
+  flushGame = () => {
+    if (player.storingStates?.()) sync.show('', t('st_storing'));
+    return player.flushSaves?.() ?? Promise.resolve();
+  };
   $('keys').disabled = false;
   $('keys').onclick = async () => {
     const labels = {
