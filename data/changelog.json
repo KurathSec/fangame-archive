@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.046",
+    "date": "2026-11-02",
+    "note": "FMOD games start again",
+    "changes": [
+      [
+        "Fixed",
+        "Games that play sound through FMOD (GMFMODSimple) start without \"Error defining an external function\", and R restarts them again; games imported before work without importing again."
+      ]
+    ]
+  },
+  {
     "ver": "2026.045",
     "date": "2026-11-02",
     "note": "Firefox 159, full screen, saves on leaving",
