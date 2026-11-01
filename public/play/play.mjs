@@ -570,7 +570,9 @@ function start(game) {
   const fit = () => {
     const stage = $('stage').getBoundingClientRect();
     let s = Math.min(stage.width / gameW, stage.height / gameH);
-    if (s >= 1) s = Math.floor(s);
+    // whole steps in the window (even pixels); full screen fills the screen (with Windows'
+    // display scaling a 1080p screen is often under twice a game's height: it stayed 1x)
+    if (s >= 1 && !document.fullscreenElement) s = Math.floor(s);
     screen.style.width = `${Math.max(1, Math.round(gameW * s))}px`;
     screen.style.height = `${Math.max(1, Math.round(gameH * s))}px`;
   };
