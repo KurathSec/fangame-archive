@@ -1,5 +1,28 @@
 [
   {
+    "ver": "2026.045",
+    "date": "2026-11-02",
+    "note": "Firefox 159, full screen, saves on leaving",
+    "changes": [
+      [
+        "Fixed",
+        "Games start again in Firefox 159."
+      ],
+      [
+        "Fixed",
+        "Full screen fills the screen (with Windows' display scaling it stayed at the window's size)."
+      ],
+      [
+        "Fixed",
+        "A save made just before pressing Back is kept (the previous one came back), and Back waits for a save state that is still being stored."
+      ],
+      [
+        "Fixed",
+        "GameMaker 8.1 images a game loads from its own files show (they were black, e.g. the stage title cards of I wanna Break The Last Z)."
+      ]
+    ]
+  },
+  {
     "ver": "2026.044",
     "date": "2026-10-27",
     "note": "Default mods, faster save states",
