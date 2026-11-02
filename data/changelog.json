@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.047",
+    "date": "2026-11-02",
+    "note": "Extension DLLs load again",
+    "changes": [
+      [
+        "Fixed",
+        "Games whose extensions need a Windows DLL the player emulates (e.g. 39dll) start without \"Error defining an external function\", and R restarts them; games imported before work without importing again (2026.046 did not fix this yet)."
+      ]
+    ]
+  },
+  {
     "ver": "2026.046",
     "date": "2026-11-02",
     "note": "FMOD games start again",
