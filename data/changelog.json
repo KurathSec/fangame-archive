@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.048",
+    "date": "2026-11-07",
+    "note": "Keys held while loading a save state",
+    "changes": [
+      [
+        "Fixed",
+        "Loading a save state while holding a key no longer counts as pressing it: holding Jump no longer makes the kid jump, and the game knows Jump is held (on a vine, for one)."
+      ]
+    ]
+  },
+  {
     "ver": "2026.047",
     "date": "2026-11-02",
     "note": "Extension DLLs load again",
