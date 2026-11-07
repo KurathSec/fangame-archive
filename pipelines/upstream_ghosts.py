@@ -7,7 +7,7 @@ DF id it sees and never revisits one, so each removed listing lingered as a
 "I wanna play with 3x2 Bastards" by Nessid).
 
 A ghost is a game whose every source is a DF id that is missing from a
-complete live DF list AND answers 404 on its details page, while another entry
+complete live DF list AND that DF's API reports as gone, while another entry
 with the same normalized title and creator is still backed upstream (a live DF
 id, any non-DF source, or no source at all). What happens to it depends on
 what its file adds:
@@ -154,7 +154,7 @@ def resolve(games, ghosts, r2, confirm_gone, log=print, engine_state=None,
 
     Each ghost is first judged from the files alone (R2 HEADs, plus a byte
     comparison for same-size pairs); only one that would be deleted costs a DF
-    request — `confirm_gone(df_id)` must return True solely on a definite 404.
+    request — `confirm_gone(df_id)` must return True solely on a definite "gone".
     So the ghosts left for review cost two HEADs a run, not a slow DF fetch,
     and never use up the per-run budget of `max_confirm` confirmations.
     Returns {"deleted", "moved", "review", "skipped"}.

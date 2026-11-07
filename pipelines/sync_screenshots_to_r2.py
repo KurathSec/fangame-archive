@@ -24,13 +24,14 @@ except ImportError:
     from config import CLOUDFLARE_ACCOUNT_ID, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 BUCKET_NAME = "fangame-screenshots"
 
-INDEX_URL = "https://delicious-fruit.com/ratings/screenshots/"
+# DF keeps screenshots here, named like our image_path minus the extension.
+INDEX_URL = "https://delicious-fruit.sfo3.digitaloceanspaces.com/"
 LOCAL_DIR = "ratings/screenshots"
 # PNG, JPEG, GIF, BMP, WebP (RIFF....WEBP is checked below).
 IMAGE_MAGIC = (b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"BM", b"RIFF")
 
 def download_and_upload_single(filename, r2_client, headers):
-    url = INDEX_URL + filename
+    url = INDEX_URL + os.path.splitext(filename)[0]
     local_path = os.path.join(LOCAL_DIR, filename)
     r2_key = f"ratings/screenshots/{filename}"
 
@@ -41,8 +42,8 @@ def download_and_upload_single(filename, r2_client, headers):
             data = response.read()
     except Exception as e:
         return filename, False, f"Download failed: {e}"
-    # DF's new site answers 200 with an HTML placeholder for every old URL;
-    # uploading that would hide the screenshot as "present" in R2 for good.
+    # A moved file can answer 200 with an error page; uploading that would hide
+    # the screenshot as "present" in R2 for good.
     if not data.startswith(IMAGE_MAGIC) or (data.startswith(b"RIFF") and data[8:12] != b"WEBP"):
         return filename, False, "Download failed: response is not an image"
     with open(local_path, "wb") as f:
@@ -67,7 +68,7 @@ def download_and_upload_single(filename, r2_client, headers):
         return filename, False, f"R2 upload failed: {e}"
 
 def main():
-    # Same switch as the scraper (deploy.yml): no Delicious Fruit requests at all.
+    # Same switch as the scraper: DF_SYNC=off sends Delicious Fruit no requests at all.
     if os.environ.get("DF_SYNC", "on").strip().lower() == "off":
         print("DF_SYNC=off: skipping the screenshot sync (it downloads from Delicious Fruit).")
         return

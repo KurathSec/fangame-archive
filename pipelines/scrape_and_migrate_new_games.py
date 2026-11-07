@@ -101,207 +101,146 @@ def normalize_str(s):
     s = re.sub(r'\s+', ' ', s)
     return s
 
-# ── 🌐 DELICIOUS FRUIT SCRAPER ────────────────────────────────────────────────
-DF_LIST_ATTEMPTS = 3
-# DF_SYNC=off (set in deploy.yml) sends no request to delicious-fruit.com: no
-# review feed, game list, details/review pages, release-date queries or ghost
-# sweep. The rest of the run carries on. Off since 2026-10-24, while DF moves
-# to a new site whose old pages all answer 200 with a placeholder page.
+# ── 🌐 DELICIOUS FRUIT API ────────────────────────────────────────────────────
+DF_API = "https://api.delicious-fruit.com"
+DF_SITE = "https://delicious-fruit.com"
+DF_PAGE_SIZE = 50  # the API returns at most 50 rows per page, whatever `limit` asks for
+# DF_SYNC=off (deploy.yml) sends DF no request at all; the rest of the run carries on.
 DF_SYNC = os.environ.get("DF_SYNC", "on").strip().lower() != "off"
+# seq_map holds ~370 synthetic "DF ids" from 50002 up, left by an old mapping; DF
+# answers 404 for them, so they say nothing about where its real ids have reached.
+DF_SYNTHETIC_ID_FLOOR = 50000
+DF_NEW_GAME_WINDOW_DAYS = 60
+DF_ID_WALK_MISSES = 5
+DF_RELEASE_DATE_BUDGET = 40
+WIKI_PAGE_RE = re.compile(r"iwannawiki\.com/(?:[a-z]{2}/)?(?:games|fangamelist)/(\d+)", re.I)
+
+
+def df_api(path, params=None):
+    """Parsed JSON from DF's API, or None when DF answers 404. Raises after 3 failed
+    attempts, so a bad response can never be mistaken for "nothing new"."""
+    for backoff in (5, 20, None):
+        try:
+            res = requests.get(DF_API + path, params=params, headers=HEADERS, timeout=(15, 60))
+            if res.status_code == 404:
+                return None
+            res.raise_for_status()
+            return res.json()
+        except Exception as e:
+            if backoff is None:
+                raise RuntimeError(f"DF API {path}: {e}") from e
+            time.sleep(backoff)
 
 
 def df_entry_gone(df_id):
-    """True only when DF answers 404 for a game's details page (deleted upstream)."""
+    """True only when DF says a game is gone: flagged removed, or no such id."""
     try:
-        res = requests.get(f"https://delicious-fruit.com/ratings/game_details.php?id={df_id}",
-                           headers=HEADERS, timeout=(10, 40))
-        return res.status_code == 404
+        game = df_api(f"/games/{df_id}")
+        return game is None or bool(game.get("removed"))
     except Exception:
         return False
 
 
-def scrape_full_list():
-    log("Fetching game list from delicious-fruit.com/ratings/full.php?q=ALL...")
-    url = "https://delicious-fruit.com/ratings/full.php?q=ALL"
+def df_game_row(a):
+    """One API game as a row of the Step 4B scan. DF rates 0-100; the catalog stores rating/10."""
+    rating, difficulty = a.get("rating"), a.get("difficulty")
+    return {
+        "df_id": str(a["id"]),
+        "title": (a.get("name") or "").strip(),
+        "avg_difficulty": None if difficulty is None else round(float(difficulty), 1),
+        "avg_rating": None if rating is None else round(float(rating) / 10, 2),
+        "rating_count": a.get("rating_count") or 0,
+        "url": (a.get("url") or "").strip(),
+    }
 
-    # The list used to render in a few seconds, but DF has started taking well
-    # over a minute at times (Cloudflare answers 524 after ~125 s). The old 8 s
-    # timeout skipped the whole DF sync on every run from 2026-10-18 15:27 UTC
-    # on; a longer read timeout plus spaced retries rides those spells out.
-    res = None
-    for attempt in range(1, DF_LIST_ATTEMPTS + 1):
-        try:
-            res = requests.get(url, headers=HEADERS, timeout=(15, 120))
-            res.raise_for_status()
-            res.encoding = 'utf-8' # Force requests to use UTF-8 decoding
-            break
-        except Exception as e:
-            log(f"[WARNING] Failed to download Delicious Fruit games list (attempt {attempt}/{DF_LIST_ATTEMPTS}): {e}")
-            res = None
-            if attempt < DF_LIST_ATTEMPTS:
-                time.sleep(30)
-    if res is None:
-        log("Skipping Delicious Fruit scraping and sync due to network error.")
-        return None
 
-    log("Parsing Delicious Fruit game table...")
-    soup = BeautifulSoup(res.text, 'html.parser')
-    table = soup.find('table', class_='tablesorter')
-    if not table:
-        log("[WARNING] Could not find 'tablesorter' table in Delicious Fruit page.")
-        return None
-        
-    rows = table.find('tbody').find_all('tr')
-    log(f"Found {len(rows)} games in live Delicious Fruit list.")
-    
-    scraped_games = []
-    for row in rows:
-        cols = row.find_all('td')
-        if len(cols) < 4:
-            continue
-        
-        col_game = cols[0]
-        col_diff = cols[1]
-        col_rating = cols[2]
-        col_count = cols[3]
-        
-        link = col_game.find('a')
-        if not link:
-            continue
-            
-        href = link.get('href', '')
-        title = heal_mojibake(link.text.strip())
-        
-        match_id = re.search(r'id=(\d+)', href)
-        if not match_id:
-            continue
-        df_id = match_id.group(1)
-        
-        # Parse difficulty
-        diff_text = col_diff.text.strip()
-        difficulty = None if diff_text == 'N/A' else float(diff_text)
-        
-        # Parse rating
-        rating_text = col_rating.text.strip()
-        rating = None if rating_text == 'N/A' else float(rating_text)
-        
-        # Parse ratings count
-        count_text = col_count.text.strip()
-        rating_count = 0 if count_text in ('—', 'N/A') or not count_text.isdigit() else int(count_text)
-        
-        scraped_games.append({
-            "df_id": df_id,
-            "title": title,
-            "avg_difficulty": difficulty,
-            "avg_rating": rating,
-            "rating_count": rating_count
-        })
-        
-    return scraped_games
+def fetch_new_df_games(known_ids):
+    """DF games whose id the catalog has never mapped, as Step 4B rows; None on failure.
 
-def fetch_df_ids_in_window(first_day, last_day):
-    """df_ids of games DF lists as released on the days first_day..last_day
-    (datetime.date objects, INCLUSIVE), via the advanced search's "Released
-    between" filter — the only place DF exposes release dates.
-
-    DF evaluates the filter as `released IN (from 00:00, to 00:00]` with games
-    stored at midnight (calibrated by harvest_release_dates.py's probes), so
-    the inclusive day range [first, last] is issued as from=first-1, to=last.
-
-    Returns a set, or None after all retries. Callers MUST treat None as
-    "unknown", never as an empty window: a transient failure must not date
-    anything or mark anything as dateless-forever.
+    Two lookups, because neither is enough alone. Date does not follow id: DF's wiki
+    bot adds entries under the wiki's older date, so a newest-first walk stops too
+    early (and `orderCol=id` isn't honored here). Ids have jumped before (28xxx to
+    46xxx), so walking up from the highest id can stop short of a new range.
     """
-    date_from = (first_day - datetime.timedelta(days=1)).isoformat()
-    date_to = last_day.isoformat()
-    url = ("https://delicious-fruit.com/ratings/full.php?advanced=1"
-           f"&from={date_from}&to={date_to}&title=&author=&s=&tags=")
-    last_err = None
-    for backoff in (3, 8, 20):
-        try:
-            res = requests.get(url, headers=HEADERS, timeout=30)
-            res.raise_for_status()
-            res.encoding = 'utf-8'
-            body = res.text
-            # Present on every genuine DF page, including zero-result ones; a
-            # 200 without it is an error/interstitial page, not an empty window.
-            if "Delicious-Fruit" not in body:
-                raise ValueError("no DF page marker in response")
-            return set(re.findall(r"game_details\.php\?id=(\d+)", body))
-        except Exception as e:
-            last_err = e
-            time.sleep(backoff)
-    log(f"  [WARNING] Release-date window {date_from}..{date_to} failed: {last_err}")
-    return None
+    known = {int(k) for k in known_ids if str(k).isdigit()}
+    real_ids = [k for k in known if k < DF_SYNTHETIC_ID_FLOOR]
+    found = {}
+    try:
+        since = datetime.date.today() - datetime.timedelta(days=DF_NEW_GAME_WINDOW_DAYS)
+        page = 0
+        while True:
+            batch = df_api("/games", {"limit": DF_PAGE_SIZE, "page": page, "orderCol": "date_created",
+                                      "orderDir": "DESC", "createdFrom": f"{since.isoformat()}T00:00:00Z"})
+            if not isinstance(batch, list):
+                raise ValueError(f"unexpected /games response: {str(batch)[:120]}")
+            found.update((a["id"], a) for a in batch)
+            if len(batch) < DF_PAGE_SIZE:
+                break
+            page += 1
+        next_id, misses = max(real_ids, default=0) + 1, 0
+        while misses < DF_ID_WALK_MISSES:
+            batch = df_api("/games", {"id": next_id, "limit": 1})
+            if not isinstance(batch, list):
+                raise ValueError(f"unexpected /games response: {str(batch)[:120]}")
+            found.update((a["id"], a) for a in batch)
+            misses = 0 if batch else misses + 1
+            next_id += 1
+    except Exception as e:
+        log(f"[WARNING] Could not read new games from the Delicious Fruit API: {e}")
+        return None
+    return [df_game_row(a) for i, a in sorted(found.items()) if i not in known and not a.get("removed")]
+
 
 def fetch_game_details(df_id):
-    url = f"https://delicious-fruit.com/ratings/game_details.php?id={df_id}"
-    log(f"  [Detail Scrape] Crawling game details for DF ID {df_id}...")
-    
-    for attempt in range(3):
-        try:
-            res = requests.get(url, headers=HEADERS, timeout=15)
-            res.raise_for_status()
-            res.encoding = 'utf-8' # Force requests to use UTF-8 decoding
-            soup = BeautifulSoup(res.text, 'html.parser')
-            
-            # 1. Creator info
-            creator_label = soup.find('h2', id='creator-label')
-            creator_a = creator_label.find('a') if creator_label else None
-            creator_name = heal_mojibake(creator_a.text.strip()) if creator_a else 'Unknown'
-            creator_url = creator_a.get('href', '#').strip() if creator_a else '#'
-            
-            # Resolve relative creator URLs
-            if creator_url.startswith('/'):
-                creator_url = "https://delicious-fruit.com" + creator_url
-            elif creator_url != '#' and not creator_url.startswith('http'):
-                creator_url = "https://delicious-fruit.com/ratings/" + creator_url
-                
-            # 2. Tags (lowercase, strip, map correctly)
-            tags = []
-            for a in soup.find_all('a', class_='tag'):
-                href = a.get('href', '')
-                if 'tags=' in href:
-                    tag_name = heal_mojibake(a.text.split('(')[0].strip().lower())
-                    if tag_name and tag_name not in tags:
-                        tags.append(tag_name)
-            
-            # 3. Screenshots
-            screenshots = []
-            img_ul = soup.find('ul', id='images')
-            li_tags = img_ul.find_all('li') if img_ul else []
-            for li in li_tags:
-                a_tag = li.find('a')
-                img_tag = li.find('img')
-                if a_tag and img_tag:
-                    href = a_tag.get('href', '')
-                    src = img_tag.get('src', '').strip().lstrip('/')
-                    match_s_id = re.search(r'id=(\d+)', href)
-                    if match_s_id:
-                        s_id = int(match_s_id.group(1))
-                        # Append extension if missing
-                        image_path = src
-                        if not any(image_path.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif']):
-                            image_path += ".png"
-                        
-                        by_text = li.find('span')
-                        by = heal_mojibake(by_text.text.replace('by', '').strip()) if by_text else 'Anonymous'
-                        
-                        screenshots.append({
-                            "id": s_id,
-                            "image_path": image_path,
-                            "by": by
-                        })
-            
-            return creator_name, creator_url, tags, screenshots
-        except Exception as e:
-            if attempt == 2:
-                log(f"  [Detail Scrape FAIL] Failed to crawl DF ID {df_id}: {e}")
-                # None (not "Unknown") so callers can tell a fetch FAILURE from
-                # a page that genuinely lists no creator — the cross-source
-                # claim guard must not fail open on a transient DF error.
-                return None, "#", [], []
-            time.sleep(2)
+    """(creator, creator_url, tags, screenshots) from DF's composite record. Creator is
+    None (not "Unknown") on failure: the cross-source claim guard must not fail open."""
+    log(f"  [Detail] Reading game details for DF ID {df_id}...")
+    try:
+        g = df_api(f"/composite/games/{df_id}/all")
+        if not isinstance(g, dict) or not g.get("id"):
+            raise ValueError(f"unexpected response: {str(g)[:120]}")
+    except Exception as e:
+        log(f"  [Detail FAIL] Failed to read DF ID {df_id}: {e}")
+        return None, "#", [], []
+
+    authors = [a.strip() for a in g.get("author") or [] if a and a.strip()]
+    creator_url = f"{DF_SITE}/search?author={urllib.parse.quote(authors[0])}" if authors else "#"
+    tags = []
+    for t in g.get("tags") or []:
+        name = (t.get("name") or "").strip().lower()
+        if name and name not in tags:
+            tags.append(name)
+    screenshots = [{
+        "id": shot["id"],
+        "image_path": f"ratings/screenshots/{df_id}_{shot['id']:08x}.png",
+        "by": shot.get("user_name") or "Anonymous",
+    } for shot in sorted(g.get("screenshots") or [], key=lambda x: x["id"])
+        if shot.get("approved") and not shot.get("removed")]
+    return ", ".join(authors) or "Unknown", creator_url, tags, screenshots
+
+
+def wiki_entry_for_df_link(url, wiki_by_id, wiki_by_url):
+    """The wiki entry a DF download link points at: the wiki page itself, or the same file URL."""
+    words = (url or "").split()
+    if not words:
+        return None
+    page = WIKI_PAGE_RE.search(words[0])
+    return wiki_by_id.get(page.group(1)) if page else wiki_by_url.get(words[0].lower())
+
+
+def creator_name_of(game):
+    c = game.get("creator")
+    return (c.get("name") if isinstance(c, dict) else c) or ""
+
+
+def creators_conflict(a, b):
+    """Both known and sharing no name. DF lists every co-author under its current account
+    name, so a different separator or a rename ("AlexBrogan69") is not a conflict."""
+    split = lambda s: {n for n in (normalize_str(p) for p in re.split(r"[,，、&/+]|\band\b", s or "")) if n}
+    names_a, names_b = split(a) - {"unknown"}, split(b) - {"unknown"}
+    if not names_a or not names_b:
+        return False
+    return not any(x in y or y in x for x in names_a for y in names_b)
 
 # ── 🔍 WIKI API INTEGRATION ──────────────────────────────────────────────────
 def fetch_wiki_games():
@@ -376,6 +315,14 @@ def fetch_wiki_tags(w_id):
 
 # ── 💬 REVIEWS SCRAPER & INTEGRATION ──────────────────────────────────────────
 REVIEWS_JSON = "temp/reviews_scraped.json"
+# Newest review the corpus held when the feed moved to the API. Rows since then carry
+# `review_id`, and the highest one is where the next run stops reading.
+DF_REVIEW_SEED_ID = 195213
+# Paging is by offset, so a review disappearing between two page reads shifts the next
+# page up and skips a row. Each run re-reads this many ids behind its stop point to pick
+# such a row up; merge_reviews drops the ones already held.
+DF_REVIEW_REREAD_IDS = 300
+DF_REVIEW_MAX_PAGES = 200
 
 def review_key(r):
     """Stable identity for a scraped review, used for de-duplication on merge.
@@ -409,247 +356,126 @@ def review_nums(g_reviews, field):
             pass
     return out
 
-def parse_rating_val(val_str):
-    val_str = val_str.strip()
-    if val_str == "N/A" or val_str.lower() == "n/a":
-        return "na"
+def df_review_row(r, game_title=None):
+    """One API review in the corpus's shape: rating 0-10 ('na' when unset), ||spoilers||,
+    plain text otherwise, date like 'Oct 21, 2026'."""
+    text = re.sub(r"\[spoiler\](.*?)\[/spoiler\]", r"||\1||", r.get("comment") or "", flags=re.I | re.S)
+    text = re.sub(r"\[/?[biu]\]", "", text, flags=re.I).strip()
+    created = datetime.datetime.fromisoformat(r["date_created"].replace("Z", "+00:00"))
+    return {
+        "review_id": r["id"],
+        "author": r.get("user_name") or "Anonymous",
+        "user_id": r.get("user_id"),
+        "game_id": r["game_id"],
+        "game_title": game_title or r.get("game_name") or "",
+        "text": text,
+        "likes": r.get("like_count") or 0,
+        "rating": "na" if r.get("rating") is None else round(float(r["rating"]) / 10, 2),
+        "difficulty": "na" if r.get("difficulty") is None else r["difficulty"],
+        "date": f"{created:%b} {created.day}, {created.year}",
+        "tags": [t["name"].strip().lower() for t in r.get("tags") or [] if t.get("name")],
+    }
+
+def fetch_new_df_reviews(after_id):
+    """Reviews newer than after_id as corpus rows, oldest first; None on any failure.
+
+    textReviewsFirst must stay off: it sorts by likes and ignores orderCol (the site's
+    own pages send it). includeOwnerReview must stay on, or creators' reviews are left
+    out. All or nothing: rows from a partial walk would move the stop point past the
+    reviews not read yet.
+    """
+    rows, page = {}, 0
     try:
-        return float(val_str)
-    except ValueError:
-        return "na"
-
-def parse_difficulty_val(val_str):
-    val_str = val_str.strip()
-    if val_str == "N/A" or val_str.lower() == "n/a":
-        return "na"
-    try:
-        return int(float(val_str))
-    except ValueError:
-        return "na"
-
-def fetch_url_with_retry(url, headers=None, retries=2, initial_backoff=2):
-    if headers is None:
-        headers = {"User-Agent": "Mozilla/5.0"}
-    backoff = initial_backoff
-    for attempt in range(retries):
-        try:
-            res = requests.get(url, headers=headers, timeout=5)
-            if res.ok:
-                return res
-            log(f"  [WARNING] HTTP {res.status_code} for {url}. Attempt {attempt+1}/{retries}. Retrying in {backoff}s...")
-        except Exception as e:
-            log(f"  [WARNING] Connection error for {url}: {e}. Attempt {attempt+1}/{retries}. Retrying in {backoff}s...")
-        time.sleep(backoff)
-        backoff *= 2
-    return None
-
-def scrape_latest_reviews(limit=120):
-    log(f"Scraping latest {limit} reviews from Delicious Fruit feed...")
-    parsed_reviews = []
-    pages_to_scrape = (limit + 9) // 10  # 10 reviews per page
-    
-    headers = {"User-Agent": "Mozilla/5.0"}
-    
-    for page_num in range(pages_to_scrape):
-        url = f"https://delicious-fruit.com/ratings/reviews.php?rpage={page_num}"
-        time.sleep(0.5)
-        try:
-            res = fetch_url_with_retry(url, headers=headers)
-            if res and res.ok:
-                res.encoding = 'utf-8'
-                # Convert <br> to newlines in the raw HTML: html.parser mis-nests text after
-                # a <br/>, so br.replace_with("\n") would drop every line past the first.
-                soup = BeautifulSoup(re.sub(r'(<br\s*/?>\s*)+', '\n', res.text, flags=re.I), "html.parser")
-                review_divs = soup.find_all("div", class_="review")
-                if not review_divs:
-                    break
-                
-                for div in review_divs:
-                    # Author and user ID
-                    author_link = div.find("a", href=re.compile(r"^/profile\.php"))
-                    if author_link:
-                        author = heal_mojibake(author_link.text.strip())
-                        user_id_match = re.search(r"u=(\d+)", author_link["href"])
-                        user_id = int(user_id_match.group(1)) if user_id_match else None
-                    else:
-                        author = "Anonymous"
-                        user_id = None
-
-                    # Game ID and Title
-                    game_link = div.find("a", href=re.compile(r"^/ratings/game_details\.php"))
-                    if game_link:
-                        game_title = heal_mojibake(game_link.text.strip())
-                        game_id_match = re.search(r"id=(\d+)", game_link["href"])
-                        game_id = int(game_id_match.group(1)) if game_id_match else None
-                    else:
-                        continue
-
-                    # Review Text Content
-                    text_div = div.find("div", class_="review-text")
-                    if text_div:
-                        text_span = text_div.find("span")
-                        if text_span:
-                            for s in text_span.find_all("span", class_="spoiler"):
-                                s.replace_with(f"||{s.text}||")
-                            for br in text_span.find_all("br"):
-                                br.replace_with("\n")
-                            text_content = heal_mojibake(text_span.text.strip())
-                        else:
-                            text_content = ""
-                    else:
-                        text_content = ""
-
-                    # Date
-                    date_div = div.find("div", style=re.compile(r"position:\s*absolute"))
-                    date_str = date_div.text.strip() if date_div else ""
-
-                    # Likes
-                    likes_span = div.find("span", class_="r-like-span")
-                    likes = int(likes_span.text.strip()) if likes_span else 0
-
-                    # Rating and Difficulty
-                    rating = "na"
-                    difficulty = "na"
-                    info_text = div.text
-                    
-                    rating_match = re.search(r"Rating:\s*([^\s]+)", info_text)
-                    if rating_match:
-                        rating = parse_rating_val(rating_match.group(1))
-
-                    diff_match = re.search(r"Difficulty:\s*([^\s]+)", info_text)
-                    if diff_match:
-                        difficulty = parse_difficulty_val(diff_match.group(1))
-
-                    # Tags
-                    tags = []
-                    for tag_link in div.find_all("a", class_="tag"):
-                        tag_name = heal_mojibake(tag_link.text.strip().lower())
-                        if tag_name:
-                            tags.append(tag_name)
-
-                    parsed_reviews.append({
-                        "author": author,
-                        "user_id": user_id,
-                        "game_id": game_id,
-                        "game_title": game_title,
-                        "text": text_content,
-                        "likes": likes,
-                        "rating": rating,
-                        "difficulty": difficulty,
-                        "date": date_str,
-                        "tags": tags
-                    })
-                log(f"  Page {page_num} scraped ({len(review_divs)} reviews).")
-            else:
-                log(f"  [WARNING] Failed to fetch page {page_num}: {res.status_code if res else 'no response'}")
-        except Exception as e:
-            log(f"  [WARNING] Exception fetching page {page_num}: {e}")
-            
-    return parsed_reviews[:limit]
-
-def scrape_all_game_reviews(game_id, game_title=""):
-    log(f"  [Reviews Detail Scrape] Crawling all reviews for game ID {game_id}...")
-    reviews = []
-    base_url = f"https://delicious-fruit.com/ratings/game_details.php?id={game_id}"
-    headers = {"User-Agent": "Mozilla/5.0"}
-    
-    try:
-        res = fetch_url_with_retry(f"{base_url}&rpage=0", headers=headers)
-        if not res or not res.ok:
-            return reviews
-        res.encoding = 'utf-8'
-        html = res.text
-        
-        soup = BeautifulSoup(re.sub(r'(<br\s*/?>\s*)+', '\n', html, flags=re.I), "html.parser")
-        review_divs = soup.find_all("div", class_="review")
-        
-        def parse_reviews_from_soup(s_soup):
-            parsed = []
-            divs = s_soup.find_all("div", class_="review")
-            for div in divs:
-                author_link = div.find("a", href=re.compile(r"^/profile\.php"))
-                if author_link:
-                    author = heal_mojibake(author_link.text.strip())
-                    user_id_match = re.search(r"u=(\d+)", author_link["href"])
-                    user_id = int(user_id_match.group(1)) if user_id_match else None
-                else:
-                    author = "Anonymous"
-                    user_id = None
-
-                text_div = div.find("div", class_="review-text")
-                if text_div:
-                    text_span = text_div.find("span")
-                    if text_span:
-                        for s in text_span.find_all("span", class_="spoiler"):
-                            s.replace_with(f"||{s.text}||")
-                        for br in text_span.find_all("br"):
-                            br.replace_with("\n")
-                        text_content = heal_mojibake(text_span.text.strip())
-                    else:
-                        text_content = ""
-                else:
-                    text_content = ""
-
-                date_div = div.find("div", style=re.compile(r"position:\s*absolute"))
-                date_str = date_div.text.strip() if date_div else ""
-
-                likes_span = div.find("span", class_="r-like-span")
-                likes = int(likes_span.text.strip()) if likes_span else 0
-
-                rating = "na"
-                difficulty = "na"
-                info_text = div.text
-                
-                rating_match = re.search(r"Rating:\s*([^\s]+)", info_text)
-                if rating_match:
-                    rating = parse_rating_val(rating_match.group(1))
-
-                diff_match = re.search(r"Difficulty:\s*([^\s]+)", info_text)
-                if diff_match:
-                    difficulty = parse_difficulty_val(diff_match.group(1))
-
-                tags = []
-                for tag_link in div.find_all("a", class_="tag"):
-                    tag_name = heal_mojibake(tag_link.text.strip().lower())
-                    if tag_name:
-                        tags.append(tag_name)
-
-                parsed.append({
-                    "author": author,
-                    "user_id": user_id,
-                    "game_id": int(game_id),
-                    "game_title": game_title,
-                    "text": text_content,
-                    "likes": likes,
-                    "rating": rating,
-                    "difficulty": difficulty,
-                    "date": date_str,
-                    "tags": tags
-                })
-            return parsed
-
-        reviews.extend(parse_reviews_from_soup(soup))
-        
-        # Pagination links
-        page_numbers = set()
-        for link in soup.find_all("a", href=True):
-            href = link["href"]
-            match = re.search(rf"game_details\.php\?id={game_id}&rpage=(\d+)", href)
-            if match:
-                page_numbers.add(int(match.group(1)))
-                
-        for p in sorted(list(page_numbers)):
-            if p == 0:
-                continue
-            res_p = fetch_url_with_retry(f"{base_url}&rpage={p}", headers=headers)
-            if res_p and res_p.ok:
-                res_p.encoding = 'utf-8'
-                soup_p = BeautifulSoup(re.sub(r'(<br\s*/?>\s*)+', '\n', res_p.text, flags=re.I), "html.parser")
-                reviews.extend(parse_reviews_from_soup(soup_p))
+        while True:
+            batch = df_api("/reviews", {"orderCol": "id", "orderDir": "DESC", "includeOwnerReview": "true",
+                                        "limit": DF_PAGE_SIZE, "page": page})
+            if not isinstance(batch, list):
+                raise ValueError(f"unexpected /reviews response: {str(batch)[:120]}")
+            ids = [r["id"] for r in batch]
+            if ids != sorted(ids, reverse=True):
+                raise ValueError("reviews are not newest-first")
+            rows.update((r["id"], r) for r in batch if r["id"] > after_id)
+            if len(batch) < DF_PAGE_SIZE or ids[-1] <= after_id:
+                break
+            page += 1
+            if page >= DF_REVIEW_MAX_PAGES:
+                raise ValueError(f"no review <= #{after_id} within {page} pages")
+        return [df_review_row(rows[i]) for i in sorted(rows) if not rows[i].get("removed")]
     except Exception as e:
-        log(f"  [WARNING] Exception scraping detail reviews for game ID {game_id}: {e}")
-        
-    return reviews
+        log(f"[WARNING] Could not read new reviews from the Delicious Fruit API: {e}")
+        return None
+
+def fetch_all_game_reviews(game_id, game_title=""):
+    """Every review of one game as corpus rows; None on failure."""
+    log(f"  [Reviews] Reading all reviews for DF ID {game_id}...")
+    rows, page = {}, 0
+    try:
+        while True:
+            batch = df_api(f"/games/{game_id}/reviews", {"includeOwnerReview": "true",
+                                                         "limit": DF_PAGE_SIZE, "page": page}) or []
+            if not isinstance(batch, list):
+                raise ValueError(f"unexpected response: {str(batch)[:120]}")
+            rows.update((r["id"], r) for r in batch)
+            if len(batch) < DF_PAGE_SIZE:
+                break
+            page += 1
+        return [df_review_row(rows[i], game_title) for i in sorted(rows) if not rows[i].get("removed")]
+    except Exception as e:
+        log(f"  [WARNING] Could not read reviews for DF ID {game_id}: {e}")
+        return None
+
+def merge_reviews(corpus, incoming):
+    """Add API review rows to the corpus in place; returns the rows actually added.
+
+    A DF user has one review per game and an edit can reissue its id, so a new row
+    replaces that user's older rows for the game instead of piling up beside them.
+    Older rows may lack user_id, so the author name counts for those.
+    """
+    known_ids = {r.get("review_id") for r in corpus}
+    fresh = [r for r in incoming if r["review_id"] not in known_ids]
+    if not fresh:
+        return []
+    by_user = {(str(r["game_id"]), r["user_id"]) for r in fresh if r.get("user_id") is not None}
+    by_name = {(str(r["game_id"]), r["author"].strip().lower()) for r in fresh if r["author"].strip().lower() != "anonymous"}
+
+    def replaced(o):
+        game = str(o.get("game_id"))
+        if o.get("user_id") is not None:
+            return (game, o["user_id"]) in by_user
+        return (game, (o.get("author") or "").strip().lower()) in by_name
+
+    corpus[:] = [o for o in corpus if not replaced(o)]
+    keys = {review_key(o) for o in corpus}
+    added = []
+    for r in fresh:
+        key = review_key(r)
+        if key not in keys:
+            keys.add(key)
+            corpus.append(r)
+            added.append(r)
+    return added
+
+def save_reviews(corpus):
+    try:
+        os.makedirs(os.path.dirname(REVIEWS_JSON), exist_ok=True)
+        tmp_path = REVIEWS_JSON + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(corpus, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, REVIEWS_JSON)
+        log("Saved reviews database successfully.")
+    except Exception as e:
+        log(f"  [WARNING] Failed to save reviews database: {e}")
+
+def apply_review_stats(game, rows):
+    """Set a game's averages and count from its review rows (same rounding as Step 4A)."""
+    ratings = review_nums(rows, "rating")
+    difficulties = review_nums(rows, "difficulty")
+    if ratings:
+        game["avg_rating"] = round(sum(ratings) / len(ratings), 2)
+    if difficulties:
+        game["avg_difficulty"] = round(sum(difficulties) / len(difficulties), 1)
+    if rows:
+        game["rating_count"] = len(rows)
 
 # ── 📥 DOWNLOADERS & R2 UPLOADERS ─────────────────────────────────────────────
 def is_binary_stream(res):
@@ -893,14 +719,7 @@ def main():
         engine_recog = None
         log(f"[WARNING] Engine recognition unavailable: {e}")
     
-    # 2C. Scrape latest reviews and merge them
-    if DF_SYNC:
-        log("Scraping latest 120 reviews from Delicious Fruit reviews feed...")
-        latest_reviews = scrape_latest_reviews(limit=120)
-    else:
-        log("DF_SYNC=off: no Delicious Fruit requests this run (reviews, list, release dates, ghost sweep).")
-        latest_reviews = []
-    
+    # 2C. Read new reviews and merge them
     scraped_reviews = []
     if os.path.exists(REVIEWS_JSON):
         try:
@@ -908,34 +727,18 @@ def main():
                 scraped_reviews = json.load(f)
         except Exception as e:
             log(f"  [WARNING] Failed to load existing reviews: {e}")
-            
-    # Deduplicate and merge
-    existing_keys = set()
-    for r in scraped_reviews:
-        existing_keys.add(review_key(r))
 
-    new_reviews_count = 0
     newly_added = []
-    for r in latest_reviews:
-        key = review_key(r)
-        if key not in existing_keys:
-            scraped_reviews.append(r)
-            existing_keys.add(key)
-            newly_added.append(r)
-            new_reviews_count += 1
-
-    log(f"Merged {new_reviews_count} new reviews from feed.")
-    
-    # Save back reviews
-    try:
-        os.makedirs(os.path.dirname(REVIEWS_JSON), exist_ok=True)
-        tmp_path = REVIEWS_JSON + ".tmp"
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(scraped_reviews, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, REVIEWS_JSON)
-        log("Saved reviews database successfully.")
-    except Exception as e:
-        log(f"  [WARNING] Failed to save reviews database: {e}")
+    if DF_SYNC:
+        last_review = max((r.get("review_id") or 0 for r in scraped_reviews), default=0) or DF_REVIEW_SEED_ID
+        log(f"Reading Delicious Fruit reviews newer than #{last_review}...")
+        read_after = max(DF_REVIEW_SEED_ID, last_review - DF_REVIEW_REREAD_IDS)
+        newly_added = merge_reviews(scraped_reviews, fetch_new_df_reviews(read_after) or [])
+        log(f"Merged {len(newly_added)} new reviews from feed.")
+        if newly_added:
+            save_reviews(scraped_reviews)
+    else:
+        log("DF_SYNC=off: no Delicious Fruit requests this run (reviews, new games, release dates, ghost sweep).")
 
     # Make the newly-scraped reviews visible in the drawer by inserting them into D1
     # (source='imported', status='approved'). Idempotent via the unique index; failures
@@ -1099,12 +902,18 @@ def main():
                 title_to_seq_ids[t_norm] = []
             title_to_seq_ids[t_norm].append(seq_id)
             
-    # 3. Scrape the full list from Delicious Fruit
-    scraped_games = scrape_full_list() if DF_SYNC else []
-    if scraped_games is None:
-        log("[WARNING] Scraped games list is empty or unreachable. Skipping Delicious Fruit ingestion.")
-        scraped_games = []
-        
+    # 3. DF games the catalog has never mapped. Existing games take their numbers from
+    # the reviews merged above, so nothing else needs the full 15k-game list.
+    scraped_games = []
+    if DF_SYNC:
+        log("Checking the Delicious Fruit API for new games...")
+        scraped_games = fetch_new_df_games(orig_to_seq_map)
+        if scraped_games is None:
+            log("[WARNING] Skipping Delicious Fruit ingestion this run.")
+            scraped_games = []
+        else:
+            log(f"Found {len(scraped_games)} Delicious Fruit game(s) not mapped yet.")
+
     # Load complete I Wanna Wiki game catalog unconditionally
     wiki_games = fetch_wiki_games()
     if not wiki_games:
@@ -1112,6 +921,7 @@ def main():
         wiki_games = []
         
     # Build indices for Wiki matching
+    wiki_by_id = {str(wg.get("id")): wg for wg in wiki_games}
     wiki_by_url = {}
     wiki_by_title_creator = {}
     wiki_by_title = {}
@@ -1351,31 +1161,36 @@ def main():
                 # for this DF id instead of adding a second entry.
                 claim_seq = None
                 claim_orig = ""
-                for m in title_to_seq_ids.get(normalize_str(title), []):
-                    m_str = str(m)
-                    mapping = seq_map.get(m_str)
-                    orig = str(mapping[0]) if isinstance(mapping, list) and mapping else ""
-                    if m_str in games and (orig.startswith("WIKI-") or orig.startswith("SUBMISSION-")):
-                        claim_seq = m_str
-                        claim_orig = orig
-                        break
+                # DF's own link settles it: its wiki bot copies the wiki entry's URL.
+                linked_wg = wiki_entry_for_df_link(sg.get("url"), wiki_by_id, wiki_by_url)
+                linked_seq = orig_to_seq_map.get(f"WIKI-{linked_wg.get('id')}") if linked_wg else None
+                claim_proven = bool(linked_seq and linked_seq in games)
+                if claim_proven:
+                    claim_seq = linked_seq
+                    claim_orig = str(seq_map[linked_seq][0])
+                else:
+                    for m in title_to_seq_ids.get(normalize_str(title), []):
+                        m_str = str(m)
+                        mapping = seq_map.get(m_str)
+                        orig = str(mapping[0]) if isinstance(mapping, list) and mapping else ""
+                        if m_str in games and (orig.startswith("WIKI-") or orig.startswith("SUBMISSION-")):
+                            claim_seq = m_str
+                            claim_orig = orig
+                            break
 
                 if claim_seq:
                     # Same title from another source: confirm via the creator
                     # before merging — different games can legitimately share a
                     # title. Only a definite conflict blocks the claim.
                     df_creator, df_creator_url, _df_tags, df_shots = fetch_game_details(df_id)
-                    if df_creator is None:
-                        # Details page unreachable — the creator can't be
-                        # verified, so neither claim nor ingest this run.
-                        # Failing open here would merge two different games on
-                        # a transient DF error; the next cycle retries.
-                        log(f"  [CLAIM DEFERRED] DF ID {df_id} '{title}' matches seq {claim_seq} ({claim_orig}) by title, but the DF details page is unreachable — deferring to the next run.")
+                    df_reviews = fetch_all_game_reviews(df_id, title) if df_creator is not None else None
+                    if df_reviews is None:
+                        # The creator can't be verified or the reviews would be lost,
+                        # so neither claim nor ingest this run; the next cycle retries.
+                        log(f"  [CLAIM DEFERRED] DF ID {df_id} '{title}' matches seq {claim_seq} ({claim_orig}), but the DF API is unreachable — deferring to the next run.")
                         continue
-                    local_creator = (games[claim_seq].get("creator") or {}).get("name", "")
-                    c_df = normalize_str(df_creator)
-                    c_local = normalize_str(local_creator)
-                    if c_df and c_local and "unknown" not in (c_df, c_local) and c_df != c_local:
+                    local_creator = creator_name_of(games[claim_seq])
+                    if not claim_proven and creators_conflict(df_creator, local_creator):
                         log(f"  [CLAIM SKIPPED] DF ID {df_id} '{title}' matches seq {claim_seq} ({claim_orig}) by title, but creators differ ('{df_creator}' vs '{local_creator}') — treating as a distinct game.")
                         claim_seq = None
 
@@ -1383,17 +1198,14 @@ def main():
                     g = games[claim_seq]
                     seq_map[claim_seq] = [df_id, "new_game", "tags_synced"]
                     orig_to_seq_map[str(df_id)] = claim_seq
-                    if scraped_diff is not None:
-                        g["avg_difficulty"] = scraped_diff
-                    if scraped_rating is not None:
-                        g["avg_rating"] = scraped_rating
-                    if scraped_count:
-                        g["rating_count"] = scraped_count
-                    # Backfill what the non-DF ingest couldn't know, from the
-                    # details page already fetched for the creator check. The
-                    # screenshot dicts are already in catalog shape; the
-                    # screenshot sync mirrors them like any DF ingest's.
+                    apply_review_stats(g, df_reviews)
+                    g["tags"] = sorted(set(g.get("tags") or []) | {t for r in df_reviews for t in r["tags"]})
+                    # Backfill what the non-DF ingest couldn't know. The screenshot
+                    # dicts are already in catalog shape; the screenshot sync mirrors
+                    # them like any DF ingest's.
                     creator_obj = g.get("creator") or {}
+                    if isinstance(creator_obj, str):
+                        creator_obj = {"name": creator_obj, "url": "#"}
                     if df_creator != "Unknown" and normalize_str(creator_obj.get("name", "")) in ("", "unknown"):
                         creator_obj["name"] = df_creator
                     if df_creator_url and df_creator_url != "#" and creator_obj.get("url") in ("", "#", None):
@@ -1401,7 +1213,7 @@ def main():
                     g["creator"] = creator_obj
                     if df_shots and not g.get("screenshots"):
                         g["screenshots"] = df_shots
-                    claimed_cross_source.append({"df_id": df_id, "title": title, "seq_id": claim_seq})
+                    claimed_cross_source.append({"df_id": df_id, "title": title, "seq_id": claim_seq, "reviews": df_reviews})
                     update_count += 1
                     log(f"  [CROSS-SOURCE CLAIM] Seq ID {claim_seq} ('{title}', was {claim_orig}) is the same game as DF ID {df_id} — remapped instead of duplicating.")
                     continue
@@ -1422,32 +1234,15 @@ def main():
     # these games' mappings don't exist on disk until then.
     new_game_reviews_for_d1 = []
 
-    # Cross-source claimed games were ingested from the Wiki/a submission, so
-    # their DF reviews were never scraped. Pull them now exactly like a
-    # new-game ingest would; Step 4A folds them into the stats next run.
+    # Cross-source claimed games were ingested from the Wiki/a submission, so their DF
+    # reviews were never read. Merge the ones the claim fetched (their stats are set).
+    for cg in claimed_cross_source:
+        if cg["reviews"]:
+            log(f"  Found {len(cg['reviews'])} DF review(s) for claimed game '{cg['title']}' (seq {cg['seq_id']}). Merging...")
+            new_game_reviews_for_d1.extend(cg["reviews"])
+            merge_reviews(scraped_reviews, cg["reviews"])
     if claimed_cross_source:
-        for cg in claimed_cross_source:
-            try:
-                claim_reviews = scrape_all_game_reviews(cg["df_id"], cg["title"])
-            except Exception as e:
-                log(f"  [WARNING] Review scrape for claimed DF ID {cg['df_id']} failed: {e}")
-                claim_reviews = []
-            if not claim_reviews:
-                continue
-            log(f"  Found {len(claim_reviews)} DF review(s) for claimed game '{cg['title']}' (seq {cg['seq_id']}). Merging...")
-            new_game_reviews_for_d1.extend(claim_reviews)
-            for r in claim_reviews:
-                key = review_key(r)
-                if key not in existing_keys:
-                    scraped_reviews.append(r)
-                    existing_keys.add(key)
-        try:
-            tmp_path = REVIEWS_JSON + ".tmp"
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                json.dump(scraped_reviews, f, indent=2, ensure_ascii=False)
-            os.replace(tmp_path, REVIEWS_JSON)
-        except Exception as e:
-            log(f"  [WARNING] Failed to save reviews after cross-source claims: {e}")
+        save_reviews(scraped_reviews)
 
     existing_normalized_titles = set(title_to_seq_ids.keys())
     for sg in new_games_to_process:
@@ -1498,40 +1293,34 @@ def main():
             
             log(f"\nINGESTING NEW GAME #{idx+1}/{len(new_games_to_process)}: '{title}' (DF ID: {df_id})")
             
-            # Step 5A: Scrape details (creator, tags, screenshots) from game_details.php
+            # Step 5A: Read details (creator, tags, screenshots) and all reviews
             creator_name, creator_url, df_tags, screenshots = fetch_game_details(df_id)
-            if creator_name is None:
-                creator_name = "Unknown"  # fetch failed; same fallback as before
+            new_game_reviews = fetch_all_game_reviews(df_id, title) if creator_name is not None else None
+            if new_game_reviews is None:
+                # Still unmapped, so the next run finds this game again.
+                log(f"  [INGEST DEFERRED] DF API unreachable for DF ID {df_id}; retrying next run.")
+                new_game_count -= 1
+                continue
             log(f"  Creator: {creator_name} | Initial Tags: {df_tags} | Screenshots found: {len(screenshots)}")
-            
-            # Step 5A-2: Scrape all reviews for this new game and merge them
-            new_game_reviews = scrape_all_game_reviews(df_id, title)
+
             if new_game_reviews:
                 log(f"  Found {len(new_game_reviews)} reviews for new game. Merging...")
                 new_game_reviews_for_d1.extend(new_game_reviews)
-                for r in new_game_reviews:
-                    key = review_key(r)
-                    if key not in existing_keys:
-                        scraped_reviews.append(r)
-                        existing_keys.add(key)
-                
-                # Save reviews database
-                try:
-                    tmp_path = REVIEWS_JSON + ".tmp"
-                    with open(tmp_path, "w", encoding="utf-8") as f:
-                        json.dump(scraped_reviews, f, indent=2, ensure_ascii=False)
-                    os.replace(tmp_path, REVIEWS_JSON)
-                except Exception as e:
-                    log(f"  [WARNING] Failed to save reviews: {e}")
-            
+                merge_reviews(scraped_reviews, new_game_reviews)
+                save_reviews(scraped_reviews)
+
             # Step 5B: Assign next sequential ID
             new_seq_id = max(int(k) for k in games.keys()) + 1
             new_seq_id_str = str(new_seq_id)
             
             # Step 5C: Search matching game in I Wanna Wiki
-            matched_wg = find_wiki_game_match(wiki_games, title, creator_name)
+            matched_wg = (wiki_entry_for_df_link(new_g.get("url"), wiki_by_id, wiki_by_url)
+                          or find_wiki_game_match(wiki_games, title, creator_name))
             wiki_url = matched_wg.get("url", "") if matched_wg else ""
-            log(f"  Matched Wiki Link: {wiki_url if wiki_url else 'None'}")
+            # DF's own link serves a game the wiki doesn't list; a link to a wiki page isn't a file.
+            df_link = (new_g.get("url") or "").split()
+            download_link = wiki_url or ("" if not df_link or WIKI_PAGE_RE.search(df_link[0]) else df_link[0])
+            log(f"  Download link: {download_link or 'None'}")
             
             # Merge tags from I Wanna Wiki if matched
             wiki_tags = set()
@@ -1565,12 +1354,12 @@ def main():
             detected_engine = None
 
             # Step 5D: If supported netdisk, download and upload to R2
-            if wiki_url:
+            if download_link:
                 game_temp_dir = os.path.join(TEMP_BASE_DIR, new_seq_id_str)
                 os.makedirs(game_temp_dir, exist_ok=True)
                 
-                log(f"  Downloading from netdisk link: {wiki_url}...")
-                local_path, err = download_netdisk_file(wiki_url, game_temp_dir)
+                log(f"  Downloading from netdisk link: {download_link}...")
+                local_path, err = download_netdisk_file(download_link, game_temp_dir)
                 
                 if err:
                     log(f"  [DOWNLOAD FAIL] ID {new_seq_id} ('{title}'): {err}")
@@ -1777,57 +1566,26 @@ def main():
             except Exception: pass
             
     # ── Release-date sweep ────────────────────────────────────────────────────
-    # New DF games (including cross-source claims) carry no release date at
-    # ingest — DF only exposes dates through the advanced search's "Released
-    # between" filter. One membership query over the last 90 days finds which
-    # dateless DF-mapped games are recent; a bounded bisection then pins each
-    # to its exact day. Runs BEFORE the delta generation so dates ride the
-    # normal incremental update. fetch_df_ids_in_window returns None on
-    # failure (never "empty"), so a bad query just leaves games dateless for
-    # the next run's retry.
-    try:
-        rd_targets = {}
-        for rd_seq, rd_val in seq_map.items():
-            if rd_seq not in games or games[rd_seq].get("release_date"):
-                continue
-            rd_orig = str(rd_val[0]) if isinstance(rd_val, list) and rd_val else ""
-            if rd_orig.isdigit():
-                rd_targets[rd_orig] = rd_seq
-        if rd_targets and DF_SYNC:
-            rd_today = datetime.date.today()
-            rd_window = fetch_df_ids_in_window(rd_today - datetime.timedelta(days=90), rd_today)
-            if rd_window is None:
-                log("  [WARNING] Release-date sweep skipped: membership query failed (retry next run).")
-            else:
-                rd_pending = {d: s for d, s in rd_targets.items() if d in rd_window}
-                if rd_pending:
-                    log(f"Release-date sweep: dating {len(rd_pending)} of {len(rd_targets)} "
-                        f"dateless DF-mapped game(s) released in the last 90 days...")
-                    rd_budget = 40
-                    rd_stack = [(rd_today - datetime.timedelta(days=90), rd_today, set(rd_pending))]
-                    while rd_stack:
-                        rd_lo, rd_hi, rd_ids = rd_stack.pop()
-                        if not rd_ids:
-                            continue
-                        if rd_lo == rd_hi:
-                            for rd_df in rd_ids:
-                                games[rd_pending[rd_df]]["release_date"] = rd_lo.isoformat()
-                                log(f"  [RELEASE DATE] Seq {rd_pending[rd_df]} (DF {rd_df}) -> {rd_lo.isoformat()}")
-                            continue
-                        if rd_budget <= 0:
-                            log(f"  Release-date sweep budget exhausted; {len(rd_ids)} game(s) retry next run.")
-                            continue
-                        rd_mid = rd_lo + (rd_hi - rd_lo) // 2
-                        rd_left = fetch_df_ids_in_window(rd_lo, rd_mid)
-                        rd_budget -= 1
-                        if rd_left is None:
-                            log(f"  [WARNING] Bisection window {rd_lo}..{rd_mid} failed; "
-                                f"{len(rd_ids)} game(s) retry next run.")
-                            continue
-                        rd_stack.append((rd_lo, rd_mid, rd_ids & rd_left))
-                        rd_stack.append((rd_mid + datetime.timedelta(days=1), rd_hi, rd_ids - rd_left))
-    except Exception as e:
-        log(f"  [WARNING] Release-date sweep failed: {e}")
+    # DF-mapped games without a date take DF's dateCreated (UTC date), newest ids first
+    # and bounded per run; a date already set is never overwritten. Runs BEFORE the
+    # delta generation so dates ride the normal incremental update. A failed read just
+    # leaves the game dateless for the next run's retry.
+    if DF_SYNC:
+        try:
+            rd_targets = {}
+            for rd_seq, rd_val in seq_map.items():
+                if rd_seq not in games or games[rd_seq].get("release_date"):
+                    continue
+                rd_orig = str(rd_val[0]) if isinstance(rd_val, list) and rd_val else ""
+                if rd_orig.isdigit() and int(rd_orig) < DF_SYNTHETIC_ID_FLOOR:
+                    rd_targets[int(rd_orig)] = rd_seq
+            for rd_df in sorted(rd_targets, reverse=True)[:DF_RELEASE_DATE_BUDGET]:
+                rd_date = ((df_api(f"/games/{rd_df}") or {}).get("dateCreated") or "")[:10]
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", rd_date):
+                    games[rd_targets[rd_df]]["release_date"] = rd_date
+                    log(f"  [RELEASE DATE] Seq {rd_targets[rd_df]} (DF {rd_df}) -> {rd_date}")
+        except Exception as e:
+            log(f"  [WARNING] Release-date sweep failed: {e}")
 
     # ── Source provenance ─────────────────────────────────────────────────────
     # Stamp every mapped game with where it was ingested from, so the drawer and
@@ -2072,9 +1830,8 @@ def main():
         
     log("Databases successfully written to disk.")
 
-    # 6B. Sync brand-new games' reviews into D1 now that the seq map is on disk. The feed
-    # sync earlier only covers reviews for games that already existed; a new game's reviews
-    # would otherwise never reach D1 (they rarely reappear in the global "latest" feed).
+    # 6B. Sync brand-new and claimed games' reviews into D1 now that the seq map is on disk.
+    # The feed sync earlier only covers reviews for games that were already mapped.
     if new_game_reviews_for_d1:
         try:
             from sync_reviews_to_d1 import sync_reviews_to_d1
