@@ -263,9 +263,9 @@ function FavCard({ game, auth, onOpen }) {
         </div>
         <div className="fav-card-creator">{t('card.by', 'by')} {game.creator}</div>
         <div className="fav-card-metrics">
-          <span className="metric rating">{window.ic.star}<span className="tnum">{game.rating ? game.rating.toFixed(1) : 'N/A'}</span></span>
-          <span className="metric diff">{window.ic.flame}<span className="tnum">{game.difficulty !== null ? game.difficulty : 'N/A'}</span></span>
-          <span style={{ marginLeft: 'auto', opacity: 0.55 }}>{game.reviews} {t('card.rev', 'rev')}</span>
+          <span className={'metric rating' + window.ratingTone(game.rating || null)}>{window.ic.star}<span className="tnum">{game.rating ? game.rating.toFixed(1) : 'N/A'}</span></span>
+          <span className={'metric diff' + window.difficultyTone(game.difficulty)}>{window.ic.flame}<span className="tnum">{game.difficulty !== null ? game.difficulty : 'N/A'}</span></span>
+          <span className="metric count">{game.reviews} {t('card.rev', 'rev')}</span>
         </div>
       </div>
     </div>

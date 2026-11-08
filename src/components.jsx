@@ -43,6 +43,19 @@ function sourceLinks(game) {
 }
 window.sourceLinks = sourceLinks;
 
+// Tone of a card's rating/difficulty chip, from tone-0 (red) to tone-6 (green).
+// The cut points sit near the catalog's deciles, so each step holds a fair share
+// of games. No value (N/A) gets no tone.
+const RATING_STEPS = [2, 3.5, 5, 6, 7, 8];         // 0–10, higher is better
+const DIFFICULTY_STEPS = [25, 40, 50, 60, 70, 85];  // 0–100, higher is harder
+function metricTone(value, steps, higherIsBetter) {
+  if (value === null || value === undefined) return '';
+  const step = steps.filter((s) => value >= s).length;
+  return ' tone-' + (higherIsBetter ? step : steps.length - step);
+}
+window.ratingTone = (v) => metricTone(v, RATING_STEPS, true);
+window.difficultyTone = (v) => metricTone(v, DIFFICULTY_STEPS, false);
+
 // Shared components: icons, sidebar, drawer, lightbox, toasts.
 
 

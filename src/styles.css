@@ -552,7 +552,7 @@ a { color: inherit; text-decoration: none; }
 .card-creator a { color: var(--text-soft); }
 .card-creator a:hover { color: var(--accent-text); text-decoration: underline; }
 .card-metrics {
-  display: flex; gap: 10px;
+  display: flex; align-items: center; gap: 6px;
   font-size: 11.5px; color: var(--muted);
   font-family: 'Geist Mono', ui-monospace, monospace;
   padding-top: 4px;
@@ -561,8 +561,6 @@ a { color: inherit; text-decoration: none; }
 }
 .metric { display: inline-flex; align-items: center; gap: 4px; }
 .metric svg { width: 11px; height: 11px; }
-.metric.rating svg { color: var(--badge-perf); }
-.metric.diff svg   { color: var(--badge-broken); }
 
 /* ── List view ─────────────────────────────────────────── */
 .list { padding: 0; }
@@ -2245,11 +2243,38 @@ div[data-field="lastName"] {
   font-size: 12px; color: var(--muted); margin-bottom: 10px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.fav-card-metrics { display: flex; align-items: center; gap: 12px; font-size: 11.5px; color: var(--text-soft); }
+.fav-card-metrics { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-soft); }
 .fav-card-metrics .metric { display: inline-flex; align-items: center; gap: 4px; }
 .fav-card-metrics .metric svg { width: 12px; height: 12px; }
-.fav-card-metrics .metric.rating svg { color: var(--gold-deep); }
-.fav-card-metrics .metric.diff svg { color: var(--badge-broken); }
+
+/* Metric chips (game cards, Browse Games list). Rating and difficulty take a
+   tone from tone-0 (red) to tone-6 (green), set in components.jsx; N/A and the
+   review count stay neutral. Icons follow the chip's text color. */
+.card-metrics .metric, .fav-card-metrics .metric, .list-chip {
+  padding: 1px 7px; border-radius: 6px; line-height: 1.5;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+}
+.card-metrics .metric.count, .fav-card-metrics .metric.count { margin-left: auto; }
+.list-chip { display: inline-block; }
+.card-metrics .metric[class*="tone-"], .fav-card-metrics .metric[class*="tone-"], .list-chip[class*="tone-"] {
+  background: oklch(0.95 0.045 var(--tone-h));
+  border-color: oklch(0.87 0.07 var(--tone-h));
+  color: oklch(0.42 0.12 var(--tone-h));
+}
+[data-theme="dark"] .card-metrics .metric[class*="tone-"],
+[data-theme="dark"] .fav-card-metrics .metric[class*="tone-"],
+[data-theme="dark"] .list-chip[class*="tone-"] {
+  background: oklch(0.27 0.06 var(--tone-h));
+  border-color: oklch(0.37 0.08 var(--tone-h));
+  color: oklch(0.84 0.13 var(--tone-h));
+}
+.tone-0 { --tone-h: 25; }
+.tone-1 { --tone-h: 42; }
+.tone-2 { --tone-h: 60; }
+.tone-3 { --tone-h: 85; }
+.tone-4 { --tone-h: 115; }
+.tone-5 { --tone-h: 138; }
+.tone-6 { --tone-h: 152; }
 
 /* ── Empty state ── */
 .fav-empty {

@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.049",
+    "date": "2026-11-08",
+    "note": "Colored rating and difficulty on cards and in the list",
+    "changes": [
+      [
+        "Changed",
+        "Game cards and the Browse Games list show the rating and difficulty on small colored chips. Rating runs from red (low) to green (high) and difficulty from green (easy) to red (hard), in seven steps each; N/A stays grey. Cards show the review count on a grey chip too."
+      ]
+    ]
+  },
+  {
     "ver": "2026.048",
     "date": "2026-11-07",
     "note": "Keys held while loading a save state",
