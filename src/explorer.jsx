@@ -159,8 +159,8 @@ function ListRow({ game, active, onClick }) {
           }
         }} className="list-creator-link">{game.creator}</a>
       </span>
-      <span className="list-num list-rating"><span className={'list-chip' + window.ratingTone(game.rating)}>{game.rating !== null ? game.rating.toFixed(1) : 'N/A'}</span></span>
-      <span className="list-num list-diff"><span className={'list-chip' + window.difficultyTone(game.difficulty)}>{game.difficulty !== null ? game.difficulty : 'N/A'}</span></span>
+      <span className="list-num list-rating"><span className={'list-chip' + window.ratingTone(game.rating)}>{window.ic.star}{game.rating !== null ? game.rating.toFixed(1) : 'N/A'}</span></span>
+      <span className="list-num list-diff"><span className={'list-chip' + window.difficultyTone(game.difficulty)}>{window.ic.flame}{game.difficulty !== null ? game.difficulty : 'N/A'}</span></span>
       <span className="list-num list-size">{formatSize(game.file_size)}</span>
       <span className="list-badges">
         {game.flags.local  && <span className="bdg local">{window.ic.hdd}</span>}

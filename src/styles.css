@@ -612,21 +612,24 @@ a { color: inherit; text-decoration: none; }
     display: none !important;
   }
 }
+/* Phones and narrow tablets: each row becomes two lines, so rating and difficulty
+   stay visible. The chip icons stand in for the hidden header (see .list-chip). */
 @media (max-width: 800px) {
-  .list-head, .list-row {
-    grid-template-columns: 56px 3fr 2fr 90px;
+  .list-head { display: none; }
+  .list-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "title title title" "creator rating diff";
+    gap: 3px 6px;
+    height: auto;
+    padding: 8px 12px;
   }
-  .list-size, .list-badges, .list-diff {
+  .list-id, .list-size, .list-badges {
     display: none !important;
   }
-}
-@media (max-width: 660px) {
-  .list-head, .list-row {
-    grid-template-columns: 56px 3fr 2fr;
-  }
-  .list-size, .list-badges, .list-diff, .list-rating {
-    display: none !important;
-  }
+  .list-title { grid-area: title; }
+  .list-creator { grid-area: creator; font-size: 12px; }
+  .list-rating { grid-area: rating; }
+  .list-diff { grid-area: diff; }
 }
 
 /* ── Drawer ────────────────────────────────────────────── */
@@ -2256,6 +2259,11 @@ div[data-field="lastName"] {
 }
 .card-metrics .metric.count, .fav-card-metrics .metric.count { margin-left: auto; }
 .list-chip { display: inline-block; }
+.list-chip svg { display: none; }
+@media (max-width: 800px) {
+  .list-chip { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 42px; font-size: 12px; }
+  .list-chip svg { display: block; width: 11px; height: 11px; }
+}
 .card-metrics .metric[class*="tone-"], .fav-card-metrics .metric[class*="tone-"], .list-chip[class*="tone-"] {
   background: oklch(0.95 0.045 var(--tone-h));
   border-color: oklch(0.87 0.07 var(--tone-h));

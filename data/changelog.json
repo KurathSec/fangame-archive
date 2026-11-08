@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.050",
+    "date": "2026-11-08",
+    "note": "Rating and difficulty in the list on phones",
+    "changes": [
+      [
+        "Fixed",
+        "On phones and narrow tablets the Browse Games list no longer hides the rating and difficulty: each game takes two lines, with its full title on top and its creator, rating and difficulty below."
+      ]
+    ]
+  },
+  {
     "ver": "2026.049",
     "date": "2026-11-08",
     "note": "Colored rating and difficulty on cards and in the list",
