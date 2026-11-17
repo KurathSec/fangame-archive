@@ -2,6 +2,17 @@
   {
     "ver": "2026.054",
     "date": "2026-11-18",
+    "note": "Save states keep surfaces and effects",
+    "changes": [
+      [
+        "Fixed",
+        "Loading a save state in the browser player could lose backgrounds and effects the game had drawn into its own surfaces (some showed black gaps or disappeared until the room was restarted with R, for example in I wanna sort myself out). Save states now keep them, so a load looks exactly as it did when it was saved. Save states made before this update still load, but keep this only once they are saved again."
+      ]
+    ]
+  },
+  {
+    "ver": "2026.054",
+    "date": "2026-11-18",
     "note": "Pages keep what you left them with",
     "changes": [
       [
