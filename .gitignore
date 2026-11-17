@@ -43,6 +43,8 @@ database/seq_to_orig_map.json
 # Engine-recognition resume state: R2 owns it (Database/engine_recognition_state.json),
 # synced by pipelines/sync_db_r2.py like the three above. 2.8 MB, rewritten every sweep.
 data/engine_recognition_state.json
+# Browser-player cover attempts (pipelines/play_covers.py): R2 owns it like the one above.
+data/play_cover_state.json
 
 # Exclude historical JSON database backups
 data/games.json.*

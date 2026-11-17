@@ -1,5 +1,20 @@
 [
   {
+    "ver": "2026.052",
+    "date": "2026-11-17",
+    "note": "Title screens for new browser-playable games",
+    "changes": [
+      [
+        "Added",
+        "A game that can be played in the browser and has no screenshot now gets one from the game itself: the archive starts it in the browser player and keeps one of its first screens, usually the title. New games get theirs within a few hours of being added; the playable games still without one are worked through a few dozen at a time."
+      ],
+      [
+        "Added",
+        "Screenshots for 69 games added since late October that had none."
+      ]
+    ]
+  },
+  {
     "ver": "2026.051",
     "date": "2026-11-17",
     "note": "Screenshot links in the public API",

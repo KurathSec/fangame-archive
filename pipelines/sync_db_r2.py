@@ -17,6 +17,10 @@ DB_FILES = {
     # re-recognition later; the reverse order could persist "success" entries for
     # engine labels that never reached the R2 games.json, losing them forever.
     "data/engine_recognition_state.json": "Database/engine_recognition_state.json",
+    # play_covers.py's attempts (which games gave no cover with which player); before
+    # games.json for the same reason: a game recorded "ok" whose cover did not reach
+    # games.json is captured again.
+    "data/play_cover_state.json": "Database/play_cover_state.json",
     "data/games.json": "Database/games.json",
     "data/recent_changes.json": "Database/recent_changes.json",
     "data/profiles.json": "Database/profiles.json",

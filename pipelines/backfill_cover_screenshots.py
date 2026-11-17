@@ -10,12 +10,14 @@ from delicious-fruit.
 First-writer-wins: a game that already has screenshots (real DF ones, or a
 previously applied cover) is never touched.
 
-Like backfill_release_dates.py / backfill_engine.py, a mass change can't ride
-the incremental timeline (thousands of fat records would blow the <10 MB
-recent_changes budget), so on any assignment we bump `recent_changes.version`
-WITHOUT a timeline entry -> stale clients full-reload once and pick the field
-up from the served chunks. Zero assignments -> exit 0 with no bump, so it is
-safe as a permanent CI step.
+A few assignments (up to TIMELINE_MAX games, e.g. covers captured for a batch of
+new games) ride the incremental timeline: the version bump carries a timeline
+entry with the updated games, like the scraper's delta. A mass change can't
+(thousands of fat records would blow the <10 MB recent_changes budget), so then,
+like backfill_release_dates.py / backfill_engine.py, we bump
+`recent_changes.version` WITHOUT a timeline entry -> stale clients full-reload
+once and pick the field up from the served chunks. Zero assignments -> exit 0
+with no bump, so it is safe as a permanent CI step.
 
 Usage:
   python pipelines/backfill_cover_screenshots.py            # dry-run
@@ -28,6 +30,7 @@ import json
 import os
 import shutil
 import sys
+import time
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -35,6 +38,8 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARTIFACT = os.path.join(REPO_ROOT, "data", "cover_screenshots.json")
 GAMES = os.path.join(REPO_ROOT, "data", "games.json")
 RECENT_CHANGES = os.path.join(REPO_ROOT, "data", "recent_changes.json")
+# Up to this many assignments go out as a timeline entry (incremental update).
+TIMELINE_MAX = 500
 
 
 def valid_entry(e):
@@ -59,6 +64,7 @@ def main():
 
     already = sum(1 for g in games.values() if g.get("screenshots"))
     assigned = 0
+    updated = {}
     for seq_id, entry in covers.items():
         g = games.get(seq_id)
         if g is None or g.get("screenshots") or not valid_entry(entry):
@@ -68,6 +74,7 @@ def main():
             "image_path": entry["image_path"],
             "by": entry.get("by", "auto-capture"),
         }]
+        updated[seq_id] = g
         assigned += 1
 
     print(f"catalog games        : {len(games)}")
@@ -104,12 +111,21 @@ def main():
         rc = {"version": 1, "timeline": {}}
     old_v = rc.get("version", 1)
     rc["version"] = old_v + 1
-    # Intentionally NO timeline[new] entry -> incremental bridge breaks ->
-    # stale clients full-reload once and pick up the covers from the chunks.
+    if assigned <= TIMELINE_MAX:
+        # (the build prunes the timeline to its last 10 entries and < 10 MB)
+        rc.setdefault("timeline", {})[str(rc["version"])] = {
+            "timestamp": int(time.time()),
+            "updated": updated,
+            "deleted": [],
+        }
+        how = "with a timeline entry; clients update incrementally"
+    else:
+        # NO timeline[new] entry -> incremental bridge breaks -> stale clients
+        # full-reload once and pick up the covers from the chunks.
+        how = "no timeline entry; forces a one-time full-reload"
     with open(RECENT_CHANGES, "w", encoding="utf-8") as f:
         json.dump(rc, f, ensure_ascii=False, indent=2)
-    print(f"Bumped recent_changes.version {old_v} -> {rc['version']} "
-          f"(no timeline entry; forces a one-time full-reload).")
+    print(f"Bumped recent_changes.version {old_v} -> {rc['version']} ({how}).")
 
 
 if __name__ == "__main__":

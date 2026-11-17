@@ -150,11 +150,19 @@ jobs:
         # succeeds but new reviews never reach the D1 comments table.
         # This step also invokes build_github_pages.py, which precompiles the JSX
         # with esbuild (installed by `npm ci` above).
+        # Inside it, pipelines/play_covers.py captures covers for browser-playable
+        # games without screenshots: it runs them in the player bundle fetched above,
+        # in the runner's Google Chrome (headless, WebGL on SwiftShader; the
+        # throwaway VM needs no Chrome sandbox). PLAY_COVERS=off turns it off.
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PLAY_COVERS: 'on'
+          PLAY_COVERS_MAX_GAMES: '40'
+          PLAY_COVERS_MAX_SECONDS: '900'
+          PLAY_CAPTURE_CHROME_ARGS: '--no-sandbox'
         run: python pipelines/scrape_and_migrate_new_games.py
 
       - name: Sync Screenshots to R2

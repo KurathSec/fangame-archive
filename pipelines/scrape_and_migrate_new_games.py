@@ -1729,6 +1729,34 @@ def main():
             except Exception as e:
                 log(f"  [WARNING] Failed to save engine recognition state: {e}")
 
+    # Cover screenshots captured in the browser player (pipelines/play_covers.py) for
+    # browser-playable games that have none, newest first, within a time budget. Runs
+    # after the engine sweep (a newly recognized game can be played) and BEFORE the
+    # timeline delta, so the covers reach cached clients incrementally. Never breaks
+    # the sync; PLAY_COVERS=off turns it off.
+    if os.environ.get("PLAY_COVERS", "on") != "off":
+        try:
+            if CLOUDFLARE_ACCOUNT_ID and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
+                import play_covers
+                covers_client = boto3.client(
+                    's3',
+                    endpoint_url=f"https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com",
+                    aws_access_key_id=AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                    config=Config(signature_version='s3v4')
+                )
+                log("\nCapturing cover screenshots in the browser player...")
+                play_covers.sweep(
+                    games, covers_client, os.path.join(TEMP_BASE_DIR, "play_covers"),
+                    max_games=int(os.environ.get("PLAY_COVERS_MAX_GAMES", "40")),
+                    max_seconds=int(os.environ.get("PLAY_COVERS_MAX_SECONDS", "900")),
+                    log=log,
+                )
+            else:
+                log("Play covers skipped: R2 credentials not configured.")
+        except Exception as e:
+            log(f"  [WARNING] Play cover sweep failed: {e}")
+
     # Generate timeline delta changes
     log("\nGenerating database timeline delta changes...")
     RECENT_CHANGES_PATH = "data/recent_changes.json"
