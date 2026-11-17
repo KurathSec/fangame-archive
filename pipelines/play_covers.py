@@ -9,9 +9,9 @@ only screenshot (by "auto-capture", like the covers of data/cover_screenshots.js
 
 The CI pipeline calls sweep() from scrape_and_migrate_new_games.py before the timeline
 delta, so the covers reach cached clients incrementally. Newest games go first, within a
-time budget. Attempts are kept in data/play_cover_state.json, which sync_db_r2.py syncs
-to R2. A game that gave no usable frame is tried again only with another player version,
-and at most MAX_ATTEMPTS times.
+time budget (games to try again go in the same order). Attempts are kept in
+data/play_cover_state.json, which sync_db_r2.py syncs to R2. A game that gave no usable
+frame is tried again only with another player version, and at most MAX_ATTEMPTS times.
 
 Frames: 100 and 250 (the title, usually), then Shift is tapped at frame 300 (a volume
 check or a "press Shift" screen moves on) and frames 450 and 600 are taken. The cover is
@@ -110,21 +110,19 @@ def playable(game):
 
 
 def candidates(games, state, player):
-    """Seq ids to try, in order: never tried (newest first), then games to try again
-    with this player (newest first)."""
-    fresh, again = [], []
+    """Seq ids to try, newest first: never tried, and games to try again with this player
+    (a new player may draw what the last one did not; recent games go before the old
+    backlog either way)."""
+    todo = []
     for seq_id, g in games.items():
         if g.get("screenshots") or not playable(g):
             continue
         entry = state.get(seq_id)
         # (an "ok" game without screenshots lost its catalog write, or had them removed)
-        if entry is None or entry.get("status") == "ok":
-            fresh.append(seq_id)
-        elif (entry.get("status") != "ok" and entry.get("player") != player
-              and entry.get("attempts", 1) < MAX_ATTEMPTS):
-            again.append(seq_id)
-    key = lambda s: -int(s) if s.isdigit() else 0
-    return sorted(fresh, key=key) + sorted(again, key=key)
+        if (entry is None or entry.get("status") == "ok"
+                or (entry.get("player") != player and entry.get("attempts", 1) < MAX_ATTEMPTS)):
+            todo.append(seq_id)
+    return sorted(todo, key=lambda s: -int(s) if s.isdigit() else 0)
 
 
 # ── frames ─────────────────────────────────────────────────────────────────────
