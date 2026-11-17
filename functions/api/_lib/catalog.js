@@ -56,6 +56,17 @@ export function primarySourceType(source) {
   return first ? String(first.type).toLowerCase() : "none";
 }
 
+// Public host of the `fangame-screenshots` R2 bucket (same value as
+// window.SCREENSHOT_BASE_URL in the site's index.html). search_index.json stores
+// each screenshot as its bucket key; the URL is derived here, like `source`.
+const SCREENSHOT_BASE_URL = "https://screenshots.fangame-archive.com/";
+
+/** A game's screenshot keys -> absolute image URLs, catalog order. */
+function screenshotLinks(keys) {
+  if (!Array.isArray(keys)) return [];
+  return keys.filter(Boolean).map((k) => SCREENSHOT_BASE_URL + String(k).replace(/\\/g, "/"));
+}
+
 export function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -463,7 +474,9 @@ export function shape(g, fields, origin = "") {
     file_size: g.file_size ?? 0,
     page_url: `${origin}/?game=${g.id}`,
     // Every upstream page that documents this game, ingest origin first.
-    source: sourceLinks(g.source)
+    source: sourceLinks(g.source),
+    // Absolute image URLs; [] when the archive holds no screenshot.
+    screenshots: screenshotLinks(g.screenshots)
   };
   if (!fields || !fields.length) return out;
   const picked = {};

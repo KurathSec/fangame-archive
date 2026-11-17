@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.051",
+    "date": "2026-11-17",
+    "note": "Screenshot links in the public API",
+    "changes": [
+      [
+        "Added",
+        "Every game record from the public API (/api/all, /api/search, /api/tag, /api/engine, /api/releasedate, /api/random) now carries screenshots: a list of direct image links to the game's screenshots on this archive, in the same order as the detail panel, or an empty list when it has none. fields=id,title,screenshots trims a response down to just that."
+      ]
+    ]
+  },
+  {
     "ver": "2026.050",
     "date": "2026-11-08",
     "note": "Rating and difficulty in the list on phones",

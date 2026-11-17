@@ -35,6 +35,9 @@ def format_size(size_bytes):
     else:
         return f"{size_bytes / 1024**2:.1f} MB"
 
+# Public host of the screenshots bucket (functions/api/_lib/catalog.js SCREENSHOT_BASE_URL).
+SCREENSHOT_BASE_URL = "https://screenshots.fangame-archive.com/"
+
 def slim_game(seq_id, game):
     """Enriched per-game record returned by the /api/search and /api/random dev
     endpoints (kept in sync with build_github_pages.py's search_index.json)."""
@@ -56,6 +59,8 @@ def slim_game(seq_id, game):
         "rating_count": rating_count,
         "file_size": game.get("file_size", 0) or 0,
         "engine": game.get("engine"),
+        "screenshots": [SCREENSHOT_BASE_URL + s["image_path"] for s in game.get("screenshots") or []
+                        if isinstance(s, dict) and s.get("image_path")],
     }
 
 def run_audit():

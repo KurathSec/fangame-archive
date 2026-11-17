@@ -121,7 +121,11 @@ def main():
             "file_size": game.get("file_size", 0) or 0,
             # Upstream provenance {"type": "df"|"wiki", "id": "..."} — the public
             # API turns it into a link back to Delicious Fruit / the IWanna Wiki.
-            "source": game.get("source")
+            "source": game.get("source"),
+            # R2 keys in the screenshots bucket ("ratings/screenshots/…"), in catalog
+            # order; the public API prefixes the bucket's public host.
+            "screenshots": [s["image_path"] for s in game.get("screenshots") or []
+                            if isinstance(s, dict) and s.get("image_path")]
         })
         
     index_path = os.path.join(DIST_DIR, "data", "search_index.json")
