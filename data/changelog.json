@@ -1,5 +1,16 @@
 [
   {
+    "ver": "2026.053",
+    "date": "2026-11-17",
+    "note": "GameMaker 8.2 games show their graphics in the browser",
+    "changes": [
+      [
+        "Fixed",
+        "Several newer GameMaker 8.2 games played in the browser showed only a plain colour (sometimes with their music playing) instead of their title, sprites and text, for example I wanna Empyreal, I wanna be the IZANAGI and Charmstination's Absent Silhouette. They now draw normally, including backgrounds drawn through the game's own shaders."
+      ]
+    ]
+  },
+  {
     "ver": "2026.052",
     "date": "2026-11-17",
     "note": "Title screens for new browser-playable games",
