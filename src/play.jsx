@@ -40,8 +40,8 @@ function playUrl(game) {
 }
 function handOff(game) {
   playStore.set('fa.play.' + game.id, { id: game.id, title: game.title, url: game.url, engine: game.engine, size: game.file_size });
-  // Coming back (the player's ← Archive) finds the Explorer as it was left (src/explorer.jsx).
-  try { sessionStorage.setItem('archive_back', '1'); } catch (e) {}
+  // (coming back, the player's ← Archive finds every page as it was left: this tab's
+  // sessionStorage, src/components.jsx useSessionState)
 }
 
 // ── Mods ────────────────────────────────────────────────────────────────────

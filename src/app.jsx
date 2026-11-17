@@ -23,6 +23,9 @@ function readSavedTweaks(defaults) {
   return merged;
 }
 
+// The pages a history entry can take Back to (all but the token-bound shared page).
+const PAGE_VIEWS = ['explorer', 'playing', 'donation', 'links', 'updates', 'contact', 'localgames', 'settings', 'submit', 'mycontent', 'collections', 'publib'];
+
 function App() {
   const initialTweaks = React.useMemo(() => readSavedTweaks(TWEAK_DEFAULTS), []);
   const [tweaks, setTweak] = window.useTweaks(initialTweaks);
@@ -32,13 +35,9 @@ function App() {
       // A shared-collection link (?collection=<token>) opens the read-only page.
       if (q.get('collection')) return 'shared';
       // A deep link (?game=<id>) opens inside the catalog — or on the page this tab was
-      // on when it went to play (coming back from /play/, src/play.jsx), with the
-      // Explorer's filters as they were.
+      // on (coming back from /play/, src/play.jsx, or a reload with a game open). Each
+      // page puts back what it was left with by itself (src/components.jsx useSessionState).
       if (q.get('game')) {
-        if (sessionStorage.getItem('archive_back') === '1') {
-          sessionStorage.removeItem('archive_back');
-          window.__restoreExplorer = true;
-        }
         const back = sessionStorage.getItem('archive_view');
         return ['playing', 'localgames', 'collections', 'publib'].includes(back) ? back : 'explorer';
       }
@@ -52,28 +51,29 @@ function App() {
   const [collectionToken, setCollectionToken] = React.useState(() => {
     try { return new URLSearchParams(window.location.search).get('collection'); } catch (e) { return null; }
   });
-  const [activeGame, setActiveGame] = React.useState(() => {
+  // The open game, and the page it was rolled on when it came from Roll Random (the
+  // drawer then offers Roll again, while that page is showing). Both survive a reload.
+  const [initialDrawer] = React.useState(() => {
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem('archive_active_game') || 'null'); } catch (e) {}
+    const savedRoll = (id) => (saved && String(saved.id) === String(id) && typeof saved.roll === 'string' ? saved.roll : null);
     // Deep link takes priority: a shared/bookmarked ?game=<id> URL opens
     // straight into that game's drawer.
     try {
       const urlId = new URLSearchParams(window.location.search).get('game');
       if (urlId && window.DATA && window.DATA.GAMES) {
         const g = window.DATA.GAMES.find(x => String(x.id) === String(urlId));
-        if (g) return g;
+        if (g) return { game: g, roll: savedRoll(g.id) };
       }
     } catch (e) {}
-    const saved = sessionStorage.getItem('archive_active_game');
-    if (saved) {
-      try {
-        const game = JSON.parse(saved);
-        if (window.DATA && window.DATA.GAMES) {
-          return window.DATA.GAMES.find(g => g.id === game.id) || game;
-        }
-        return game;
-      } catch (e) {}
+    if (saved && saved.id != null) {
+      const game = (window.DATA && window.DATA.GAMES && window.DATA.GAMES.find(g => g.id === saved.id)) || null;
+      if (game) return { game, roll: savedRoll(game.id) };
     }
-    return null;
+    return { game: null, roll: null };
   });
+  const [activeGame, setActiveGame] = React.useState(initialDrawer.game);
+  const [rollFrom, setRollFrom] = React.useState(initialDrawer.roll);
   const [toasts, setToasts] = React.useState([]);
 
   React.useEffect(() => {
@@ -82,11 +82,18 @@ function App() {
 
   React.useEffect(() => {
     if (activeGame) {
-      sessionStorage.setItem('archive_active_game', JSON.stringify({ id: activeGame.id }));
+      sessionStorage.setItem('archive_active_game', JSON.stringify({ id: activeGame.id, roll: rollFrom }));
     } else {
       sessionStorage.removeItem('archive_active_game');
     }
-  }, [activeGame]);
+  }, [activeGame, rollFrom]);
+
+  // Each history entry remembers the page last shown on it (views switch without a
+  // history push), so Back out of a shared collection returns to the page it was opened
+  // from (Public Collections, usually) rather than to Browse Games.
+  React.useEffect(() => {
+    try { window.history.replaceState({ ...(window.history.state || {}), view }, ''); } catch (e) {}
+  }, [view]);
 
   // Optimistic auth state: render the last-known identity instantly on load so the
   // sidebar doesn't flash "logged out" for the few seconds Clerk takes to resolve
@@ -246,66 +253,69 @@ function App() {
     window.closeSidebar = () => setSidebarOpen(false);
   }, []);
 
-  const [isRoll, setIsRoll] = React.useState(false);
-
   // Reflect the open game into the URL (?game=<id>) via the History API — no
   // reload, so each game gets a shareable link while keeping SPA speed.
   // Opening pushes a history entry (Back closes the drawer); closing/leaving
-  // replaces it (Back returns to the prior page rather than re-opening).
-  const syncGameUrl = (game, { replace = false } = {}) => {
+  // replaces it (Back returns to the prior page rather than re-opening). The entry
+  // also says whether the game was rolled, so Back/Forward keep Roll again.
+  const syncGameUrl = (game, { replace = false, roll = null } = {}) => {
     try {
       const url = new URL(window.location.href);
       if (game) url.searchParams.set('game', String(game.id));
       else url.searchParams.delete('game');
-      const state = { game: game ? game.id : null };
-      if (replace) window.history.replaceState(state, '', url);
-      else window.history.pushState(state, '', url);
+      const state = { game: game ? game.id : null, roll: game ? roll : null };
+      if (replace) window.history.replaceState({ ...(window.history.state || {}), ...state }, '', url);
+      else window.history.pushState({ ...state, view }, '', url);
     } catch (e) {}
   };
 
   const openGame = (g, rolled = false) => {
+    const roll = rolled ? view : null;
     setActiveGame(g);
-    setIsRoll(rolled);
-    syncGameUrl(g);
+    setRollFrom(roll);
+    syncGameUrl(g, { roll });
   };
   const closeDrawer = () => {
     setActiveGame(null);
-    setIsRoll(false);
+    setRollFrom(null);
     syncGameUrl(null, { replace: true });
   };
 
   // Browser Back/Forward: re-sync the drawer to the URL's ?game param. This only
   // reads the URL (no pushState), so it never loops with syncGameUrl above.
   React.useEffect(() => {
-    const onPop = () => {
+    const onPop = (e) => {
+      const st = (e && e.state) || {};
       let id = null, colToken = null;
       try {
         const q = new URLSearchParams(window.location.search);
         id = q.get('game');
         colToken = q.get('collection');
-      } catch (e) {}
+      } catch (err) {}
       if (colToken) {
         setCollectionToken(colToken);
         setView('shared');
-        if (!id) { setActiveGame(null); setIsRoll(false); return; }
+        if (!id) { setActiveGame(null); setRollFrom(null); return; }
       }
       if (id && window.DATA && window.DATA.GAMES) {
         const g = window.DATA.GAMES.find(x => String(x.id) === String(id));
         if (g) {
           setActiveGame(g);
-          setIsRoll(false);
+          setRollFrom(String(st.game) === String(g.id) && typeof st.roll === 'string' ? st.roll : null);
           setView(v => (v === 'explorer' || v === 'collections' || v === 'shared' || v === 'publib' || v === 'playing') ? v : 'explorer');
           return;
         }
       }
       if (!colToken) {
         setCollectionToken(null);
-        // Leaving a shared-collection URL with nothing to show — fall back to
-        // the catalog instead of re-rendering SharedCollectionView with a null token.
-        setView(v => (v === 'shared' ? 'explorer' : v));
+        // Leaving a shared-collection URL with nothing to show: back to the page this
+        // entry last showed (see the view effect above), else the catalog — never
+        // SharedCollectionView with a null token.
+        const back = PAGE_VIEWS.includes(st.view) ? st.view : 'explorer';
+        setView(v => (v === 'shared' ? back : v));
       }
       setActiveGame(null);
-      setIsRoll(false);
+      setRollFrom(null);
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -324,11 +334,10 @@ function App() {
   // an include filter for the Explorer to pick up on mount, then switch there.
   // Leaving a shared page is a history push (the open drawer closes with it), so
   // Back returns to the collection; from the library it is a plain view switch.
-  const showCollectionInBrowse = (entry) => {
-    window.__pendingCollectionFilter = entry;
+  const showInBrowse = () => {
     if (view === 'shared') {
       setActiveGame(null);
-      setIsRoll(false);
+      setRollFrom(null);
       try {
         const u = new URL(window.location.href);
         u.searchParams.delete('collection');
@@ -338,6 +347,18 @@ function App() {
     }
     goToView('explorer');
   };
+  const showCollectionInBrowse = (entry) => {
+    window.__pendingCollectionFilter = entry;
+    showInBrowse();
+  };
+  // The drawer's author link on a page other than Browse Games (whose Explorer
+  // handles it itself through window.setCreatorSearch): search that author there.
+  React.useEffect(() => {
+    window.showCreatorInBrowse = (name) => {
+      window.__pendingCreatorSearch = name;
+      showInBrowse();
+    };
+  });
 
   return (
     <div className={`app${sidebarOpen ? ' sidebar-mobile-open' : ''}`}>
@@ -361,7 +382,7 @@ function App() {
         {view === 'collections' && <window.CollectionsView auth={auth} onOpenGame={openGame} onView={setView} onOpenLogin={handleOpenLogin} />}
         {view === 'publib'      && <window.PublicLibraryView auth={auth} onView={setView} onShowInBrowse={showCollectionInBrowse} />}
         {view === 'shared'      && <window.SharedCollectionView token={collectionToken} onOpenGame={openGame} onView={setView} onShowInBrowse={showCollectionInBrowse} />}
-        {activeGame && (view === 'explorer' || view === 'collections' || view === 'shared' || view === 'publib' || view === 'playing' || view === 'localgames') && <window.Drawer game={activeGame} isRoll={isRoll} onClose={closeDrawer} auth={auth} identity={identity} />}
+        {activeGame && (view === 'explorer' || view === 'collections' || view === 'shared' || view === 'publib' || view === 'playing' || view === 'localgames') && <window.Drawer game={activeGame} isRoll={rollFrom !== null && rollFrom === view} onClose={closeDrawer} auth={auth} identity={identity} />}
       </main>
 
       <window.Toasts items={toasts} />

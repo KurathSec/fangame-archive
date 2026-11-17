@@ -56,6 +56,87 @@ function metricTone(value, steps, higherIsBetter) {
 window.ratingTone = (v) => metricTone(v, RATING_STEPS, true);
 window.difficultyTone = (v) => metricTone(v, DIFFICULTY_STEPS, false);
 
+// ── What a page was left with, per tab ─────────────────────────────────────
+// A view unmounts when the sidebar switches away, so whatever a visitor set on it (a
+// filter, a page number, the list they had open, how far they had scrolled) would start
+// over on the way back. These keep it in sessionStorage: it outlives a view switch and a
+// reload in this tab, and a new tab starts clean. A stored value of another shape than
+// the fallback (left by an older version) is ignored.
+function sameShape(value, fallback) {
+  if (fallback === null || fallback === undefined) return true;
+  if (Array.isArray(fallback)) return Array.isArray(value);
+  if (typeof fallback === 'object') return !!value && typeof value === 'object' && !Array.isArray(value);
+  return typeof value === typeof fallback;
+}
+function readSession(key, fallback) {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (raw === null) return fallback;
+    const value = JSON.parse(raw);
+    return sameShape(value, fallback) ? value : fallback;
+  } catch (e) { return fallback; }
+}
+function writeSession(key, value) {
+  try {
+    if (value === undefined) sessionStorage.removeItem(key);
+    else sessionStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {}
+}
+function useSessionState(key, fallback) {
+  const [value, setValue] = React.useState(() => readSession(key, fallback));
+  React.useEffect(() => { writeSession(key, value); }, [key, value]);
+  return [value, setValue];
+}
+// The scroll position of the element in `ref`, put back on mount (`restore` false
+// starts at the top and forgets the old one). Content that loads after mount (it can
+// wait on sign-in after a reload) is waited for until it is tall enough, for up to 20
+// seconds; scrolling or touching the page first cancels that, and content that never
+// gets that tall stays at the top rather than jumping late.
+function useScrollMemory(ref, key, restore = true) {
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const target = restore ? readSession(key, 0) : 0;
+    let last = target;
+    let armed = target <= 0;
+    let timer = null;
+    let frame = 0;
+    if (!restore) writeSession(key, 0);
+    const onScroll = () => {
+      if (!armed) return;
+      last = Math.round(el.scrollTop);
+      clearTimeout(timer);
+      timer = setTimeout(() => { timer = null; writeSession(key, last); }, 120);
+    };
+    const cancelRestore = () => { if (!armed) { armed = true; cancelAnimationFrame(frame); } };
+    if (!armed) {
+      const deadline = performance.now() + 20000;
+      const attempt = () => {
+        if (armed) return;
+        if (el.scrollTop > 0 || performance.now() > deadline) { armed = true; return; } // scrolled meanwhile (keys, scrollbar), or gave up
+        if (el.scrollHeight - el.clientHeight >= target) {
+          el.scrollTop = target;
+          armed = true;
+          return;
+        }
+        frame = requestAnimationFrame(attempt);
+      };
+      attempt();
+    }
+    const cancelEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
+    el.addEventListener('scroll', onScroll, { passive: true });
+    cancelEvents.forEach((t) => el.addEventListener(t, cancelRestore, { passive: true }));
+    return () => {
+      cancelAnimationFrame(frame);
+      el.removeEventListener('scroll', onScroll);
+      cancelEvents.forEach((t) => el.removeEventListener(t, cancelRestore));
+      // (the element may already be detached here, so the last position seen is saved)
+      if (timer) { clearTimeout(timer); writeSession(key, last); }
+    };
+  }, [key]);
+}
+Object.assign(window, { readSession, writeSession, useSessionState, useScrollMemory });
+
 // Shared components: icons, sidebar, drawer, lightbox, toasts.
 
 
@@ -317,7 +398,7 @@ function Lightbox({ shots, index, onClose, onPrev, onNext }) {
 
       <div className="lbox-inner" onClick={(e) => e.stopPropagation()}>
 
-        <img src={getShotUrl(cur?.image_path)} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', zIndex: 1 }} />
+        <img key={cur?.image_path} src={getShotUrl(cur?.image_path)} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', zIndex: 1 }} />
 
         <button className="lbox-x" onClick={onClose}>{ic.x}</button>
 
@@ -455,6 +536,8 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
     setCommentPage(1);
 
+    setOpenShot(-1);
+
     loadComments();
 
   }, [game?.id, loadComments]);
@@ -565,6 +648,8 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
                 e.preventDefault();
                 if (window.setCreatorSearch) {
                   window.setCreatorSearch(game.creator);
+                } else if (window.showCreatorInBrowse) {
+                  window.showCreatorInBrowse(game.creator);
                 }
                 onClose();
               }}>{game.creator}</a>
@@ -695,10 +780,12 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
               <window.CollectionMenuButton gameId={game.id} auth={auth} />
             )}
 
-            {isRoll && window.rollRandomGame && (
+            {/* isRoll: rolled on the page showing now, whose Explorer registers
+                window.rollRandomGame (after this first render, on a reload) */}
+            {isRoll && (
               <button
                 className="roll-again-btn"
-                onClick={() => window.rollRandomGame()}
+                onClick={() => window.rollRandomGame && window.rollRandomGame()}
                 title={window.t('pick_random_title')}
                 style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
@@ -779,9 +866,11 @@ function Drawer({ game, isRoll, onClose, auth, identity }) {
 
               <div className="gallery">
 
+                {/* keyed by game: a reused <img> would keep showing the previous game's
+                    screenshot (Roll again, Back) until the new one has loaded */}
                 {shots.map((s, i) => (
 
-                  <div key={i} className="shot" onClick={() => setOpenShot(i)}>
+                  <div key={game.id + ':' + i} className="shot" onClick={() => setOpenShot(i)}>
 
                     <img src={getShotUrl(s.image_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 

@@ -77,6 +77,7 @@ async function apiAuthHeaders() {
 const UP_GAME_EXTS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.exe'];
 const UP_GAME_MAX = 500 * 1024 * 1024;
 const UP_SHOT_MAX = 8 * 1024 * 1024;
+const SUBMIT_DRAFT_KEY = 'archive_submit_draft';
 const fmtMB = (b) => (b / (1024 * 1024) >= 100 ? Math.round(b / (1024 * 1024)) : (b / (1024 * 1024)).toFixed(1)) + ' MB';
 
 const TopBar = ({ crumb }) => (
@@ -103,11 +104,33 @@ function LoginGate({ icon, title, sub, onOpenLogin }) {
 // ── Game Submission form ────────────────────────────────────────────────────
 function SubmitGameView({ auth, identity, onOpenLogin }) {
   const POPULAR = React.useMemo(() => ((window.DATA && window.DATA.TAGS) || []).slice(0, 16).map((t) => t.name), []);
-  const [form, setForm] = React.useState({ name: '', url: '', desc: '' });
-  const [authors, setAuthors] = React.useState([identity?.nick || '']);
-  const [tags, setTags] = React.useState([]);
+  // A half-filled form outlives leaving the page and a reload in this tab, until it is
+  // sent (src/components.jsx readSession). A finished upload comes back with it, checked
+  // with the server again below; one still running when the page is left is stopped and
+  // its staged object freed (see the unmount effect). The Turnstile pass is never kept.
+  const [draft] = React.useState(() => {
+    const d = window.readSession(SUBMIT_DRAFT_KEY, {});
+    const str = (v) => (typeof v === 'string' ? v : '');
+    const strs = (v, min) => {
+      const a = Array.isArray(v) ? v.filter((x) => typeof x === 'string') : [];
+      return a.length >= min ? a : null;
+    };
+    const f = d.form && typeof d.form === 'object' ? d.form : {};
+    const u = d.up && typeof d.up === 'object' && typeof d.up.key === 'string' && d.up.key && typeof d.up.url === 'string' && d.up.url ? d.up : null;
+    return {
+      form: { name: str(f.name), url: str(f.url), desc: str(f.desc) },
+      authors: strs(d.authors, 1),
+      tags: strs(d.tags, 0) || [],
+      shots: strs(d.shots, 1),
+      fileMode: d.fileMode === 'upload' ? 'upload' : 'url',
+      up: u ? { st: 'done', pct: 100, name: str(u.name), size: Number(u.size) || 0, key: u.key, url: u.url, msg: '' } : null,
+    };
+  });
+  const [form, setForm] = React.useState(draft.form);
+  const [authors, setAuthors] = React.useState(() => draft.authors || [identity?.nick || '']);
+  const [tags, setTags] = React.useState(draft.tags);
   const [custom, setCustom] = React.useState('');
-  const [shots, setShots] = React.useState(['']);
+  const [shots, setShots] = React.useState(() => draft.shots || ['']);
   const [verified, setVerified] = React.useState(false);
   const [touched, setTouched] = React.useState(false);
   const [err, setErr] = React.useState('');
@@ -116,8 +139,8 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
 
   // Direct upload of the game file: 'url' keeps the classic link input;
   // 'upload' stages the file in R2 via a presigned PUT minted by our API.
-  const [fileMode, setFileMode] = React.useState('url');
-  const [up, setUp] = React.useState({ st: 'idle', pct: 0, name: '', size: 0, key: '', url: '', msg: '' });
+  const [fileMode, setFileMode] = React.useState(draft.fileMode);
+  const [up, setUp] = React.useState(() => draft.up || { st: 'idle', pct: 0, name: '', size: 0, key: '', url: '', msg: '' });
   const [shotBusy, setShotBusy] = React.useState(-1);
   const fileInputRef = React.useRef(null);
   const shotInputRef = React.useRef(null);
@@ -128,6 +151,44 @@ function SubmitGameView({ auth, identity, onOpenLogin }) {
   // stops touching state. This is what makes the X button effective during the
   // mint and verify phases (when no XHR exists to abort).
   const upGenRef = React.useRef(0);
+  const upRef = React.useRef(up);
+  upRef.current = up;
+
+  React.useEffect(() => {
+    if (done) { window.writeSession(SUBMIT_DRAFT_KEY, undefined); return; }
+    const kept = up.st === 'done' && up.key ? { name: up.name, size: up.size, key: up.key, url: up.url } : null;
+    window.writeSession(SUBMIT_DRAFT_KEY, { form, authors, tags, shots, fileMode, up: kept });
+  }, [done, form, authors, tags, shots, fileMode, up]);
+
+  // A restored upload is checked again (upload-complete only HEADs the staged object):
+  // when the server says it is gone or not this account's, the form asks for the file
+  // again. No answer, or no session yet, leaves it as it was.
+  React.useEffect(() => {
+    const key = draft.up && draft.up.key;
+    if (!key) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/submissions/upload-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(await apiAuthHeaders()) },
+          body: JSON.stringify({ key })
+        });
+        if (res.status !== 400 || !alive) return;
+        const data = await res.json().catch(() => ({}));
+        setUp((u) => (u.key === key ? { st: 'err', pct: 0, name: u.name, size: u.size, key: '', url: '', msg: data.error || '' } : u));
+      } catch (e) {}
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // Leaving the page mid-upload: nothing here could finish it, so stop it; the stranded
+  // chain frees whatever it staged at its next checkpoint.
+  React.useEffect(() => () => {
+    if (upRef.current.st !== 'busy') return;
+    upGenRef.current++;
+    if (xhrRef.current) { try { xhrRef.current.abort(); } catch (e) {} xhrRef.current = null; }
+  }, []);
 
   const cancelStagedKey = async (key) => {
     if (!key) return;
@@ -571,7 +632,7 @@ function RecordRow({ rec, kind }) {
 }
 
 function MyContentView({ auth, identity, onOpenLogin }) {
-  const [tab, setTab] = React.useState('subs');
+  const [tab, setTab] = window.useSessionState('archive_mycontent_tab', 'subs');
   const [phase, setPhase] = React.useState('loading'); // loading | ready | error
   const [data, setData] = React.useState({ subs: [], cmts: [] });
 

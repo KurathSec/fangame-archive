@@ -296,6 +296,8 @@ function CollectionsView({ auth, onOpenGame, onView, onOpenLogin }) {
   }, []);
   const games = (ids || []).map((id) => gamesById[id]).filter(Boolean);
   const count = ids === null ? null : games.length;
+  const scrollRef = React.useRef(null);
+  window.useScrollMemory(scrollRef, 'archive_collections_scroll');
 
   const header = (
     <div className="topbar">
@@ -344,7 +346,7 @@ function CollectionsView({ auth, onOpenGame, onView, onOpenLogin }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
       {header}
-      <div className="collview">
+      <div className="collview" ref={scrollRef}>
         <div className="collview-inner">
           <div className="coll-head">
             <h1 className="coll-title">
@@ -978,14 +980,23 @@ function SharedCollectionView({ token, onOpenGame, onView, onShowInBrowse }) {
 
 // ── Public library ───────────────────────────────────────────────────────────
 function PublicLibraryView({ auth, onView, onShowInBrowse }) {
-  const [state, setState] = React.useState({ loading: true, error: false, items: [], page: 1, hasMore: false });
+  // The page this tab was on comes back with it (src/components.jsx useSessionState);
+  // one that no longer exists (collections taken down since) falls back to the first.
+  const [savedPage, setSavedPage] = window.useSessionState('archive_publib_page', 1);
+  const [state, setState] = React.useState({ loading: true, error: false, items: [], page: savedPage, hasMore: false });
   const load = React.useCallback((page) => {
     setState((s) => ({ ...s, loading: true, error: false }));
     CollectionsAPI.publicList(page).then((d) => {
-      setState({ loading: false, error: false, items: d.collections || [], page: d.page || page, hasMore: !!d.hasMore });
+      const items = d.collections || [];
+      if (!items.length && page > 1) { load(1); return; }
+      const at = d.page || page;
+      setState({ loading: false, error: false, items, page: at, hasMore: !!d.hasMore });
+      setSavedPage(at);
     }).catch(() => setState((s) => ({ ...s, loading: false, error: true })));
   }, []);
-  React.useEffect(() => { load(1); }, [load]);
+  React.useEffect(() => { load(Math.max(1, Math.floor(savedPage) || 1)); }, [load]);
+  const scrollRef = React.useRef(null);
+  window.useScrollMemory(scrollRef, 'archive_publib_scroll');
 
   const open = (c) => { if (c.share_token) { window.history.pushState({}, '', '/?collection=' + c.share_token); window.dispatchEvent(new PopStateEvent('popstate')); } };
 
@@ -1035,7 +1046,7 @@ function PublicLibraryView({ auth, onView, onShowInBrowse }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>
       {header}
-      <div className="collview"><div className="collview-inner">
+      <div className="collview" ref={scrollRef}><div className="collview-inner">
         <div className="coll-head"><h1 className="coll-title"><span className="coll-title-star">{window.ic2.shield}</span>{t('nav.public_collections', 'Public Collections')}</h1>
           <p className="coll-sub">{t('publib_sub', 'Community-shared game lists, reviewed before they appear here.')}</p></div>
         {body}
@@ -1047,7 +1058,8 @@ function PublicLibraryView({ auth, onView, onShowInBrowse }) {
 // ── Manager panel on the "My Collections" page ──────────────────────────────
 function CollectionsManager({ auth, onOpenGame }) {
   const { collections, error, reload } = useCollections(auth);
-  const [selected, setSelected] = React.useState(null);
+  // The list this tab had open stays open (src/components.jsx useSessionState).
+  const [selected, setSelected] = window.useSessionState('archive_collections_open', null);
   const [modal, setModal] = React.useState(null); // {collection?} | {parentId?} | {}
   const [detail, setDetail] = React.useState({ loading: false, games: [], col: null });
   const tree = React.useMemo(() => buildTree(collections || []), [collections]);
@@ -1062,7 +1074,12 @@ function CollectionsManager({ auth, onOpenGame }) {
       const byId = {}; (window.DATA.GAMES || []).forEach((g) => { byId[g.id] = g; });
       const games = (col.game_ids || []).map((id) => byId[id]).filter(Boolean);
       setDetail({ loading: false, games, col });
-    }).catch(() => { if (alive) setDetail({ loading: false, games: [], col: null }); });
+    }).catch(() => {
+      if (!alive) return;
+      setDetail({ loading: false, games: [], col: null });
+      // (gone since, or another account's: back to the overview)
+      setSelected(null);
+    });
     return () => { alive = false; };
   }, [selected, collections]);
 

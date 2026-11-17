@@ -1,5 +1,40 @@
 [
   {
+    "ver": "2026.054",
+    "date": "2026-11-18",
+    "note": "Pages keep what you left them with",
+    "changes": [
+      [
+        "Fixed",
+        "Browse Games keeps its search, filters, sort order, page and scroll position when you switch to another page and come back, or reload. Before, only coming back from the browser player kept them. \"Show in Browse Games\" on a public collection and \"show playable games\" still start from just that filter."
+      ],
+      [
+        "Fixed",
+        "A game opened with Roll Random keeps its Roll again button after a reload, and after Back and Forward."
+      ],
+      [
+        "Fixed",
+        "Roll again, and Back or Forward between games, showed the previous game's screenshots in the details panel until the new ones had loaded. The same happened when stepping through screenshots in the full-size viewer. Each now shows an empty frame until its own image arrives."
+      ],
+      [
+        "Fixed",
+        "Public Collections keeps its page, and My Collections keeps the list you had open. Both also keep how far you had scrolled. My Content keeps the tab you were on."
+      ],
+      [
+        "Fixed",
+        "A half-filled Submit a Game form is kept when you leave the page or reload, along with a file that finished uploading. The verification check has to be done again. An upload still running when you leave is stopped."
+      ],
+      [
+        "Fixed",
+        "Going Back from a shared collection returns to the page you opened it from, such as Public Collections, instead of Browse Games."
+      ],
+      [
+        "Fixed",
+        "The author link in a game's details now searches that author in Browse Games from any page. On My Collections and shared collections it only closed the panel."
+      ]
+    ]
+  },
+  {
     "ver": "2026.053",
     "date": "2026-11-17",
     "note": "GameMaker 8.2 games show their graphics in the browser",
